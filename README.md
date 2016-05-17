@@ -16,5 +16,9 @@ $ git clone https://github.com/masa-su/Tars.git
 $ cd Tars
 $ python setup.py develop
 ```
+or
+```
+$ pip install -e git://github.com/masa-su/Tars
+```
 ## Examples
 Please go to the "examples" directory and try to execute some examples.
