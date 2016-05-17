@@ -13,8 +13,7 @@ We're going to support multiple latent layers in a few days.
 This library depends on Theano and Lasagne.
 ```
 $ git clone https://github.com/masa-su/Tars.git
-$ cd Tars
-$ python setup.py develop
+$ pip install -e Tars
 ```
 or
 ```
