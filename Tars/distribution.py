@@ -1,9 +1,7 @@
-from abc import ABCMeta, abstractmethod
 import numpy as np
 import theano 
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from functions import *
 import lasagne
 
 class Distribution(object):
