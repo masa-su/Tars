@@ -3,7 +3,7 @@ Tars is a simple variational autoencoder library. It supports the following mode
 * VAE
 * Conditional VAE
 * Various lowerbounds
-  * The evidence lowerbound (ELBO, original lowerbound)
+  * The evidence lowerbound (ELBO, which is the same as the original lowerbound)
   * The importance sampling lowerbound 
   * The variational R\'enyi bound
 
