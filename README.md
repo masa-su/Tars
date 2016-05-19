@@ -11,12 +11,12 @@ We're going to support multiple latent layers in a few days.
 
 ## Installation
 ```
-$ git clone https://github.com/masa-su/Tars.git
+$ git clone https://github.com/masa-su/Tars.git --process-dependency-links
 $ pip install -e Tars
 ```
 or
 ```
-$ pip install -e git://github.com/masa-su/Tars
+$ pip install -e git://github.com/masa-su/Tars --process-dependency-links
 ```
 When you execute this command, the following packages will be automatically installed in your environment:
 * Theano
