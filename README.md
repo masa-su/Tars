@@ -28,9 +28,10 @@ When you execute this command, the following packages will be automatically inst
 ## Examples
 Please go to the "examples" directory and try to execute some examples.
 
-## Generate images
+## Generated images
+### MNIST
 ![](https://github.com/masa-su/Tars/blob/master/examples/mnist.jpg?raw=true)
-
+### MNIST (conditional)
 ![](https://github.com/masa-su/Tars/blob/master/examples/mnist_conditional.jpg?raw=true)
-
+### CelebA
 ![](https://github.com/masa-su/Tars/blob/master/examples/celeba.jpg?raw=true)
