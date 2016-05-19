@@ -11,8 +11,8 @@ We're going to support multiple latent layers in a few days.
 
 ## Installation
 ```
-$ git clone https://github.com/masa-su/Tars.git --process-dependency-links
-$ pip install -e Tars
+$ git clone https://github.com/masa-su/Tars.git
+$ pip install -e Tars --process-dependency-links
 ```
 or
 ```
