@@ -46,12 +46,12 @@ class Bernoulli(Distribution):
         return self.mean_sum_samples(loglike)
 
     def sample_given_x(self, x, srng, deterministic=False):
-        mean, _ = self.mean(x, deterministic=deterministic)
-        return self.sample(mean, srng)
+        mean, params = self.mean(x, deterministic=deterministic)
+        return self.sample(mean, srng), params
 
     def sample_mean_given_x(self, x, deterministic=False):
-        mean, _ = self.mean(x, deterministic=deterministic)
-        return mean
+        mean, params = self.mean(x, deterministic=deterministic)
+        return mean, params
 
     def log_likelihood_given_x(self, samples, x, deterministic=False):
         mean, params = self.mean(x, deterministic=deterministic)
@@ -91,12 +91,12 @@ class Gaussian(Distribution):
         return self.mean_sum_samples(loglike)
 
     def sample_given_x(self, x, srng, deterministic=False):
-        mean, var, _ = self.mean(x, deterministic=deterministic)
-        return self.sample(mean, var, srng)
+        mean, var, params = self.mean(x, deterministic=deterministic)
+        return self.sample(mean, var, srng), params
 
     def sample_mean_given_x(self, x, deterministic=False):
-        mean, _, _ = self.mean(x, deterministic=deterministic)
-        return mean
+        mean, _, params = self.mean(x, deterministic=deterministic)
+        return mean, params
 
     def log_likelihood_given_x(self, samples, x, deterministic=False):
         mean, var, params = self.mean(x, deterministic=deterministic)

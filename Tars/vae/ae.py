@@ -75,13 +75,13 @@ class AE(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x, False)
+        samples, _ = self.p.sample_mean_given_x(x, False)
         self.p_sample_mean_x = theano.function(
             inputs=[x], outputs=samples, on_unused_input='ignore')
 
     def q_sample_mean_given_x(self):
         x = self.q.inputs
-        samples = self.q.sample_mean_given_x(x, False)
+        samples, _ = self.q.sample_mean_given_x(x, False)
         self.q_sample_mean_x = theano.function(
             inputs=[x], outputs=samples, on_unused_input='ignore')
 

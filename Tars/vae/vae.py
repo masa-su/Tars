@@ -35,10 +35,10 @@ class VAE(object):
         mean, var, q_param = self.q.mean(x, deterministic=False)
         KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        h = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
+        z, _ = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         loglike, p_param = self.p.log_likelihood_given_x(
-            rep_x[0], [h] + rep_x[1:])  # p(x|z,y,...)
+            rep_x[0], [z] + rep_x[1:])  # p(x|z,y,...)
         loglike = T.mean(loglike)
 
         params = q_param + p_param
@@ -55,7 +55,7 @@ class VAE(object):
 
         x = self.q.inputs
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        q_samples = self.q.sample_given_x(
+        q_samples, _ = self.q.sample_given_x(
             rep_x, self.srng, deterministic=False)
         log_iw, params = self.log_importance_weight(rep_x, q_samples)
 
@@ -131,13 +131,13 @@ class VAE(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x, deterministic=True)
+        samples, _ = self.p.sample_mean_given_x(x, deterministic=True)
         self.p_sample_mean_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
     def q_sample_mean_given_x(self):
         x = self.q.inputs
-        samples = self.q.sample_mean_given_x(x, deterministic=True)
+        samples, _ = self.q.sample_mean_given_x(x, deterministic=True)
         self.q_sample_mean_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
@@ -148,7 +148,7 @@ class VAE(object):
         mean, var, KL_param = self.q.mean(x, deterministic=True)
         KL = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
-        samples = self.q.sample_given_x(rep_x, self.srng)
+        samples, _ = self.q.sample_given_x(rep_x, self.srng)
 
         log_iw, _ = self.p.log_likelihood_given_x(rep_x, samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
@@ -159,7 +159,7 @@ class VAE(object):
     def log_marginal_likelihood_iwae(self, x, k):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples = self.q.sample_given_x(rep_x, self.srng)
+        samples, _ = self.q.sample_given_x(rep_x, self.srng)
 
         log_iw, _ = self.log_importance_weight(rep_x, samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
