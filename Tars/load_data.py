@@ -204,3 +204,66 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
             return X, None
 
     return load, plot, preprocess
+
+def celeba(toFloat=True, gray=False, rate=0.001, rseed=0):
+    p = paramaters()
+    def load(test=False):
+        x = np.load(DATAPATH+'celeba_images.npy')
+        y = np.load(DATAPATH+'celeba_attributes.npy').astype(np.float32)
+
+        x = np.rollaxis(x, 3, 1)
+        x = x[:, :, :61, :61]
+
+        if gray:
+            x = x[:, 0] * 0.2126 + x[:, 1] * 0.7152 + x[:, 2] * 0.0722
+            x = x.reshape((len(x), 64 * 64)).astype(np.float32)
+
+        if test:
+            train_x, test_x, train_y, test_y = train_test_split(
+                x, y, test_size=rate, random_state=rseed)
+        else:
+            train_x = x
+            train_y = y
+
+        if toFloat:
+            p.mean = np.mean(train_x, axis=0)
+            p.std = np.sqrt(np.mean((train_x - p.mean[np.newaxis])**2, axis=0))
+            train_x = ((train_x - p.mean[np.newaxis]) /
+                       p.std[np.newaxis]).astype(np.float32)
+            if test:
+                test_x = ((test_x - p.mean[np.newaxis]) /
+                          p.std[np.newaxis]).astype(np.float32)
+        else:
+            train_x = train_x / 255.
+            if test:
+                test_x = test_x / 255.
+
+        print train_x.shape
+
+        if test:
+            return train_x, train_y, test_x, test_y, test_x, test_y
+
+        else:
+            return train_x, train_y
+
+    def preprocess(X):
+        X = np.rollaxis(X, 3, 1)
+        X = ((X - p.mean[np.newaxis]) / p.std[np.newaxis]).astype(np.float32)
+        return X
+
+    def plot(X):
+        if gray is True:
+            if toFloat:
+                X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
+                X = X / 255.
+            X = X.reshape((X.shape[0], 61, 61))
+            return X, "gray"
+        else:
+            X = X.reshape((X.shape[0], 3, 61, 61))
+            if toFloat:
+                X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
+                X = X / 255.
+            X = np.rollaxis(X, 1, 4)
+            return X, None
+
+    return load, plot, preprocess
