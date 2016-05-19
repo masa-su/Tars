@@ -194,6 +194,8 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
             X = X.reshape((X.shape[0], 61, 61))
+            X[X < 0] = 0
+            X[X > 1] = 1
             return X, "gray"
         else:
             X = X.reshape((X.shape[0], 3, 61, 61))
@@ -201,6 +203,8 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
             X = np.rollaxis(X, 1, 4)
+            X[X < 0] = 0
+            X[X > 1] = 1
             return X, None
 
     return load, plot, preprocess
@@ -257,6 +261,8 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
             X = X.reshape((X.shape[0], 61, 61))
+            X[X < 0] = 0
+            X[X > 1] = 1
             return X, "gray"
         else:
             X = X.reshape((X.shape[0], 3, 61, 61))
@@ -264,6 +270,8 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
             X = np.rollaxis(X, 1, 4)
+            X[X < 0] = 0
+            X[X > 1] = 1
             return X, None
 
     return load, plot, preprocess
