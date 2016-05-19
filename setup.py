@@ -22,8 +22,9 @@ setup(
     description='Variational autoencoder library',
     url='https://github.com/masa-su/Tars',
     author='Masahiro Suzuki',
+    dependency_links=['git+https://github.com/Lasagne/Lasagne.git#egg=lasagne-0.2.dev1'],
     install_requires=[
-        'Lasagne',
+        'Lasagne==0.2.dev1',
         'matplotlib',
         'progressbar2',
         'Theano',
