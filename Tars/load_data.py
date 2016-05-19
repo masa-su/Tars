@@ -205,11 +205,11 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
 
     return load, plot, preprocess
 
-def celeba(toFloat=True, gray=False, rate=0.001, rseed=0):
+def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
     p = paramaters()
     def load(test=False):
-        x = np.load(DATAPATH+'celeba_images.npy')
-        y = np.load(DATAPATH+'celeba_attributes.npy').astype(np.float32)
+        x = np.load(datapath+'celeba_images.npy')
+        y = np.load(datapath+'celeba_attributes.npy').astype(np.float32)
 
         x = np.rollaxis(x, 3, 1)
         x = x[:, :, :61, :61]
