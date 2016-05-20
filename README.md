@@ -37,3 +37,5 @@ Please go to the "examples" directory and try to execute some examples.
 ![](https://github.com/masa-su/Tars/blob/master/examples/mnist_conditional.jpg?raw=true)
 ### CelebA
 ![](https://github.com/masa-su/Tars/blob/master/examples/celeba.jpg?raw=true)
+### CelebA (GAN)
+![](https://github.com/masa-su/Tars/blob/master/examples/celeba_gan.jpg?raw=true)
