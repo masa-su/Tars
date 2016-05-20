@@ -104,7 +104,7 @@ class GAN(object):
         z = self.p.inputs
         x = self.d.inputs
 
-        gx, p_params = self.p.sample_given_x(z, self.srng, deterministic=True) # x~p(x|z,y,...)
+        gx, p_params = self.p.sample_mean_given_x(z, deterministic=True) # x~p(x|z,y,...)
         t, d_params = self.d.sample_mean_given_x(x, deterministic=True) # t~d(t|x,y,...)
         gt, _ = self.d.sample_mean_given_x([gx]+x[1:], deterministic=True) # gt~d(t|gx,y,...)
 
