@@ -1,5 +1,6 @@
 # Tars
 Tars is a simple variational autoencoder library. It supports the following models:
+* Autoencoder
 * VAE (and conditional VAE)
 * GAN (and conditional GAN)
 * VAE-GAN (and conditional VAE-GAN)
