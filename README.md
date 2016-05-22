@@ -1,11 +1,9 @@
 # Tars
 Tars is a simple variational autoencoder library. It supports the following models:
-* VAE
-* Conditional VAE
-* GAN
-* Conditional GAN
-* VAE-GAN (new!)
-* Conditional VAE-GAN (new!)
+* VAE (and conditional VAE)
+* GAN (and conditional GAN)
+* VAE-GAN (and conditional VAE-GAN)
+* [Multimodal VAE](https://kaigi.org/jsai/webprogram/2016/paper-727.html) (new!)
 * Various lowerbounds
   * The evidence lowerbound (ELBO, which is the same as the original lowerbound)
   * The importance sampling lowerbound 
