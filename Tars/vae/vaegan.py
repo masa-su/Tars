@@ -58,14 +58,14 @@ class VAEGAN(VAE, GAN):
         d_updates = self.optimizer(d_loss, d_param, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=x+gz, outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x, outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
-            inputs=x+gz, outputs=lowerbound, updates=p_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x, outputs=lowerbound, updates=p_updates, on_unused_input='ignore')
         self.d_lowerbound_train = theano.function(
-            inputs=x+gz, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
 
         p_loss, d_loss, _ = self.vaegan_loss(gz, x, True)
-        self.test = theano.function(inputs=x+gz, outputs=[p_loss,d_loss], on_unused_input='ignore')
+        self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, n_z, rng):
         N = train_set[0].shape[0]
@@ -78,12 +78,11 @@ class VAEGAN(VAE, GAN):
 
             x = [_x[start:end] for _x in train_set]
             z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            z = [z] + x[1:]
-            xz = x+z
+            zx = [z]+x
 
-            train_L = self.q_lowerbound_train(*xz)
-            train_L = self.p_lowerbound_train(*xz)
-            train_L = self.d_lowerbound_train(*xz)
+            train_L = self.q_lowerbound_train(*zx)
+            train_L = self.p_lowerbound_train(*zx)
+            train_L = self.d_lowerbound_train(*zx)
 
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)

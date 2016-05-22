@@ -25,11 +25,11 @@ class GAN(object):
         p_updates = self.p_optimizer(p_loss, p_param, learning_rate=1e-4, beta1=0.5)
         d_updates = self.d_optimizer(d_loss, d_param, learning_rate=1e-4, beta1=0.5)
 
-        self.p_train = theano.function(inputs=x+z, outputs=[p_loss,d_loss], updates=p_updates, on_unused_input='ignore')
-        self.d_train = theano.function(inputs=x+z, outputs=[p_loss,d_loss], updates=d_updates, on_unused_input='ignore')
+        self.p_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=p_updates, on_unused_input='ignore')
+        self.d_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=d_updates, on_unused_input='ignore')
 
         p_loss, d_loss, _, _ = self.loss(z,x,True)
-        self.test = theano.function(inputs=x+z, outputs=[p_loss,d_loss], on_unused_input='ignore')
+        self.test = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def loss(self, z, x, deterministic=False):
         gx, p_param = self.p.sample_mean_given_x(z, deterministic=deterministic) # x~p(x|z,y,...)
@@ -55,12 +55,11 @@ class GAN(object):
 
             x = [_x[start:end] for _x in train_set]
             z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            z = [z] + x[1:]
-            xz = x+z
+            zx = [z]+x
             if i % (freq+1) == 0:
-                train_L = self.p_train(*xz)
+                train_L = self.p_train(*zx)
             else:
-                train_L = self.d_train(*xz)
+                train_L = self.d_train(*zx)
             train.append(np.array(train_L))
         train = np.mean(train, axis=0)
 
@@ -77,9 +76,8 @@ class GAN(object):
 
             x = [_x[start:end] for _x in test_set]
             z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            z = [z] + x[1:]
-            xz = x+z
-            test_L = self.test(*xz)
+            zx = [z] + x
+            test_L = self.test(*zx)
             test.append(np.array(test_L))
         test = np.mean(test, axis=0)
 
