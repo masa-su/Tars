@@ -11,7 +11,8 @@ from ..distribution import UnitGaussian
 
 class MVAE(VAE):
 
-    def __init__(self, q, p, n_batch, optimizer, l=1, k=1, alpha=None, random=1234):
+    def __init__(self, q, p, n_batch, optimizer, l=1, k=1, alpha=None, random=1234, gamma=0.1):
+        self.gamma = gamma
         super(MVAE, self).__init__(q, p, n_batch, optimizer, l, k, alpha, random)
 
     def lowerbound(self, random):
@@ -32,9 +33,22 @@ class MVAE(VAE):
             rep_x[1], [z])  # p(x1|z)
         loglike1 = T.mean(loglike1)
 
+        # ---penalty TODO: evaluation
+        z0, _ = self.q.sample_given_x([rep_x[0],T.zeros_like(rep_x[1])], self.srng, deterministic=False)
+        z1, _ = self.q.sample_given_x([T.zeros_like(rep_x[0]),rep_x[1]], self.srng, deterministic=False)
+
+        loglike0_given0, _ = self.p[0].log_likelihood_given_x(
+            rep_x[0], [z0])  # p(x0|z0)
+        loglike0_given0 = T.mean(loglike0_given0)
+
+        loglike1_given1, _ = self.p[1].log_likelihood_given_x(
+            rep_x[1], [z1])  # p(x1|z1)
+        loglike1_given1 = T.mean(loglike1_given1)
+        # ---
+
         params = q_param + p0_param + p1_param
-        lowerbound = [KL, loglike0, loglike1]
-        loss = -np.sum(lowerbound)
+        lowerbound = [KL, loglike0, loglike1, loglike0_given0, loglike1_given1]
+        loss = -np.sum(lowerbound[:3])-self.gamma*np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
