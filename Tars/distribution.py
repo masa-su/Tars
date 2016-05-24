@@ -69,6 +69,10 @@ class Bernoulli(Distribution):
         return [x, mean]
 
     def log_likelihood_given_x(self, samples, deterministic=False):
+        """
+        inputs : [x,sample]
+        outputs : p(sample|x)
+        """
         x, sample = samples
         mean = self.fprop(x, deterministic=deterministic)
         return self.log_likelihood(sample, mean)
@@ -207,7 +211,7 @@ class Multilayer(object):
         outputs : mean
         """
         samples = self.__sampling(x, srng, deterministic)
-        sample = self.distributions[-1].fprop(samples[-1:], deterministic=deterministic)
+        sample = self.distributions[-1].fprop(tolist(samples[-1]), deterministic=deterministic)
         return sample
 
     def sample_given_x(self, x, srng, deterministic=False):
@@ -216,7 +220,7 @@ class Multilayer(object):
         outputs : [x,z1,...,zn]
         """
         samples = self.__sampling(x, srng, deterministic)        
-        samples += self.distributions[-1].sample_given_x(samples[-1:], srng, deterministic=deterministic)[-1:]
+        samples += self.distributions[-1].sample_given_x(tolist(samples[-1]), srng, deterministic=deterministic)[-1:]
         return samples
 
     def sample_mean_given_x(self, x, srng, deterministic=False):
@@ -225,14 +229,15 @@ class Multilayer(object):
         outputs : [x,z1,...,zn]
         """
         mean = self.__sampling(x, srng, deterministic)
-        mean += self.distributions[-1].sample_mean_given_x(mean[-1:], deterministic=deterministic)[-1:]
+        mean += self.distributions[-1].sample_mean_given_x(tolist(mean[-1]), deterministic=deterministic)[-1:]
         return mean
 
     def log_likelihood_given_x(self, samples, deterministic=False):
         """
         inputs : [[x,y,...],z1,z2,...,zn] or [[zn,y,...],zn-1,...,x]
-        log_likelihood (q) : [q(z1|[x,y,...]),...,q(zn|zn-1)]
-        log_likelihood (p) : [p(zn-1|[zn,y,...]),...,p(x|z1)]
+        outputs : 
+           log_likelihood (q) : [q(z1|[x,y,...]),...,q(zn|zn-1)]
+           log_likelihood (p) : [p(zn-1|[zn,y,...]),...,p(x|z1)]
         """
         all_log_likelihood = 0
         for x, sample, d in zip(samples, samples[1:], self.distributions):
