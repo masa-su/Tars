@@ -32,7 +32,7 @@ class VAE(object):
 
     def lowerbound(self):
         x = self.q.inputs
-        mean, var = self.q.mean(x, self.srng, deterministic=False)
+        mean, var = self.q.fprop(x, self.srng, deterministic=False)
         KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
@@ -149,7 +149,7 @@ class VAE(object):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, l, axis=0) for _x in x]
 
-        mean, var = self.q.mean(x, self.srng, deterministic=True)
+        mean, var = self.q.fprop(x, self.srng, deterministic=True)
         KL = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
         samples = self.q.sample_given_x(rep_x, self.srng)
@@ -186,13 +186,13 @@ class VAE(object):
         inverse_samples = self.__inverse_samples(samples)
         p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples)
 
-        # log p(x|z) - log q(z|x)
+        # log p(x|z,y,...) - log q(z|x,y,...)
         log_iw += p_log_likelihood - q_log_likelihood
 
         # log p(z)
         log_iw += self.prior.log_likelihood(samples[-1])
 
-        # log p(x,z)/q(z|x)
+        # log p(x,z|y,...)/q(z|x,y,...)
         return log_iw
 
     def __inverse_samples(self, samples):

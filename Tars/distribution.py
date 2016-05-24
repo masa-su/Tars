@@ -18,7 +18,7 @@ class Distribution(object):
             self.mean_network, trainable=True)
         return params
 
-    def mean(self, x, srng=None, deterministic=False):
+    def fprop(self, x, srng=None, deterministic=False):
         inputs = dict(zip(self.given, x))
         mean = lasagne.layers.get_output(
             self.mean_network, inputs, deterministic=deterministic)
@@ -37,8 +37,8 @@ class Bernoulli(Distribution):
     def __init__(self, mean_network, given):
         super(Bernoulli, self).__init__(mean_network, given)
 
-    def mean(self, x, srng=None, deterministic=False):
-        mean = super(Bernoulli, self).mean(x, deterministic)
+    def fprop(self, x, srng=None, deterministic=False):
+        mean = super(Bernoulli, self).fprop(x, deterministic)
         return mean
 
     def sample(self, mean, srng):
@@ -50,18 +50,18 @@ class Bernoulli(Distribution):
 
     def sample_given_x(self, x, srng, deterministic=False):
         # outputs : [x,z]
-        mean = self.mean(x, deterministic=deterministic)
+        mean = self.fprop(x, deterministic=deterministic)
         return [x,self.sample(mean, srng)]
 
     def sample_mean_given_x(self, x, srng=None, deterministic=False):
         # outputs : [x,z]
-        mean = self.mean(x, deterministic=deterministic)
+        mean = self.fprop(x, deterministic=deterministic)
         return [x,mean]
 
     def log_likelihood_given_x(self, samples, deterministic=False):
         # inputs : [x, sample]
         x, sample = samples
-        mean = self.mean(x, deterministic=deterministic)
+        mean = self.fprop(x, deterministic=deterministic)
         return self.log_likelihood(sample, mean)
 
 
@@ -86,8 +86,8 @@ class Gaussian(Distribution):
         params += self.var_network.get_params(trainable=True)
         return params
 
-    def mean(self, x, srng=None, deterministic=False):
-        mean = super(Gaussian, self).mean(x, deterministic)
+    def fprop(self, x, srng=None, deterministic=False):
+        mean = super(Gaussian, self).fprop(x, deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
             self.var_network, inputs, deterministic=deterministic)  # simga**2
@@ -102,17 +102,17 @@ class Gaussian(Distribution):
         return self.mean_sum_samples(loglike)
 
     def sample_given_x(self, x, srng, deterministic=False):
-        mean, var = self.mean(x, deterministic=deterministic)
+        mean, var = self.fprop(x, deterministic=deterministic)
         return [x, self.sample(mean, var, srng)]
 
     def sample_mean_given_x(self, x, srng=None, deterministic=False):
-        mean, _ = self.mean(x, deterministic=deterministic)
+        mean, _ = self.fprop(x, deterministic=deterministic)
         return [x, mean]
 
     def log_likelihood_given_x(self, samples, deterministic=False):
         # inputs : [x, sample]
         x, sample = samples
-        mean, var = self.mean(x, deterministic=deterministic)
+        mean, var = self.fprop(x, deterministic=deterministic)
         return self.log_likelihood(sample, mean, var)
 
 
@@ -145,6 +145,7 @@ class Multilayer_distribution(object):
 
     def __init__(self, distributions):
         self.distributions = distributions
+        self.inputs = self.distributions[0].inputs
 
     def get_params(self):
         params = []
@@ -159,9 +160,9 @@ class Multilayer_distribution(object):
             samples.append(sample)
         return samples
 
-    def mean(self, x, srng, deterministic=False):
+    def fprop(self, x, srng, deterministic=False):
         samples = __sampling(x, srng, deterministic)
-        sample = self.distributions[-1].mean(inputs[-1], deterministic=deterministic)
+        sample = self.distributions[-1].fprop(inputs[-1], deterministic=deterministic)
         return sample
 
     def sample_given_x(self, x, srng, deterministic=False):
