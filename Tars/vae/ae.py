@@ -13,22 +13,24 @@ class AE(object):
         self.n_batch = n_batch
         self.optimizer = optimizer
 
+        np.random.seed(random)
+        self.srng = RandomStreams(seed=random)
+
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
 
         self.lowerbound(random)
 
     def lowerbound(self, random):
-        np.random.seed(random)
-        self.srng = RandomStreams(seed=random)
-
         x = self.q.inputs
-        z, q_param = self.q.mean(x, training=True)
-        loglike, p_param = self.p.log_likelihood_given_x(x, z)
+        z = self.q.fprop(x, deterministic=False)
+        loglike = self.p.log_likelihood_given_x([z,x])
         error = -loglike
-
-        params = q_param + p_param
         loss = T.mean(error)
+
+        q_params = self.q.get_params()
+        p_params = self.p.get_params()
+        params = q_params + p_params
 
         optimizer = self.optimizer(params=params)
         gparams = [T.grad(loss, param) for param in params]
@@ -75,19 +77,19 @@ class AE(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples, _ = self.p.sample_mean_given_x(x, False)
+        samples = self.p.sample_mean_given_x(x, False)
         self.p_sample_mean_x = theano.function(
             inputs=[x], outputs=samples, on_unused_input='ignore')
 
     def q_sample_mean_given_x(self):
         x = self.q.inputs
-        samples, _ = self.q.sample_mean_given_x(x, False)
+        samples = self.q.sample_mean_given_x(x, False)
         self.q_sample_mean_x = theano.function(
             inputs=[x], outputs=samples, on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x):
         n_x = x.shape[0]
-        z, _ = self.q.mean(x, training=True)
-        log_marginal_estimate, _ = self.p.log_likelihood_given_x(x, z)
+        z = self.q.fprop(x, deterministic=True)
+        log_marginal_estimate = self.p.log_likelihood_given_x(x, z)
 
         return log_marginal_estimate

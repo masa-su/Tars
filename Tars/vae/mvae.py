@@ -7,46 +7,46 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
 from ..util import t_repeat, LogMeanExp
 from ..distribution import UnitGaussian
-
+from copy import copy
 
 class MVAE(VAE):
 
     def __init__(self, q, p, n_batch, optimizer, l=1, k=1, alpha=None, random=1234, gamma=0.1):
         self.gamma = gamma
-        super(MVAE, self).__init__(q, p, n_batch, optimizer, l, k, alpha, random)
+        super(MVAE, self).__init__(q, p, n_batch, optimizer, l, k, None, random)
 
-    def lowerbound(self, random):
-        np.random.seed(random)
-        self.srng = RandomStreams(seed=random)
-
+    def lowerbound(self):
         x = self.q.inputs
-        mean, var, q_param = self.q.mean(x, deterministic=False)
+        mean, var = self.q.fprop(x, deterministic=False)
         KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z, _ = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
+        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
-        loglike0, p0_param = self.p[0].log_likelihood_given_x(
-            rep_x[0], [z])  # p(x0|z)
+        inverse_z = self.inverse_samples(self.__single_input(z,0))
+        loglike0 = self.p[0].log_likelihood_given_x(inverse_z)
         loglike0 = T.mean(loglike0)
 
-        loglike1, p1_param = self.p[1].log_likelihood_given_x(
-            rep_x[1], [z])  # p(x1|z)
+        inverse_z = self.inverse_samples(self.__single_input(z,1))
+        loglike1 = self.p[1].log_likelihood_given_x(inverse_z)
         loglike1 = T.mean(loglike1)
 
         # ---penalty TODO: evaluation
-        z0, _ = self.q.sample_given_x([rep_x[0],T.zeros_like(rep_x[1])], self.srng, deterministic=False)
-        z1, _ = self.q.sample_given_x([T.zeros_like(rep_x[0]),rep_x[1]], self.srng, deterministic=False)
+        z0 = self.q.sample_given_x([rep_x[0],T.zeros_like(rep_x[1])], self.srng, deterministic=False)
+        z1 = self.q.sample_given_x([T.zeros_like(rep_x[0]),rep_x[1]], self.srng, deterministic=False)
 
-        loglike0_given0, _ = self.p[0].log_likelihood_given_x(
-            rep_x[0], [z0])  # p(x0|z0)
+        inverse_z0 = self.inverse_samples(self.__single_input(z1,input=rep_x[0]))
+        loglike0_given0 = self.p[0].log_likelihood_given_x(inverse_z0)# p(x0|z0)
         loglike0_given0 = T.mean(loglike0_given0)
 
-        loglike1_given1, _ = self.p[1].log_likelihood_given_x(
-            rep_x[1], [z1])  # p(x1|z1)
+        inverse_z1 = self.inverse_samples(self.__single_input(z0,input=rep_x[1]))
+        loglike1_given1 = self.p[1].log_likelihood_given_x(inverse_z1)# p(x1|z1)
         loglike1_given1 = T.mean(loglike1_given1)
         # ---
 
-        params = q_param + p0_param + p1_param
+        q_params = self.q.get_params()
+        p0_params = self.p[0].get_params()
+        p1_params = self.p[1].get_params()
+        params = q_params + p0_params + p1_params
         lowerbound = [KL, loglike0, loglike1, loglike0_given0, loglike1_given1]
         loss = -np.sum(lowerbound[:3])-self.gamma*np.sum(lowerbound[3:])
 
@@ -56,29 +56,91 @@ class MVAE(VAE):
 
     def p_sample_mean_given_x(self):
         x = self.p[0].inputs
-        samples, _ = self.p[0].sample_mean_given_x(x, deterministic=True)
+        samples = self.p[0].sample_mean_given_x(x, deterministic=True)
         self.p0_sample_mean_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
         x = self.p[1].inputs
-        samples, _ = self.p[1].sample_mean_given_x(x, deterministic=True)
+        samples = self.p[1].sample_mean_given_x(x, deterministic=True)
         self.p1_sample_mean_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-    def log_importance_weight(self, rep_x, samples):
+    def log_importance_weight(self, samples):
+        """
+        inputs : [[x0,x1],z1,z2,...,zn]
+        outputs : log p(x0,x1,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
+        """
         log_iw = 0
-        p0_log_likelihood, p0_param = self.p[0].log_likelihood_given_x(
-            rep_x[0], [samples])  # p(x0|z)
-        p1_log_likelihood, p1_param = self.p[1].log_likelihood_given_x(
-            rep_x[1], [samples])  # p(x1|z)
-        q_log_likelihood, q_param = self.q.log_likelihood_given_x(
-            samples, rep_x)  # q(z|x0,x1)
 
-        # log p(x0,x1|z) - log q(z|x0,x1)
+        """
+        log q(z1,z2,...,zn|x0,x1)
+        samples : [[x0,x1],z1,z2,...,zn]
+        """
+        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+
+        """
+        log p(x0|z1,z2,...,zn,y,...)
+        inverse_samples0 : [zn,zn-1,...,x0]
+        """
+        inverse_samples0 = self.inverse_samples(self.__single_input(samples,0))
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+
+        """
+        log p(x1|z1,z2,...,zn,y,...)
+        inverse_samples1 : [zn,zn-1,...,x1]
+        """
+        inverse_samples1 = self.inverse_samples(self.__single_input(samples,1))
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
+
         log_iw += p0_log_likelihood + p1_log_likelihood - q_log_likelihood
+        log_iw += self.prior.log_likelihood(samples[-1])
 
-        # log p(z)
-        log_iw += self.prior.log_likelihood(samples)
+        return log_iw
 
-        # log p(x0,x1,z)/q(z|x0,x1)
-        return log_iw, q_param + p0_param + p1_param
+    def penalty_test(self, test_set, l=1):
+        x = self.q.inputs
+        rep_x = [t_repeat(_x, l, axis=0) for _x in x]
+        z0 = self.q.sample_given_x([rep_x[0],T.zeros_like(rep_x[1])], self.srng, deterministic=True)
+        z1 = self.q.sample_given_x([T.zeros_like(rep_x[0]),rep_x[1]], self.srng, deterministic=True)
+
+        inverse_z0 = self.inverse_samples(self.__single_input(z1,input=rep_x[0]))
+        loglike0_given0 = self.p[0].log_likelihood_given_x(inverse_z0)# p(x0|z0)
+        loglike0_given0 = T.mean(loglike0_given0)
+
+        inverse_z1 = self.inverse_samples(self.__single_input(z0,input=rep_x[1]))
+        loglike1_given1 = self.p[1].log_likelihood_given_x(inverse_z1)# p(x1|z1)
+        loglike1_given1 = T.mean(loglike1_given1)
+        
+        loss = [-loglike0_given0,-loglike1_given1]
+        self.loss_test = theano.function(
+            inputs=x, outputs=loss, on_unused_input='ignore')
+
+        N = test_set[0].shape[0]
+        nbatches = N // self.n_batch
+        pbar = ProgressBar(maxval=nbatches).start()
+        loss = []
+
+        for i in range(nbatches):
+            start = i * self.n_batch
+            end = start + self.n_batch
+
+            x = [_x[start:end] for _x in test_set]
+            test_L = self.loss_test(*x)
+            loss.append(np.array(test_L))
+            pbar.update(i)
+        loss = np.mean(loss, axis=0)
+        return loss
+
+    def __single_input(self, samples, i=0, input=None):
+        """
+        inputs : [[x,y,...],z1,z2,....]
+        outputs : 
+           i=0 : [[x],z1,z2,....]
+           i=1 : [[y],z1,z2,....]
+        """
+        _samples = copy(samples)
+        if input:
+            _samples[0] = [input]
+        else:
+            _samples[0] = [_samples[0][i]]
+        return _samples

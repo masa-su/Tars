@@ -21,20 +21,22 @@ class GAN(object):
 
         z = self.p.inputs
         x = self.d.inputs
-        p_loss, d_loss, p_param, d_param = self.loss(z,x)
-        p_updates = self.p_optimizer(p_loss, p_param, learning_rate=1e-4, beta1=0.5)
-        d_updates = self.d_optimizer(d_loss, d_param, learning_rate=1e-4, beta1=0.5)
+        p_loss, d_loss = self.loss(z,x)
+        p_params = self.p.get_params()
+        d_params = self.d.get_params()
+        p_updates = self.p_optimizer(p_loss, p_params, learning_rate=1e-4, beta1=0.5)
+        d_updates = self.d_optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.p_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=p_updates, on_unused_input='ignore')
         self.d_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=d_updates, on_unused_input='ignore')
 
-        p_loss, d_loss, _, _ = self.loss(z,x,True)
+        p_loss, d_loss = self.loss(z,x,True)
         self.test = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def loss(self, z, x, deterministic=False):
-        gx, p_param = self.p.sample_mean_given_x(z, deterministic=deterministic) # x~p(x|z,y,...)
-        t, d_param = self.d.sample_mean_given_x(x, deterministic=deterministic) # t~d(t|x,y,...)
-        gt, _ = self.d.sample_mean_given_x([gx]+x[1:], deterministic=deterministic) # gt~d(t|gx,y,...)
+        gx = self.p.sample_mean_given_x(z, deterministic=deterministic)[-1] # x~p(x|z,y,...)
+        t = self.d.sample_mean_given_x(x, deterministic=deterministic)[-1] # t~d(t|x,y,...)
+        gt = self.d.sample_mean_given_x([gx]+x[1:], deterministic=deterministic)[-1] # gt~d(t|gx,y,...)
 
         d_loss = -self.d.log_likelihood(T.ones_like(t),t).mean() # -log(t)
         d_g_loss = -self.d.log_likelihood(T.zeros_like(gt),gt).mean() # -log(1-gt)
@@ -42,7 +44,7 @@ class GAN(object):
 
         d_loss = d_loss + d_g_loss # -log(t)-log(1-gt)
 
-        return p_loss, d_loss, p_param, d_param
+        return p_loss, d_loss
 
     def train(self,train_set, n_z,  rng, freq=1):
         N = train_set[0].shape[0]
@@ -85,6 +87,6 @@ class GAN(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples, _ = self.p.sample_mean_given_x(x, deterministic=True)
+        samples = self.p.sample_mean_given_x(x, deterministic=True)
         self.p_sample_mean_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')

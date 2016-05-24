@@ -37,7 +37,7 @@ class VAE(object):
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
         
-        inverse_z = self.__inverse_samples(z) 
+        inverse_z = self.inverse_samples(z) 
         loglike = self.p.log_likelihood_given_x(inverse_z)
         loglike = T.mean(loglike)
 
@@ -154,7 +154,7 @@ class VAE(object):
 
         samples = self.q.sample_given_x(rep_x, self.srng)
         
-        inverse_samples = self.__inverse_samples(samples)
+        inverse_samples = self.inverse_samples(samples)
         log_iw = self.p.log_likelihood_given_x(inverse_samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
         log_marginal_estimate = KL + T.mean(log_iw_matrix, axis=1)
@@ -174,30 +174,35 @@ class VAE(object):
         return log_marginal_estimate
 
     def log_importance_weight(self, samples):
-        # inputs : [[x,y,...],z1,z2,...,zn]
+        """
+        inputs : [[x,y,...],z1,z2,...,zn]
+        outputs : log p(x,z1,z2,...,zn|y,...)/q(z1,z2,...,zn|x,y,...)
+        """
         log_iw = 0
 
-        # q(z|x,y,...)
-        # samples : [[x,y,...],z1,z2,...,zn]
+        """
+        log q(z1,z2,...,zn|x,y,...)
+        samples : [[x,y,...],z1,z2,...,zn]
+        """
         q_log_likelihood = self.q.log_likelihood_given_x(samples)
 
-        # p(x|z,y,...)
-        # inverse_samples : [[zn,y,...],zn-1,...,x]
-        inverse_samples = self.__inverse_samples(samples)
+        """
+        log p(x|z1,z2,...,zn,y,...)
+        inverse_samples : [[zn,y,...],zn-1,...,x]
+        """
+        inverse_samples = self.inverse_samples(samples)
         p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples)
 
-        # log p(x|z,y,...) - log q(z|x,y,...)
         log_iw += p_log_likelihood - q_log_likelihood
-
-        # log p(z)
         log_iw += self.prior.log_likelihood(samples[-1])
 
-        # log p(x,z|y,...)/q(z|x,y,...)
         return log_iw
 
-    def __inverse_samples(self, samples):
-        # inputs : [[x,y],z1,z2,...zn]
-        # outputs : [[zn,y],zn-1,...x]
+    def inverse_samples(self, samples):
+        """
+        inputs : [[x,y],z1,z2,...zn]
+        outputs : [[zn,y],zn-1,...x]
+        """
         inverse_samples = samples[::-1]
         inverse_samples[0] = [inverse_samples[0]] + inverse_samples[-1][1:]
         inverse_samples[-1] = inverse_samples[-1][0]

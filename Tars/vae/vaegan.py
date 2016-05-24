@@ -15,47 +15,47 @@ class VAEGAN(VAE, GAN):
     def __init__(self, q, p, d, n_batch, optimizer, l=1, k=1, gamma=1, random=1234):
         self.d = d
         self.gamma = gamma
+
         super(VAEGAN, self).__init__(q, p, n_batch, optimizer, l, k, alpha=None, random=random)
 
     def vaegan_loss(self, gz, x, deterministic=False):
-        p_loss, d_loss, _, d_param = self.loss(gz,x,deterministic)
+        p_loss, d_loss = self.loss(gz,x,deterministic)
 
-        z, _ = self.q.sample_given_x(x, self.srng, deterministic=deterministic)
-        rec_x, _ = self.p.sample_mean_given_x([z]+x[1:], deterministic=deterministic)
-
-        rec_t, _ = self.d.sample_mean_given_x([rec_x]+x[1:], deterministic=deterministic) # rec_t~d(rec_t|rec_x,y,...)
+        z = self.q.sample_given_x(x, self.srng, deterministic=deterministic)[-1]
+        rec_x = self.p.sample_mean_given_x([z]+x[1:], deterministic=deterministic)[-1]
+        rec_t = self.d.sample_mean_given_x([rec_x]+x[1:], deterministic=deterministic)[-1] # rec_t~d(rec_t|rec_x,y,...)
 
         rec_d_g_loss = -self.d.log_likelihood(T.zeros_like(rec_t),rec_t).mean() # -log(1-rec_t)
         rec_p_loss = -self.d.log_likelihood(T.ones_like(rec_t),rec_t).mean() # -log(rec_t)
         p_loss = p_loss + rec_p_loss
         d_loss = d_loss + rec_d_g_loss
-        return p_loss, d_loss, d_param
+        return p_loss, d_loss
 
-    def lowerbound(self, random):
-        np.random.seed(random)
-        self.srng = RandomStreams(seed=random)
-
+    def lowerbound(self):
         # ---VAE---
         x = self.q.inputs
-        mean, var, q_param = self.q.mean(x, deterministic=False)
+        mean, var = self.q.fprop(x, deterministic=False)
         KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z, _ = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
+        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
-        loglike, p_param = self.p.log_likelihood_given_x(
-            rep_x[0], [z] + rep_x[1:])  # p(x|z,y,...)
+        inverse_z = self.inverse_samples(z)
+        loglike = self.p.log_likelihood_given_x(inverse_z)
         loglike = T.mean(loglike)
         # TODO: feature-wise errors
 
         # ---GAN---
         gz = self.p.inputs
-        p_loss, d_loss, d_param = self.vaegan_loss(gz,x,False)
+        p_loss, d_loss = self.vaegan_loss(gz,x,False)
 
         lowerbound = [KL, loglike, p_loss, d_loss]
 
-        q_updates = self.optimizer(-lowerbound[0] - lowerbound[1], q_param, learning_rate=1e-4, beta1=0.5)
-        p_updates = self.optimizer(-self.gamma*lowerbound[1] + p_loss, p_param, learning_rate=1e-4, beta1=0.5)
-        d_updates = self.optimizer(d_loss, d_param, learning_rate=1e-4, beta1=0.5)
+        q_params = self.q.get_params()
+        p_params = self.p.get_params()
+        d_params = self.d.get_params()
+        q_updates = self.optimizer(-lowerbound[0] - lowerbound[1], q_params, learning_rate=1e-4, beta1=0.5)
+        p_updates = self.optimizer(-self.gamma*lowerbound[1] + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
+        d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
             inputs=gz[:1]+x, outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
@@ -64,7 +64,7 @@ class VAEGAN(VAE, GAN):
         self.d_lowerbound_train = theano.function(
             inputs=gz[:1]+x, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
 
-        p_loss, d_loss, _ = self.vaegan_loss(gz, x, True)
+        p_loss, d_loss = self.vaegan_loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, n_z, rng):
