@@ -53,3 +53,9 @@ def LogMeanExp(x, axis=0, keepdims=False):
     x_max = T.max(x, axis=axis, keepdims=keepdims)
     _x_max = T.max(x, axis=axis)
     return T.log(T.mean(T.exp(x - x_max), axis=axis)) + _x_max
+
+def tolist(x):
+    if type(x)==list:
+        return x
+    else:
+        return [x]
