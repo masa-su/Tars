@@ -18,46 +18,46 @@ class VAE(object):
         self.l = l
         self.k = k
 
+        np.random.seed(random)
+        self.srng = RandomStreams(seed=random)
+
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
         self.prior = UnitGaussian()
 
         if alpha is None:
-            self.lowerbound(random)
+            self.lowerbound()
         else:
-            self.lowerbound_renyi(alpha, random)
+            self.lowerbound_renyi(alpha)
 
-    def lowerbound(self, random):
-        np.random.seed(random)
-        self.srng = RandomStreams(seed=random)
-
+    def lowerbound(self):
         x = self.q.inputs
-        mean, var, q_param = self.q.mean(x, deterministic=False)
+        mean, var = self.q.mean(x, self.srng, deterministic=False)
         KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z, _ = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
-
-        loglike, p_param = self.p.log_likelihood_given_x(
-            rep_x[0], [z] + rep_x[1:])  # p(x|z,y,...)
+        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
+        
+        inverse_z = self.__inverse_samples(z) 
+        loglike = self.p.log_likelihood_given_x(inverse_z)
         loglike = T.mean(loglike)
 
-        params = q_param + p_param
         lowerbound = [KL, loglike]
         loss = -np.sum(lowerbound)
+
+        q_params = self.q.get_params()
+        p_params = self.p.get_params()
+        params = q_params + p_params
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
             inputs=x, outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
-    def lowerbound_renyi(self, alpha, random):
-        np.random.seed(random)
-        self.srng = RandomStreams(seed=random)
-
+    def lowerbound_renyi(self, alpha):
         x = self.q.inputs
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        q_samples, _ = self.q.sample_given_x(
+        q_samples = self.q.sample_given_x(
             rep_x, self.srng, deterministic=False)
-        log_iw, params = self.log_importance_weight(rep_x, q_samples)
+        log_iw = self.log_importance_weight(q_samples)
 
         log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
         log_iw_minus_max = log_iw_matrix - \
@@ -68,6 +68,10 @@ class VAE(object):
         iw_normalized = iw / T.sum(iw, axis=1, keepdims=True)
 
         lowerbound = T.mean(log_iw)
+
+        q_params = self.q.get_params()
+        p_params = self.p.get_params()
+        params = q_params + p_params
 
         if alpha == -np.inf:
             gparams = [T.grad(-T.sum(T.max(log_iw_matrix, axis=1)), param)
@@ -131,26 +135,27 @@ class VAE(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples, _ = self.p.sample_mean_given_x(x, deterministic=True)
+        samples = self.p.sample_mean_given_x(x, self.srng, deterministic=True)
         self.p_sample_mean_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def q_sample_mean_given_x(self):
         x = self.q.inputs
-        samples, _ = self.q.sample_mean_given_x(x, deterministic=True)
+        samples = self.q.sample_mean_given_x(x, self.srng, deterministic=True)
         self.q_sample_mean_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x, l):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, l, axis=0) for _x in x]
 
-        mean, var, KL_param = self.q.mean(x, deterministic=True)
+        mean, var = self.q.mean(x, self.srng, deterministic=True)
         KL = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
-        samples, _ = self.q.sample_given_x(rep_x, self.srng)
-
-        log_iw, _ = self.p.log_likelihood_given_x(rep_x, samples)
+        samples = self.q.sample_given_x(rep_x, self.srng)
+        
+        inverse_samples = self.__inverse_samples(samples)
+        log_iw = self.p.log_likelihood_given_x(inverse_samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
         log_marginal_estimate = KL + T.mean(log_iw_matrix, axis=1)
 
@@ -159,27 +164,41 @@ class VAE(object):
     def log_marginal_likelihood_iwae(self, x, k):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples, _ = self.q.sample_given_x(rep_x, self.srng)
+        samples = self.q.sample_given_x(rep_x, self.srng)
 
-        log_iw, _ = self.log_importance_weight(rep_x, samples)
+        log_iw = self.log_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = LogMeanExp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate
 
-    def log_importance_weight(self, rep_x, samples):
+    def log_importance_weight(self, samples):
+        # inputs : [[x,y,...],z1,z2,...,zn]
         log_iw = 0
-        p_log_likelihood, p_param = self.p.log_likelihood_given_x(
-            rep_x[0], [samples] + rep_x[1:])  # p(x|z,y,...)
-        q_log_likelihood, q_param = self.q.log_likelihood_given_x(
-            samples, rep_x)  # p(z|x,y,...)
+
+        # q(z|x,y,...)
+        # samples : [[x,y,...],z1,z2,...,zn]
+        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+
+        # p(x|z,y,...)
+        # inverse_samples : [[zn,y,...],zn-1,...,x]
+        inverse_samples = self.__inverse_samples(samples)
+        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples)
 
         # log p(x|z) - log q(z|x)
         log_iw += p_log_likelihood - q_log_likelihood
 
         # log p(z)
-        log_iw += self.prior.log_likelihood(samples)
+        log_iw += self.prior.log_likelihood(samples[-1])
 
         # log p(x,z)/q(z|x)
-        return log_iw, q_param + p_param
+        return log_iw
+
+    def __inverse_samples(self, samples):
+        # inputs : [[x,y],z1,z2,...zn]
+        # outputs : [[zn,y],zn-1,...x]
+        inverse_samples = samples[::-1]
+        inverse_samples[0] = [inverse_samples[0]] + inverse_samples[-1][1:]
+        inverse_samples[-1] = inverse_samples[-1][0]
+        return inverse_samples

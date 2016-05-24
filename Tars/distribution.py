@@ -2,7 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from util import gaussian_like
+from util import gaussian_like, tolist
 import lasagne
 
 
@@ -13,13 +13,16 @@ class Distribution(object):
         self.given = given
         self.inputs = [x.input_var for x in given]
 
-    def mean(self, x, deterministic=False):
+    def get_params(self):
+        params = lasagne.layers.get_all_params(
+            self.mean_network, trainable=True)
+        return params
+
+    def mean(self, x, srng=None, deterministic=False):
         inputs = dict(zip(self.given, x))
         mean = lasagne.layers.get_output(
             self.mean_network, inputs, deterministic=deterministic)
-        params = lasagne.layers.get_all_params(
-            self.mean_network, trainable=True)
-        return mean, params
+        return mean
 
     def mean_sum_samples(self, samples):
         n_dim = samples.ndim
@@ -34,9 +37,9 @@ class Bernoulli(Distribution):
     def __init__(self, mean_network, given):
         super(Bernoulli, self).__init__(mean_network, given)
 
-    def mean(self, x, deterministic=False):
-        mean, params = super(Bernoulli, self).mean(x, deterministic)
-        return mean, params
+    def mean(self, x, srng=None, deterministic=False):
+        mean = super(Bernoulli, self).mean(x, deterministic)
+        return mean
 
     def sample(self, mean, srng):
         return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
@@ -46,16 +49,20 @@ class Bernoulli(Distribution):
         return self.mean_sum_samples(loglike)
 
     def sample_given_x(self, x, srng, deterministic=False):
-        mean, params = self.mean(x, deterministic=deterministic)
-        return self.sample(mean, srng), params
+        # outputs : [x,z]
+        mean = self.mean(x, deterministic=deterministic)
+        return [x,self.sample(mean, srng)]
 
-    def sample_mean_given_x(self, x, deterministic=False):
-        mean, params = self.mean(x, deterministic=deterministic)
-        return mean, params
+    def sample_mean_given_x(self, x, srng=None, deterministic=False):
+        # outputs : [x,z]
+        mean = self.mean(x, deterministic=deterministic)
+        return [x,mean]
 
-    def log_likelihood_given_x(self, samples, x, deterministic=False):
-        mean, params = self.mean(x, deterministic=deterministic)
-        return self.log_likelihood(samples, mean), params
+    def log_likelihood_given_x(self, samples, deterministic=False):
+        # inputs : [x, sample]
+        x, sample = samples
+        mean = self.mean(x, deterministic=deterministic)
+        return self.log_likelihood(sample, mean)
 
 
 class Categorical(Bernoulli):
@@ -74,13 +81,17 @@ class Gaussian(Distribution):
         super(Gaussian, self).__init__(mean_network, given)
         self.var_network = var_network
 
-    def mean(self, x, deterministic=False):
-        mean, params = super(Gaussian, self).mean(x, deterministic)
+    def get_params(self):
+        params = super(Gaussian, self).get_params()
+        params += self.var_network.get_params(trainable=True)
+        return params
+
+    def mean(self, x, srng=None, deterministic=False):
+        mean = super(Gaussian, self).mean(x, deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
             self.var_network, inputs, deterministic=deterministic)  # simga**2
-        params += self.var_network.get_params(trainable=True)
-        return mean, var, params
+        return mean, var
 
     def sample(self, mean, var, srng):
         eps = srng.normal(mean.shape)
@@ -91,16 +102,18 @@ class Gaussian(Distribution):
         return self.mean_sum_samples(loglike)
 
     def sample_given_x(self, x, srng, deterministic=False):
-        mean, var, params = self.mean(x, deterministic=deterministic)
-        return self.sample(mean, var, srng), params
+        mean, var = self.mean(x, deterministic=deterministic)
+        return [x, self.sample(mean, var, srng)]
 
-    def sample_mean_given_x(self, x, deterministic=False):
-        mean, _, params = self.mean(x, deterministic=deterministic)
-        return mean, params
+    def sample_mean_given_x(self, x, srng=None, deterministic=False):
+        mean, _ = self.mean(x, deterministic=deterministic)
+        return [x, mean]
 
-    def log_likelihood_given_x(self, samples, x, deterministic=False):
-        mean, var, params = self.mean(x, deterministic=deterministic)
-        return self.log_likelihood(samples, mean, var), params
+    def log_likelihood_given_x(self, samples, deterministic=False):
+        # inputs : [x, sample]
+        x, sample = samples
+        mean, var = self.mean(x, deterministic=deterministic)
+        return self.log_likelihood(sample, mean, var)
 
 
 class Gaussian_nonvar(Bernoulli):
@@ -125,3 +138,48 @@ class UnitGaussian(Distribution):
         loglike = gaussian_like(samples,
                                 T.zeros_like(samples), T.ones_like(samples))
         return T.mean(self.mean_sum_samples(loglike))
+
+
+# TODO: conplicated conditional version
+class Multilayer_distribution(object):
+
+    def __init__(self, distributions):
+        self.distributions = distributions
+
+    def get_params(self):
+        params = []
+        for d in self.distributions:
+            params += d.get_params()
+        return params
+
+    def __sampling(self, x, srng, deterministic):
+        samples = [x]
+        for i, d in enumerate(self.distributions[:-1]):
+            sample = d.sample_given_x(samples[i], srng, deterministic=deterministic)
+            samples.append(sample)
+        return samples
+
+    def mean(self, x, srng, deterministic=False):
+        samples = __sampling(x, srng, deterministic)
+        sample = self.distributions[-1].mean(inputs[-1], deterministic=deterministic)
+        return sample
+
+    def sample_given_x(self, x, srng, deterministic=False):
+        samples = __sampling(x, srng, deterministic)        
+        sample = self.distributions[-1].sample_given_x(samples[-1], deterministic=deterministic)
+        return sample
+
+    def sample_mean_given_x(self, x, srng, deterministic=False):
+        samples = __sampling(x, srng, deterministic)        
+        mean = self.distributions[-1].sample_mean_given_x(samples[-1], deterministic=deterministic)
+        return mean
+
+    def log_likelihood_given_x(self, samples, deterministic=False):
+        # inputs : [[x,y,...],z1,z2,...,zn] or [[zn,y,...],zn-1,...,x]
+        # log_likelihood (q) : [q(z1|[x,y,...]),...,q(zn|zn-1)]
+        # log_likelihood (p) : [p(zn-1|[zn,y,...]),...,p(x|z1)]
+        all_log_likelihood = 0
+        for x, sample, d in zip(samples, samples[1:], self.distributions):
+            log_likelihood = self.distributions.log_likelihood_given_x([tolist(x),sample])
+            all_log_likelihood += log_likelihood
+        return all_log_likelihood
