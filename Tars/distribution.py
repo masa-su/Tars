@@ -91,6 +91,16 @@ class Categorical(Bernoulli):
         loglike = samples * T.log(mean)
         return self.mean_sum_samples(loglike)
 
+class Bernoulli_tanh(Bernoulli):
+
+    def __init__(self, mean_network, given):
+        super(Bernoulli_tanh, self).__init__(mean_network, given)
+
+    def log_likelihood(self, samples, mean):
+        samples = 0.5*(1 + samples)
+        mean = 0.5*(1 + mean)
+        loglike = samples * T.log(mean) + (1 - samples) * T.log(1 - mean)
+        return self.mean_sum_samples(loglike)
 
 class Gaussian(Distribution):
     """
