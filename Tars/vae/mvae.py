@@ -23,11 +23,11 @@ class MVAE(VAE):
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
-        inverse_z = self.inverse_samples(self.__single_input(z,0))
+        inverse_z = self.inverse_samples(self.single_input(z,0))
         loglike0 = self.p[0].log_likelihood_given_x(inverse_z)
         loglike0 = T.mean(loglike0)
 
-        inverse_z = self.inverse_samples(self.__single_input(z,1))
+        inverse_z = self.inverse_samples(self.single_input(z,1))
         loglike1 = self.p[1].log_likelihood_given_x(inverse_z)
         loglike1 = T.mean(loglike1)
         
@@ -37,14 +37,9 @@ class MVAE(VAE):
         mean0, var0 = self.q.fprop([x[0],T.zeros_like(x[1])], self.srng, deterministic=False)
         mean1, var1 = self.q.fprop([T.zeros_like(x[0]),x[1]], self.srng, deterministic=False)
 
-        def measure_KL(mean0,var0,mean1,var1):
-            # KL[p(x|mean0,var0)||q(x|mean1,var1)]
-            KL = T.log(var1) - T.log(var0) + T.exp(T.log(var0) - T.log(var1)) + (mean0 - mean1)**2 / T.exp(T.log(var1))
-            return 0.5 * T.mean(T.sum(KL,axis=1))
-
         # KL[q(x0,0)||q(x0,x1)]
-        KL_0  =  measure_KL(mean,var,mean0,var0)
-        KL_1  =  measure_KL(mean,var,mean1,var1)
+        KL_0  =  self.measure_KL(mean,var,mean0,var0)
+        KL_1  =  self.measure_KL(mean,var,mean1,var1)
 
         # ---
 
@@ -113,14 +108,14 @@ class MVAE(VAE):
         log p(x0|z1,z2,...,zn,y,...)
         inverse_samples0 : [zn,zn-1,...,x0]
         """
-        inverse_samples0 = self.inverse_samples(self.__single_input(samples,0))
+        inverse_samples0 = self.inverse_samples(self.single_input(samples,0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
         """
         log p(x1|z1,z2,...,zn,y,...)
         inverse_samples1 : [zn,zn-1,...,x1]
         """
-        inverse_samples1 = self.inverse_samples(self.__single_input(samples,1))
+        inverse_samples1 = self.inverse_samples(self.single_input(samples,1))
         p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
 
         log_iw += p0_log_likelihood + p1_log_likelihood - q_log_likelihood
@@ -136,11 +131,11 @@ class MVAE(VAE):
         z0 = self.q.sample_given_x([rep_x[0],T.zeros_like(rep_x[1])], self.srng, deterministic=True)
         z1 = self.q.sample_given_x([T.zeros_like(rep_x[0]),rep_x[1]], self.srng, deterministic=True)
 
-        inverse_z0 = self.inverse_samples(self.__single_input(z1,input=rep_x[0]))
+        inverse_z0 = self.inverse_samples(self.single_input(z1,input=rep_x[0]))
         loglike0_given0 = self.p[0].log_likelihood_given_x(inverse_z0)# p(x0|z0)
         loglike0_given0 = T.mean(loglike0_given0)
 
-        inverse_z1 = self.inverse_samples(self.__single_input(z0,input=rep_x[1]))
+        inverse_z1 = self.inverse_samples(self.single_input(z0,input=rep_x[1]))
         loglike1_given1 = self.p[1].log_likelihood_given_x(inverse_z1)# p(x1|z1)
         loglike1_given1 = T.mean(loglike1_given1)
         
@@ -164,7 +159,7 @@ class MVAE(VAE):
         loss = np.mean(loss, axis=0)
         return loss
 
-    def __single_input(self, samples, i=0, input=None):
+    def single_input(self, samples, i=0, input=None):
         """
         inputs : [[x,y,...],z1,z2,....]
         outputs : 
@@ -177,3 +172,8 @@ class MVAE(VAE):
         else:
             _samples[0] = [_samples[0][i]]
         return _samples
+
+    def measure_KL(self,mean0,var0,mean1,var1):
+        # KL[p(x|mean0,var0)||q(x|mean1,var1)]
+        KL = T.log(var1) - T.log(var0) + T.exp(T.log(var0) - T.log(var1)) + (mean0 - mean1)**2 / T.exp(T.log(var1))
+        return 0.5 * T.mean(T.sum(KL,axis=1))
