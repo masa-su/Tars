@@ -72,6 +72,7 @@ class VAEGAN(VAE, GAN):
         nbatches = N // self.n_batch
         lowerbound_train = []
 
+        pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
@@ -85,6 +86,8 @@ class VAEGAN(VAE, GAN):
             train_L = self.d_lowerbound_train(*zx)
 
             lowerbound_train.append(np.array(train_L))
+            pbar.update(i)
+
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 
         return lowerbound_train
