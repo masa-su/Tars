@@ -139,10 +139,18 @@ class VAE(object):
         self.p_sample_mean_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
+        samples = self.p.sample_given_x(x, self.srng, deterministic=True)
+        self.p_sample_x = theano.function(
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
+
     def q_sample_mean_given_x(self):
         x = self.q.inputs
         samples = self.q.sample_mean_given_x(x, self.srng, deterministic=True)
         self.q_sample_mean_x = theano.function(
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
+
+        samples = self.q.sample_given_x(x, self.srng, deterministic=True)
+        self.q_sample_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x, l):
