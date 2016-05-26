@@ -9,7 +9,8 @@ Tars is a simple variational autoencoder library. It supports the following mode
   * The evidence lowerbound (ELBO, which is the same as the original lowerbound)
   * The importance sampling lowerbound 
   * The variational R\'enyi bound
-* Multiple latent layers (new!)
+* Multiple latent layers
+* Semi-supervised model (VAE,VAEGAN) (new!)
 
 ## Installation
 ```
