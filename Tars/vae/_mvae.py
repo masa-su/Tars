@@ -20,7 +20,7 @@ class MVAE(VAE):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
+        KL = 0.5 * T.mean(T.sum(1 + T.log(var+0.01) - mean**2 - var, axis=1))
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -68,9 +68,9 @@ class MVAE(VAE):
 
             x = [_x[start:end] for _x in train_set]
             train_L = self.lowerbound_train(*x)
+
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
-
         return lowerbound_train
 
     def p_sample_mean_given_x(self):
