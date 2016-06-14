@@ -5,7 +5,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from util import gaussian_like, tolist
 import lasagne
 
-
+# TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
 class Distribution(object):
 
     def __init__(self, mean_network, given):
@@ -99,17 +99,6 @@ class Categorical(Bernoulli):
         loglike = samples * T.log(mean)
         return self.mean_sum_samples(loglike)
 
-class Bernoulli_tanh(Bernoulli):
-
-    def __init__(self, mean_network, given):
-        super(Bernoulli_tanh, self).__init__(mean_network, given)
-
-    def log_likelihood(self, samples, mean):
-        samples = 0.5*(1 + samples)
-        mean = 0.5*(1 + mean)
-        loglike = samples * T.log(mean) + (1 - samples) * T.log(1 - mean)
-        return self.mean_sum_samples(loglike)
-
 class Gaussian(Distribution):
     """
     Gaussian distribution
@@ -192,6 +181,23 @@ class UnitGaussian(Distribution):
         loglike = gaussian_like(samples,
                                 T.zeros_like(samples), T.ones_like(samples))
         return T.mean(self.mean_sum_samples(loglike))
+
+class Laplace(Gaussian):
+    """
+    Laplace distribution
+    p(x) = \frac{1}{\sqrt{2*\phi}} * exp{-\frac{|x-mean|}{\phi}}
+    """
+
+    def __init__(self, mean_network, var_network, given):
+        super(Laplace, self).__init__(mean_network, var_network, given)
+
+    def sample(self, mean, b, srng):
+        eps = srng.uniform(mean.shape, low=-0.5, high=0.5)
+        return mean -b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
+
+    def log_likelihood(self, samples, mean, b):
+        loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
+        return self.mean_sum_samples(loglike)
 
 
 # TODO: conplicated conditional version
