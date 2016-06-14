@@ -31,6 +31,14 @@ class Distribution(object):
         elif n_dim == 4:
             return T.mean(T.sum(T.sum(samples, axis=2), axis=2), axis=1)
 
+class Deterministic(Distribution):
+    """
+    Deterministic function
+    p(x) = f(x)
+    """
+
+    def __init__(self, network, given):
+        super(Deterministic, self).__init__(network, given)
 
 class Bernoulli(Distribution):
     """
