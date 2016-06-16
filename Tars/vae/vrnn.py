@@ -27,27 +27,31 @@ class VRNN(object):
 
         self.lowerbound()
 
-    def iterate_lowerbound(self, x, h, deterministic=False):
+    def iterate_lowerbound(self, x, mask, h, deterministic=False):
         prior_mean, prior_var = self.prior.fprop([h], self.srng, deterministic=deterministic)
         q_mean, q_var = self.q.fprop([x, h], self.srng, deterministic=deterministic)
-        _KL = T.log(prior_var) - T.log(q_var) + T.exp(T.log(q_var) - T.log(prior_var)) + (q_mean - prior_mean)**2 / T.exp(T.log(prior_var))
-        KL = 0.5 * T.mean(T.sum(_KL,axis=1))
+
+        _KL = 0.5 * (T.log(prior_var) - T.log(q_var) +
+                     (q_var + (q_mean - prior_mean)**2) /
+                     prior_var - 1)
+        KL = T.mean(T.sum(_KL,axis=1) * mask)
         
         z = self.q.sample_given_x([x, h], self.srng, deterministic=deterministic) # z~q(z|x,h)
         inverse_z = self.inverse_samples(z)
-        loglike = self.p.log_likelihood_given_x(inverse_z) # p(x|z,h) 
-        loglike = T.mean(loglike)
+        loglike = self.p.log_likelihood_given_x(inverse_z) # p(x|z,h)
+        loglike = T.mean(loglike * mask)
 
         h = self.f.fprop([x, z[-1], h], deterministic=deterministic)
         return h, KL, loglike
 
     def lowerbound(self):
         x = T.tensor3('x').dimshuffle(1, 0, 2)
+        mask = T.matrix('mask').dimshuffle(1, 0)
         init_h = self.f.mean_network.get_hid_init(x.shape[1])
 
         [h_all,KL_all,loglike_all], scan_updates =\
             theano.scan(fn = self.iterate_lowerbound,
-                        sequences = [x],
+                        sequences = [x, mask],
                         outputs_info = [init_h, None, None])
         
         lowerbound = [-T.sum(KL_all), T.sum(loglike_all)]
@@ -64,13 +68,14 @@ class VRNN(object):
         updates = self.optimizer(loss, params) + scan_updates
 
         self.lowerbound_train = theano.function(
-            inputs=[x], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=[x, mask], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
     def train(self, train_set):
         N = train_set[0].shape[0]
         nbatches = N // self.n_batch
         lowerbound_train = []
 
+        pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
@@ -78,16 +83,18 @@ class VRNN(object):
             x = [_x[start:end] for _x in train_set]
             train_L = self.lowerbound_train(*x)
             lowerbound_train.append(np.array(train_L))
+            pbar.update(i)
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 
         return lowerbound_train
 
     def log_likelihood_test(self, test_set):
         x = T.tensor3('x').dimshuffle(1, 0, 2)
+        mask = T.matrix('mask').dimshuffle(1, 0)
         init_h = self.f.mean_network.get_hid_init(x.shape[1])
-        log_likelihood, updates = self.log_marginal_likelihood(x, init_h)
+        log_likelihood, updates = self.log_marginal_likelihood(x, mask, init_h)
         get_log_likelihood = theano.function(
-            inputs=[x], outputs=log_likelihood, updates=updates, on_unused_input='ignore')
+            inputs=[x,mask], outputs=log_likelihood, updates=updates, on_unused_input='ignore')
 
         print "start sampling"
 
@@ -149,11 +156,11 @@ class VRNN(object):
         self.q_sample_x = theano.function(
             inputs=[x], outputs=all_samples, updates=scan_updates, on_unused_input='ignore')
 
-    def log_marginal_likelihood(self, x, init_h):
+    def log_marginal_likelihood(self, x, mask, init_h):
         # TODO : deterministic=True
         [h_all,KL_all,loglike_all], scan_updates =\
             theano.scan(fn = self.iterate_lowerbound,
-                        sequences = [x],
+                        sequences = [x, mask],
                         outputs_info = [init_h, None, None])
         
         log_marginal_estimate = -T.sum(KL_all) + T.sum(loglike_all)
