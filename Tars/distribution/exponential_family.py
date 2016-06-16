@@ -2,7 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from util import gaussian_like, tolist
+from Tars.util import gaussian_like, tolist
 import lasagne
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
@@ -24,12 +24,15 @@ class Distribution(object):
             self.mean_network, inputs, deterministic=deterministic)
         return mean
 
+    def get_output_shape(self):
+        return self.mean_network.get_output_shape_for(self.inputs)
+
     def mean_sum_samples(self, samples):
         n_dim = samples.ndim
-        if n_dim == 2:
-            return T.sum(samples, axis=1)
-        elif n_dim == 4:
+        if n_dim == 4: #TODO:fix 
             return T.mean(T.sum(T.sum(samples, axis=2), axis=2), axis=1)
+        else:
+            return T.sum(samples, axis=-1)
 
 class Deterministic(Distribution):
     """
@@ -112,6 +115,7 @@ class Gaussian(Distribution):
     def get_params(self):
         params = super(Gaussian, self).get_params()
         params += self.var_network.get_params(trainable=True)
+        # TODO: fix duplicated paramaters
         return params
 
     def fprop(self, x, srng=None, deterministic=False):
@@ -149,6 +153,76 @@ class Gaussian(Distribution):
         x, sample = samples
         mean, var = self.fprop(x, deterministic=deterministic)
         return self.log_likelihood(sample, mean, var)
+
+class BivariateGauss(Gaussian):
+
+    def __init__(self, mean_network, var_network, corr_network, given):
+        super(BivariateGauss, self).__init__(mean_network, var_network, corr_network, given)
+
+    def get_params(self):
+        params = super(BivariateGauss, self).get_params()
+        params += self.corr_network.get_params(trainable=True)
+        return params
+
+    def fprop(self, x, srng=None, deterministic=False):
+        mean, var = super(BivariateGauss, self).fprop(x, deterministic)
+        inputs = dict(zip(self.given, x))
+        corr = lasagne.layers.get_output(
+            self.corr_network, inputs, deterministic=deterministic)
+        return mean, var, corr
+
+    def sample(self, mean, var, corr, srng):
+        # Cholesky
+        L = T.zeros((mean.shape[1],mean.shape[1]))
+        L[0,0] = T.sqrt(var[:,0][np.newaxis])
+        L[1,0] = corr/L[0,0]
+        L[1,1] = T.sqrt(var[:,1][np.newaxis] - L[1,0]**2)
+
+        eps = srng.normal(mean.shape)
+        return mean + T.dot(eps,L)
+
+    def log_likelihood(self, samples, mean, var):
+        mean_0 = mean[:, 0].reshape((-1, 1))
+        mean_1 = mean[:, 1].reshape((-1, 1))
+
+        var_0 = var[:, 0].reshape((-1, 1))
+        var_1 = var[:, 1].reshape((-1, 1))
+
+        samples_0 = samples[:, 0].reshape((-1, 1))
+        samples_1 = samples[:, 1].reshape((-1, 1))
+        corr = corr.reshape((-1, 1))
+
+        inner1 =  ((0.5*T.log(1-corr**2)) +
+                   0.5 * T.log(var_0) + 0.5 * T.log(var_1) + T.log(2 * np.pi))
+
+        z = ((samples_0 - mean_0))**2 / var_0 + ((samples_1 - mean_1))**2 / var_1 \
+             - (2. * (corr * (samples_0 - mean_0) * (samples_1 - mean_1)) / (T.sqrt(var_0) * T.sqrt(var_1)))
+
+        inner2 = 0.5 * (1. / (1. - corr**2))
+        loglike = inner1 + (inner2 * z)
+
+        return self.mean_sum_samples(loglike)
+
+    def sample_given_x(self, x, srng, deterministic=False):
+        """
+        inputs : x
+        outputs : [x,z]
+        """
+        mean, var, corr = self.fprop(x, deterministic=deterministic)
+        return [x, self.sample(mean, var, corr, srng)]
+
+    def sample_mean_given_x(self, x, srng=None, deterministic=False):
+        """
+        inputs : x
+        outputs : [x,z]
+        """
+        mean, _, _ = self.fprop(x, deterministic=deterministic)
+        return [x, mean]
+
+    def log_likelihood_given_x(self, samples, deterministic=False):
+        x, sample = samples
+        mean, var, corr = self.fprop(x, deterministic=deterministic)
+        return self.log_likelihood(sample, mean, var, corr)
 
 
 class Gaussian_nonvar(Bernoulli):
@@ -198,73 +272,3 @@ class Laplace(Gaussian):
     def log_likelihood(self, samples, mean, b):
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return self.mean_sum_samples(loglike)
-
-
-# TODO: conplicated conditional version
-class Multilayer(object):
-    """
-    Multiple layer distribution
-    p(x|z) = p(x|z1)p(z1|z2)...p(zn-1|zn)
-    q(z|x) = q(zn|zn-1)...q(z2|z1)q(z1|x)
-    """
-
-    def __init__(self, distributions):
-        self.distributions = distributions
-        self.inputs = self.distributions[0].inputs
-
-    def get_params(self):
-        params = []
-        for d in self.distributions:
-            params += d.get_params()
-        return params
-
-    def __sampling(self, x, srng, deterministic):
-        """
-        inputs : x
-        outputs : [x,z1,...,zn-1]
-        """
-        samples = [x]
-        for i, d in enumerate(self.distributions[:-1]):
-            sample = d.sample_given_x(samples[i], srng, deterministic=deterministic)
-            samples.append(sample[-1])
-        return samples
-
-    def fprop(self, x, srng, deterministic=False):
-        """
-        inputs : x
-        outputs : mean
-        """
-        samples = self.__sampling(x, srng, deterministic)
-        sample = self.distributions[-1].fprop(tolist(samples[-1]), deterministic=deterministic)
-        return sample
-
-    def sample_given_x(self, x, srng, deterministic=False):
-        """
-        inputs : x
-        outputs : [x,z1,...,zn]
-        """
-        samples = self.__sampling(x, srng, deterministic)        
-        samples += self.distributions[-1].sample_given_x(tolist(samples[-1]), srng, deterministic=deterministic)[-1:]
-        return samples
-
-    def sample_mean_given_x(self, x, srng, deterministic=False):
-        """
-        inputs : x
-        outputs : [x,z1,...,zn]
-        """
-        mean = self.__sampling(x, srng, deterministic)
-        mean += self.distributions[-1].sample_mean_given_x(tolist(mean[-1]), deterministic=deterministic)[-1:]
-        return mean
-
-    def log_likelihood_given_x(self, samples, deterministic=False):
-        """
-        inputs : [[x,y,...],z1,z2,...,zn] or [[zn,y,...],zn-1,...,x]
-        outputs : 
-           log_likelihood (q) : [q(z1|[x,y,...]),...,q(zn|zn-1)]
-           log_likelihood (p) : [p(zn-1|[zn,y,...]),...,p(x|z1)]
-        """
-        all_log_likelihood = 0
-        for x, sample, d in zip(samples, samples[1:], self.distributions):
-            log_likelihood = d.log_likelihood_given_x([tolist(x),sample])
-            all_log_likelihood += log_likelihood
-        return all_log_likelihood
