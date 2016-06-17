@@ -22,10 +22,9 @@ class GAN(object):
         z = self.p.inputs
         x = self.d.inputs
         p_loss, d_loss = self.loss(z,x)
-        p_params = self.p.get_params()
-        d_params = self.d.get_params()
-        p_updates = self.p_optimizer(p_loss, p_params, learning_rate=1e-4, beta1=0.5)
-        d_updates = self.d_optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
+
+        p_updates = self.p_optimizer(p_loss, self.p.get_params(), learning_rate=1e-4, beta1=0.5)
+        d_updates = self.d_optimizer(d_loss, self.d.get_params(), learning_rate=1e-4, beta1=0.5)
 
         self.p_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=p_updates, on_unused_input='ignore')
         self.d_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=d_updates, on_unused_input='ignore')
@@ -46,23 +45,26 @@ class GAN(object):
 
         return p_loss, d_loss
 
-    def train(self,train_set, n_z,  rng, freq=1):
+    def train(self,train_set, n_z, rng, freq=1):
         N = train_set[0].shape[0]
         nbatches = N // self.n_batch
         train = []
 
+        pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
 
             x = [_x[start:end] for _x in train_set]
             z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z]+x
+            zx = [z] + x
             if i % (freq+1) == 0:
                 train_L = self.p_train(*zx)
             else:
                 train_L = self.d_train(*zx)
             train.append(np.array(train_L))
+            pbar.update(i)
+
         train = np.mean(train, axis=0)
 
         return train
@@ -72,6 +74,7 @@ class GAN(object):
         nbatches = N // self.n_batch
         test = []
 
+        pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
@@ -81,6 +84,8 @@ class GAN(object):
             zx = [z] + x
             test_L = self.test(*zx)
             test.append(np.array(test_L))
+            pbar.update(i)
+
         test = np.mean(test, axis=0)
 
         return test
