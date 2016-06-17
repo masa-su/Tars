@@ -18,8 +18,8 @@ class VAEGAN(VAE, GAN):
 
         super(VAEGAN, self).__init__(q, p, n_batch, optimizer, l, k, alpha=None, random=random)
 
-    def vaegan_loss(self, gz, x, deterministic=False):
-        p_loss, d_loss = self.loss(gz,x,deterministic)
+    def loss(self, gz, x, deterministic=False):
+        p_loss, d_loss = super(VAEGAN, self).loss(gz, x, deterministic)
 
         z = self.q.sample_given_x(x, self.srng, deterministic=deterministic)[-1]
         rec_x = self.p.sample_mean_given_x([z]+x[1:], deterministic=deterministic)[-1]
@@ -46,7 +46,7 @@ class VAEGAN(VAE, GAN):
 
         # ---GAN---
         gz = self.p.inputs
-        p_loss, d_loss = self.vaegan_loss(gz,x,False)
+        p_loss, d_loss = self.loss(gz,x,False)
 
         lowerbound = [KL, loglike, p_loss, d_loss]
 
@@ -64,7 +64,7 @@ class VAEGAN(VAE, GAN):
         self.d_lowerbound_train = theano.function(
             inputs=gz[:1]+x, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
 
-        p_loss, d_loss = self.vaegan_loss(gz, x, True)
+        p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, n_z, rng):

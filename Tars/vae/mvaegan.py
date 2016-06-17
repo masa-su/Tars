@@ -17,16 +17,12 @@ class MVAEGAN(MVAE,GAN):
         self.gan_gamma = gan_gamma
         super(MVAEGAN, self).__init__(q, p, pq, n_batch, optimizer, l, k, random)
 
-    # TODO: more sophisticated
-    def loss(self, z, x, deterministic=False):
+    def loss(self, gz, x, deterministic=False):
+        # TODO: more sophisticated
         _p = self.p
         self.p = self.p[0]
-        p_loss, d_loss = super(MVAEGAN, self).loss(z, x, deterministic=deterministic)
+        p_loss, d_loss = super(MVAEGAN, self).loss(gz, x[:1], deterministic)
         self.p = _p
-        return p_loss, d_loss
-
-    def vaegan_loss(self, gz, x, deterministic=False):
-        p_loss, d_loss = self.loss(gz,x[:1],deterministic)
 
         z = self.q.sample_given_x(x, self.srng, deterministic=deterministic)[-1]
         rec_x = self.p[0].sample_mean_given_x([z], deterministic=deterministic)[-1]
@@ -65,7 +61,7 @@ class MVAEGAN(MVAE,GAN):
 
         # ---GAN---
         gz = self.p[0].inputs
-        p_loss, d_loss = self.vaegan_loss(gz,x,False)
+        p_loss, d_loss = self.loss(gz, x, False)
 
         q_params = self.q.get_params()
         p0_params = self.p[0].get_params()
@@ -87,7 +83,7 @@ class MVAEGAN(MVAE,GAN):
         self.d_lowerbound_train = theano.function(
             inputs=gz[:1]+x, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
 
-        p_loss, d_loss = self.vaegan_loss(gz, x, True)
+        p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, n_z, rng):
