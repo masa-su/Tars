@@ -10,7 +10,7 @@ from ..distribution import UnitGaussian
 
 class GAN(object):
 
-    def __init__(self, p, d, n_batch, p_optimizer, d_optimizer, random=1234):
+    def __init__(self, p, d, n_batch, p_optimizer, d_optimizer, learning_rate=1e-4, beta1=0.5, random=1234):
         self.p = p
         self.d = d
         self.n_batch = n_batch
@@ -23,8 +23,8 @@ class GAN(object):
         x = self.d.inputs
         p_loss, d_loss = self.loss(z,x)
 
-        p_updates = self.p_optimizer(p_loss, self.p.get_params(), learning_rate=1e-4, beta1=0.5)
-        d_updates = self.d_optimizer(d_loss, self.d.get_params(), learning_rate=1e-4, beta1=0.5)
+        p_updates = self.p_optimizer(p_loss, self.p.get_params(), learning_rate=learning_rate, beta1=beta1)
+        d_updates = self.d_optimizer(d_loss, self.d.get_params(), learning_rate=learning_rate, beta1=beta1)
 
         self.p_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=p_updates, on_unused_input='ignore')
         self.d_train = theano.function(inputs=z[:1]+x, outputs=[p_loss,d_loss], updates=d_updates, on_unused_input='ignore')
