@@ -148,7 +148,6 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
         y = np.load(datapath + 'lfw_attributes.npy').astype(np.float32)
 
         x = np.rollaxis(x, 3, 1)
-        x = x[:, :, :61, :61]
 
         if gray:
             x = x[:, 0] * 0.2126 + x[:, 1] * 0.7152 + x[:, 2] * 0.0722
@@ -192,12 +191,12 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
             if toFloat:
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
-            X = X.reshape((X.shape[0], 61, 61))
+            X = X.reshape((X.shape[0], 64, 64))
             X[X < 0] = 0
             X[X > 1] = 1
             return X, "gray"
         else:
-            X = X.reshape((X.shape[0], 3, 61, 61))
+            X = X.reshape((X.shape[0], 3, 64, 64))
             if toFloat:
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
@@ -215,7 +214,6 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
         y = np.load(datapath+'celeba_attributes.npy').astype(np.float32)
 
         x = np.rollaxis(x, 3, 1)
-        x = x[:, :, :61, :61]
 
         if gray:
             x = x[:, 0] * 0.2126 + x[:, 1] * 0.7152 + x[:, 2] * 0.0722
@@ -259,12 +257,12 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
             if toFloat:
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
-            X = X.reshape((X.shape[0], 61, 61))
+            X = X.reshape((X.shape[0], 64, 64))
             X[X < 0] = 0
             X[X > 1] = 1
             return X, "gray"
         else:
-            X = X.reshape((X.shape[0], 3, 61, 61))
+            X = X.reshape((X.shape[0], 3, 64, 64))
             if toFloat:
                 X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
                 X = X / 255.
