@@ -49,7 +49,7 @@ class VAEGAN_semi(VAEGAN):
 
         # ---GAN---
         gz = self.p.inputs
-        p_loss, d_loss = self.vaegan_loss(gz,x,False)
+        p_loss, d_loss = self.loss(gz,x,False)
 
         lowerbound = [KL, loglike, p_loss, d_loss, KL_semi, loglike_semi, loglike_f]
 
@@ -69,7 +69,7 @@ class VAEGAN_semi(VAEGAN):
         self.d_lowerbound_train = theano.function(
             inputs=gz[:1]+x+x_unlabel, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
 
-        p_loss, d_loss = self.vaegan_loss(gz, x, True)
+        p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, train_set_unlabel, n_z, rng):
