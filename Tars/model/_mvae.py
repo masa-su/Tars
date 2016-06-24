@@ -1,4 +1,4 @@
-from Tars.model.vae import VAE
+from Tars.model import VAE
 import numpy as np
 import theano
 import theano.tensor as T
