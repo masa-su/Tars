@@ -70,7 +70,7 @@ class MVAEGAN(MVAE,GAN):
 
         lowerbound = [-KL, loglike0, loglike1, KL_0, KL_1, p_loss, d_loss]
 
-        q_updates = self.optimizer(-KL-loglike0-loglike1+self.gamma*(KL_0+KL_1), q_params+p1_params+pq0_params+pq1_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(KL-loglike0-loglike1+self.gamma*(KL_0+KL_1), q_params+p1_params+pq0_params+pq1_params, learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(-self.gan_gamma*loglike0 + p_loss, p0_params, learning_rate=1e-4, beta1=0.5)
         d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
