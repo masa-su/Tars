@@ -6,7 +6,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..util import t_repeat, LogMeanExp
+from ..util import KL_gauss_gauss, KL_gauss_unitgauss, t_repeat, LogMeanExp
 from ..distribution import UnitGaussian
 from copy import copy
 
@@ -37,17 +37,15 @@ class MVAEGAN(MVAE,GAN):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
+        KL = KL_gauss_unitgauss(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         inverse_z = self.inverse_samples(self.single_input(z,0))
-        loglike0 = self.p[0].log_likelihood_given_x(inverse_z)
-        loglike0 = T.mean(loglike0)
+        loglike0 = self.p[0].log_likelihood_given_x(inverse_z).mean()
 
         inverse_z = self.inverse_samples(self.single_input(z,1))
-        loglike1 = self.p[1].log_likelihood_given_x(inverse_z)
-        loglike1 = T.mean(loglike1)
+        loglike1 = self.p[1].log_likelihood_given_x(inverse_z).mean()
         
         # ---penalty
         mean, var = self.q.fprop(x, deterministic=False)
@@ -56,8 +54,8 @@ class MVAEGAN(MVAE,GAN):
         mean1, var1 = self.pq[1].fprop([x[1]], self.srng, deterministic=False)
 
         # KL[q(x0,0)||q(x0,x1)]
-        KL_0  =  self.measure_KL(mean,var,mean0,var0)
-        KL_1  =  self.measure_KL(mean,var,mean1,var1)
+        KL_0 = KL_gauss_gauss(mean, var, mean0, var0).mean()
+        KL_1 = KL_gauss_gauss(mean, var, mean1, var1).mean()
 
         # ---GAN---
         gz = self.p[0].inputs
@@ -70,7 +68,7 @@ class MVAEGAN(MVAE,GAN):
         pq1_params = self.pq[1].get_params()
         d_params = self.d.get_params()
 
-        lowerbound = [KL, loglike0, loglike1, KL_0, KL_1, p_loss, d_loss]
+        lowerbound = [-KL, loglike0, loglike1, KL_0, KL_1, p_loss, d_loss]
 
         q_updates = self.optimizer(-KL-loglike0-loglike1+self.gamma*(KL_0+KL_1), q_params+p1_params+pq0_params+pq1_params, learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(-self.gan_gamma*loglike0 + p_loss, p0_params, learning_rate=1e-4, beta1=0.5)

@@ -5,7 +5,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..util import t_repeat, LogMeanExp
+from ..util import KL_gauss_gauss, t_repeat, LogMeanExp
 from ..distribution import UnitGaussian
 
 
@@ -20,32 +20,29 @@ class VAE_semi(VAE):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
-        KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
+        KL = KL_gauss_unitgauss(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
         
-        inverse_z = self.inverse_samples(z) 
-        loglike = self.p.log_likelihood_given_x(inverse_z)
-        loglike = T.mean(loglike)
+        inverse_z = self.inverse_samples(z)
+        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
 
         # --semi_supervise
         x_unlabel = self.f.inputs
         y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
         mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
-        KL_semi = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
+        KL_semi = KL_gauss_unitgauss(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
         rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]
         z = self.q.sample_given_x([rep_x_unlabel[0],rep_y], self.srng, deterministic=False)      
         inverse_z = self.inverse_samples(z)
-        loglike_semi = self.p.log_likelihood_given_x(inverse_z)
-        loglike_semi = T.mean(loglike_semi)
+        loglike_semi = self.p.log_likelihood_given_x(inverse_z).mean()
 
         # --train f
-        loglike_f = self.f.log_likelihood_given_x([[x[0]],x[1]])
-        loglike_f = T.mean(loglike_f)
+        loglike_f = self.f.log_likelihood_given_x([[x[0]],x[1]]).mean()
 
-        lowerbound = [KL, loglike, KL_semi, loglike_semi, loglike_f]
+        lowerbound = [-KL, loglike, -KL_semi, loglike_semi, loglike_f]
         loss = -np.sum(lowerbound[:-1]) - self.f_alpha*lowerbound[-1]
 
         q_params = self.q.get_params()

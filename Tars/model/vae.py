@@ -4,7 +4,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..util import t_repeat, LogMeanExp
+from ..util import KL_gauss_unitgauss t_repeat, LogMeanExp
 from ..distribution import UnitGaussian
 
 
@@ -33,15 +33,14 @@ class VAE(object):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
-        KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
+        KL = KL_gauss_unitgauss(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
         
         inverse_z = self.inverse_samples(z) 
-        loglike = self.p.log_likelihood_given_x(inverse_z)
-        loglike = T.mean(loglike)
+        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
 
-        lowerbound = [KL, loglike]
+        lowerbound = [-KL, loglike]
         loss = -np.sum(lowerbound)
 
         q_params = self.q.get_params()

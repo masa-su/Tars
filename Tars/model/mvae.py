@@ -5,7 +5,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..util import t_repeat, LogMeanExp
+from ..util import KL_gauss_gauss, KL_gauss_unitgauss, t_repeat, LogMeanExp
 from ..distribution import UnitGaussian
 from copy import copy
 
@@ -19,17 +19,15 @@ class MVAE(VAE):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = 0.5 * T.mean(T.sum(1 + T.log(var) - mean**2 - var, axis=1))
+        KL = KL_gauss_unitgauss(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         inverse_z = self.inverse_samples(self.single_input(z,0))
-        loglike0 = self.p[0].log_likelihood_given_x(inverse_z)
-        loglike0 = T.mean(loglike0)
+        loglike0 = self.p[0].log_likelihood_given_x(inverse_z).mean()
 
         inverse_z = self.inverse_samples(self.single_input(z,1))
-        loglike1 = self.p[1].log_likelihood_given_x(inverse_z)
-        loglike1 = T.mean(loglike1)
+        loglike1 = self.p[1].log_likelihood_given_x(inverse_z).mean()
         
         # ---penalty
         mean, var = self.q.fprop(x, deterministic=False)
@@ -38,8 +36,8 @@ class MVAE(VAE):
         mean1, var1 = self.q.fprop([T.zeros_like(x[0]),x[1]], self.srng, deterministic=False)
 
         # KL[q(x0,0)||q(x0,x1)]
-        KL_0  =  self.measure_KL(mean,var,mean0,var0)
-        KL_1  =  self.measure_KL(mean,var,mean1,var1)
+        KL_0 = KL_gauss_gauss(mean, var, mean0, var0).mean()
+        KL_1 = KL_gauss_gauss(mean, var, mean1, var1).mean()
 
         # ---
 
@@ -47,7 +45,7 @@ class MVAE(VAE):
         p0_params = self.p[0].get_params()
         p1_params = self.p[1].get_params()
         params = q_params + p0_params + p1_params
-        lowerbound = [KL, loglike0, loglike1, KL_0, KL_1]
+        lowerbound = [-KL, loglike0, loglike1, KL_0, KL_1]
         loss = -np.sum(lowerbound[:3])+self.gamma*np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)
@@ -172,8 +170,3 @@ class MVAE(VAE):
         else:
             _samples[0] = [_samples[0][i]]
         return _samples
-
-    def measure_KL(self,mean0,var0,mean1,var1):
-        # KL[p(x|mean0,var0)||q(x|mean1,var1)]
-        KL = T.log(var1) - T.log(var0) + T.exp(T.log(var0) - T.log(var1)) + (mean0 - mean1)**2 / T.exp(T.log(var1))
-        return 0.5 * T.mean(T.sum(KL,axis=1))
