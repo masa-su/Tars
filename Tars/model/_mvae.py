@@ -25,12 +25,10 @@ class MVAE(VAE):
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         inverse_z = self.inverse_samples(self.single_input(z,0))
-        loglike0 = self.p[0].log_likelihood_given_x(inverse_z)
-        loglike0 = T.mean(loglike0)
+        loglike0 = self.p[0].log_likelihood_given_x(inverse_z).mean()
 
         inverse_z = self.inverse_samples(self.single_input(z,1))
-        loglike1 = self.p[1].log_likelihood_given_x(inverse_z)
-        loglike1 = T.mean(loglike1)
+        loglike1 = self.p[1].log_likelihood_given_x(inverse_z).mean()
         
         # ---penalty
         mean, var = self.q.fprop(x, deterministic=False)
