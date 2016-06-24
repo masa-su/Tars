@@ -1,14 +1,5 @@
-import numpy as np
-import theano
 import theano.tensor as T
 import math
-
-from theano.sandbox.cuda.basic_ops import (as_cuda_ndarray_variable,
-                                           host_from_gpu,
-                                           gpu_contiguous, HostFromGpu,
-                                           gpu_alloc_empty)
-from theano.sandbox.cuda.dnn import GpuDnnConvDesc, GpuDnnConv, GpuDnnConvGradI, dnn_conv, dnn_pool
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 def gaussian_like(x, mean, var):
     c = - 0.5 * math.log(2 * math.pi)
