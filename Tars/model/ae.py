@@ -90,6 +90,6 @@ class AE(object):
     def log_marginal_likelihood(self, x):
         n_x = x.shape[0]
         z = self.q.fprop(x, deterministic=True)
-        log_marginal_estimate = self.p.log_likelihood_given_x(x, z)
+        log_marginal_estimate = self.p.log_likelihood_given_x([x,z])
 
         return log_marginal_estimate
