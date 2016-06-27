@@ -32,11 +32,9 @@ class AE(object):
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        optimizer = self.optimizer(params=params)
-        gparams = [T.grad(loss, param) for param in params]
-        updates = optimizer.updates(gparams)
+        updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=[x], outputs=loss, updates=updates, on_unused_input='ignore')
+            inputs=x, outputs=loss, updates=updates, on_unused_input='ignore')
 
     def train(self, train_set_x):
         N = train_set_x.shape[0]
