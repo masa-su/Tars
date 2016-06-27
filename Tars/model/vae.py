@@ -4,7 +4,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..utils import KL_gauss_unitgauss, t_repeat, LogMeanExp
+from ..utils import KL_gauss_unitgauss, t_repeat, log_mean_exp
 from ..distribution import UnitGaussian
 
 
@@ -183,7 +183,7 @@ class VAE(object):
 
         log_iw = self.log_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = LogMeanExp(
+        log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate

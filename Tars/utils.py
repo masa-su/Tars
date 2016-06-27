@@ -45,13 +45,13 @@ def t_repeat(x, num_repeats, axis):
     raise ValueError('x.ndim must be 2 or 4. x.ndim: {}'.format(x.ndim))
 
 
-def LogSumExp(x, axis=0, keepdims=False):
+def log_sum_exp(x, axis=0, keepdims=False):
     x_max = T.max(x, axis=axis, keepdims=keepdims)
     _x_max = T.max(x, axis=axis)
     return T.log(T.sum(T.exp(x - x_max), axis=axis)) + _x_max
 
 
-def LogMeanExp(x, axis=0, keepdims=False):
+def log_mean_exp(x, axis=0, keepdims=False):
     x_max = T.max(x, axis=axis, keepdims=keepdims)
     _x_max = T.max(x, axis=axis)
     return T.log(T.mean(T.exp(x - x_max), axis=axis)) + _x_max
