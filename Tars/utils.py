@@ -15,7 +15,7 @@ def KL_gauss_unitgauss(mean, var):
 
 def KL_gauss_gauss(mean0, var0, mean1, var1):
     kl = T.log(var1) - T.log(var0) + T.exp(T.log(var0) - T.log(var1)) + (mean0 - mean1)**2 / T.exp(T.log(var1))
-    return 0.5 * T.sum(kl,axis=1)
+    return 0.5 * T.sum(kl, axis=1)
 
 
 # https://github.com/yburda/iwae/blob/master/utils.py
