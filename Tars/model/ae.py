@@ -2,7 +2,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from ..distribution import UnitGaussian
 from progressbar import ProgressBar
 
 
