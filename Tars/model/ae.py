@@ -25,8 +25,8 @@ class AE(object):
     def lowerbound(self, random):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
-        loglike = self.p.log_likelihood_given_x([z,x]).mean()
-        error = -loglike
+        loglike = self.p.log_likelihood_given_x([x,z]).mean()
+        loss = -loglike
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
