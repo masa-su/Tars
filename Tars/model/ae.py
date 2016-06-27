@@ -27,15 +27,14 @@ class AE(object):
         z = self.q.fprop(x, deterministic=False)
         inverse_z = self.inverse_samples([x,z])
         loglike = self.p.log_likelihood_given_x(inverse_z).mean()
-        loss = -loglike
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        updates = self.optimizer(loss, params)
+        updates = self.optimizer(-loglike, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=loss, updates=updates, on_unused_input='ignore')
+            inputs=x, outputs=loglike, updates=updates, on_unused_input='ignore')
 
     def train(self, train_set):
         N = train_set[0].shape[0]
@@ -63,16 +62,16 @@ class AE(object):
         nbatches = N // self.n_batch
 
         pbar = ProgressBar(maxval=nbatches).start()
-        all_loss = []
+        all_log_likelihood = []
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
             x = [_x[start:end] for _x in test_set]
-            loss = -get_log_likelihood(*x)
-            all_loss = np.r_[all_loss, loss]
+            log_likelihood = get_log_likelihood(*x)
+            all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
             pbar.update(i)
 
-        return all_loss
+        return all_log_likelihood
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
