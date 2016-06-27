@@ -5,7 +5,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..util import KL_gauss_unitgauss, t_repeat, LogMeanExp
+from ..utils import KL_gauss_unitgauss, t_repeat, LogMeanExp
 from ..distribution import UnitGaussian
 
 

@@ -2,8 +2,10 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from Tars.util import gaussian_like, tolist
 import lasagne
+
+from ..utils import gaussian_like
+
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
 class Distribution(object):
