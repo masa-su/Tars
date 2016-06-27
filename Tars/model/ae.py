@@ -57,9 +57,9 @@ class AE(object):
         x = self.q.inputs
         log_likelihood = self.log_marginal_likelihood(x)
         get_log_likelihood = theano.function(
-            inputs=[x], outputs=log_likelihood, on_unused_input='ignore')
+            inputs=x, outputs=log_likelihood, on_unused_input='ignore')
 
-        N = test_set_x.shape[0]
+        N = test_set[0].shape[0]
         nbatches = N // self.n_batch
 
         pbar = ProgressBar(maxval=nbatches).start()
@@ -67,8 +67,8 @@ class AE(object):
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
-            x = test_set_x[start:end]
-            loss = -get_log_likelihood(x=x)
+            x = [_x[start:end] for _x in test_set]
+            loss = -get_log_likelihood(*x)
             all_loss = np.r_[all_loss, loss]
             pbar.update(i)
 
