@@ -33,7 +33,8 @@ def t_repeat(x, num_repeats, axis):
                     .reshape((x.shape[1], num_repeats * x.shape[0]))\
                     .dimshuffle(1, 0)
         elif axis == 1:
-            return T.alloc(x.dimshuffle(0, 'x', 1), x.shape[0], num_repeats, x.shape[1]).reshape((x.shape[0], num_repeats * x.shape[1]))
+            return T.alloc(x.dimshuffle(0, 'x', 1), x.shape[0], num_repeats, x.shape[1])\
+                .reshape((x.shape[0], num_repeats * x.shape[1]))
         raise ValueError('if x.ndim is 2, axis must be 0 or 1. axis: {}'.format(axis))
 
     elif x.ndim == 4:
