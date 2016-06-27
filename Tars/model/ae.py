@@ -25,7 +25,8 @@ class AE(object):
     def lowerbound(self, random):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
-        loglike = self.p.log_likelihood_given_x([x,z]).mean()
+        inverse_z = self.inverse_samples([x,z])
+        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
         loss = -loglike
 
         q_params = self.q.get_params()
@@ -36,8 +37,8 @@ class AE(object):
         self.lowerbound_train = theano.function(
             inputs=x, outputs=loss, updates=updates, on_unused_input='ignore')
 
-    def train(self, train_set_x):
-        N = train_set_x.shape[0]
+    def train(self, train_set):
+        N = train_set[0].shape[0]
         nbatches = N // self.n_batch
         lowerbound_train = []
 
@@ -45,8 +46,8 @@ class AE(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = train_set_x[start:end]
-            train_L = self.lowerbound_train(x=x)
+            x = [_x[start:end] for _x in train_set]
+            train_L = self.lowerbound_train(*x)
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 
@@ -88,6 +89,17 @@ class AE(object):
     def log_marginal_likelihood(self, x):
         n_x = x.shape[0]
         z = self.q.fprop(x, deterministic=True)
-        log_marginal_estimate = self.p.log_likelihood_given_x([x,z])
+        inverse_z = self.inverse_samples([x,z])
+        log_marginal_estimate = self.p.log_likelihood_given_x(inverse_z)
 
         return log_marginal_estimate
+
+    def inverse_samples(self, samples):
+        """
+        inputs : [[x,y],z1,z2,...zn]
+        outputs : [[zn,y],zn-1,...x]
+        """
+        inverse_samples = samples[::-1]
+        inverse_samples[0] = [inverse_samples[0]] + inverse_samples[-1][1:]
+        inverse_samples[-1] = inverse_samples[-1][0]
+        return inverse_samples
