@@ -83,7 +83,7 @@ class VAEGAN_semi(VAEGAN):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = rng.uniform(-1., 1., size=(len(x[0]), z_dim)).astype(np.float32)
+            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), z_dim)).astype(np.float32)
             batch_zx = [batch_z]+batch_x
 
             start = i * n_batch_unlabel
