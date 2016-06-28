@@ -2,8 +2,9 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from Tars.util import gaussian_like, tolist
 import lasagne
+
+from Tars.util import gaussian_like, tolist, _EPS
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
 class Distribution(object):
@@ -60,6 +61,7 @@ class Bernoulli(Distribution):
         return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
 
     def log_likelihood(self, samples, mean):
+        mean = T.clip(mean, _EPS, 1.0-_EPS) # for numerical stability
         loglike = samples * T.log(mean) + (1 - samples) * T.log(1 - mean)
         return self.mean_sum_samples(loglike)
 
@@ -99,6 +101,7 @@ class Categorical(Bernoulli):
         super(Categorical, self).__init__(mean_network, given)
 
     def log_likelihood(self, samples, mean):
+        mean = T.clip(mean, _EPS, 1.0-_EPS) # for numerical stability
         loglike = samples * T.log(mean)
         return self.mean_sum_samples(loglike)
 
@@ -185,12 +188,12 @@ class BivariateGauss(Gaussian):
         mean_0 = mean[:, 0].reshape((-1, 1))
         mean_1 = mean[:, 1].reshape((-1, 1))
 
-        var_0 = var[:, 0].reshape((-1, 1))
-        var_1 = var[:, 1].reshape((-1, 1))
+        var_0 = T.clip(var[:, 0].reshape((-1, 1)), _EPS, np.inf)
+        var_1 = T.clip(var[:, 1].reshape((-1, 1)), _EPS, np.inf)
 
         samples_0 = samples[:, 0].reshape((-1, 1))
         samples_1 = samples[:, 1].reshape((-1, 1))
-        corr = corr.reshape((-1, 1))
+        corr = T.clip(corr.reshape((-1, 1)), _EPS, 1.0-_EPS)
 
         inner1 =  ((0.5*T.log(1-corr**2)) +
                    0.5 * T.log(var_0) + 0.5 * T.log(var_1) + T.log(2 * np.pi))
@@ -270,5 +273,6 @@ class Laplace(Gaussian):
         return mean -b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
 
     def log_likelihood(self, samples, mean, b):
+        b = b + _EPS # for numerical stability
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return self.mean_sum_samples(loglike)
