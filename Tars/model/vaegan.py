@@ -66,7 +66,7 @@ class VAEGAN(VAE, GAN):
         p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
-    def train(self, train_set, n_z, rng):
+    def train(self, train_set, z_dim, rng):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -77,7 +77,7 @@ class VAEGAN(VAE, GAN):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
+            batch_z = rng.uniform(-1., 1., size=(len(x[0]), z_dim)).astype(np.float32)
             batch_zx = [batch_z]+batch_x
 
             train_L = self.q_lowerbound_train(*batch_zx)
