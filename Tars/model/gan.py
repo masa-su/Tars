@@ -46,8 +46,8 @@ class GAN(object):
         return p_loss, d_loss
 
     def train(self,train_set, n_z, rng, freq=1):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         train = []
 
         pbar = ProgressBar(maxval=nbatches).start()
@@ -70,8 +70,8 @@ class GAN(object):
         return train
 
     def gan_test(self,test_set, n_z, rng):
-        N = test_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = test_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         test = []
 
         pbar = ProgressBar(maxval=nbatches).start()

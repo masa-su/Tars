@@ -141,8 +141,8 @@ class MVAE(VAE):
         self.loss_test = theano.function(
             inputs=x, outputs=loss, on_unused_input='ignore')
 
-        N = test_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = test_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         pbar = ProgressBar(maxval=nbatches).start()
         loss = []
 

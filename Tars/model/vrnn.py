@@ -68,8 +68,8 @@ class VRNN(object):
             inputs=[x, mask], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
     def train(self, train_set):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         lowerbound_train = []
 
         pbar = ProgressBar(maxval=nbatches).start()
@@ -95,8 +95,8 @@ class VRNN(object):
 
         print "start sampling"
 
-        N = test_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = test_set[0].shape[0]
+        nbatches = n_x // self.n_batch
 
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []

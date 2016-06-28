@@ -70,8 +70,8 @@ class VAEGAN_semi(VAEGAN):
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, train_set_unlabel, n_z, rng):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         lowerbound_train = []
 
         N_unlabel = train_set_unlabel[0].shape[0]

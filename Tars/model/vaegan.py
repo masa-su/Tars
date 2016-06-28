@@ -67,8 +67,8 @@ class VAEGAN(VAE, GAN):
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
     def train(self, train_set, n_z, rng):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         lowerbound_train = []
 
         pbar = ProgressBar(maxval=nbatches).start()
