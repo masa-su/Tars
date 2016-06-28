@@ -56,7 +56,7 @@ class GAN(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
+            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), n_z)).astype(np.float32)
             batch_zx = [batch_z] + batch_x
             if i % (freq+1) == 0:
                 train_L = self.p_train(*batch_zx)
@@ -80,7 +80,7 @@ class GAN(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in test_set]
-            batch_z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
+            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), n_z)).astype(np.float32)
             batch_zx = [batch_z] + batch_x
             test_L = self.test(*batch_zx)
             test.append(np.array(test_L))
