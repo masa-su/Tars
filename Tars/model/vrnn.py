@@ -77,8 +77,8 @@ class VRNN(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*x)
+            batch_x = [_x[start:end] for _x in train_set]
+            train_L = self.lowerbound_train(*batch_x)
             lowerbound_train.append(np.array(train_L))
             pbar.update(i)
         lowerbound_train = np.mean(lowerbound_train, axis=0)
@@ -103,8 +103,8 @@ class VRNN(object):
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
-            x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*x)
+            batch_x = [_x[start:end] for _x in test_set]
+            log_likelihood = get_log_likelihood(*batch_x)
             all_log_likelihood.append(np.array(log_likelihood))
             pbar.update(i)
         all_log_likelihood = np.mean(all_log_likelihood, axis=0)

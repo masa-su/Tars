@@ -55,13 +55,13 @@ class GAN(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in train_set]
-            z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z] + x
+            batch_x = [_x[start:end] for _x in train_set]
+            batch_z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
+            batch_zx = [batch_z] + batch_x
             if i % (freq+1) == 0:
-                train_L = self.p_train(*zx)
+                train_L = self.p_train(*batch_zx)
             else:
-                train_L = self.d_train(*zx)
+                train_L = self.d_train(*batch_zx)
             train.append(np.array(train_L))
             pbar.update(i)
 
@@ -79,10 +79,10 @@ class GAN(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in test_set]
-            z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z] + x
-            test_L = self.test(*zx)
+            batch_x = [_x[start:end] for _x in test_set]
+            batch_z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
+            batch_zx = [batch_z] + batch_x
+            test_L = self.test(*batch_zx)
             test.append(np.array(test_L))
             pbar.update(i)
 

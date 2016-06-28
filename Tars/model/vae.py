@@ -99,8 +99,8 @@ class VAE(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*x)
+            batch_x = [_x[start:end] for _x in train_set]
+            train_L = self.lowerbound_train(*batch_x)
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 
@@ -125,8 +125,8 @@ class VAE(object):
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
-            x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*x)
+            batch_x = [_x[start:end] for _x in test_set]
+            log_likelihood = get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
             pbar.update(i)
 

@@ -150,8 +150,8 @@ class MVAE(VAE):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in test_set]
-            test_L = self.loss_test(*x)
+            batch_x = [_x[start:end] for _x in test_set]
+            test_L = self.loss_test(*batch_x)
             loss.append(np.array(test_L))
             pbar.update(i)
         loss = np.mean(loss, axis=0)

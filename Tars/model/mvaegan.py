@@ -94,13 +94,13 @@ class MVAEGAN(MVAE,GAN):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in train_set]
-            z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z]+x
+            batch_x = [_x[start:end] for _x in train_set]
+            batch_z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
+            batch_zx = [batch_z]+batch_x
 
-            train_L = self.q_lowerbound_train(*zx)
-            train_L = self.p_lowerbound_train(*zx)
-            train_L = self.d_lowerbound_train(*zx)
+            train_L = self.q_lowerbound_train(*batch_zx)
+            train_L = self.p_lowerbound_train(*batch_zx)
+            train_L = self.d_lowerbound_train(*batch_zx)
             lowerbound_train.append(np.array(train_L))
             pbar.update(i)
 
