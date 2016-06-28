@@ -33,7 +33,7 @@ class VAEGAN_semi(VAEGAN):
         x_unlabel = self.f.inputs
         y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
         mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
-        KL_semi = KL_gauss_unitgauss(mean, var)
+        KL_semi = KL_gauss_unitgauss(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
         rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]
@@ -55,7 +55,7 @@ class VAEGAN_semi(VAEGAN):
         d_params = self.d.get_params()
         f_params = self.f.get_params()
 
-        q_updates = self.optimizer(-KL - loglike -KL_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(KL -loglike +KL_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(-self.gamma*(loglike + loglike_semi) + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
         d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
