@@ -55,7 +55,7 @@ class VAEGAN_semi(VAEGAN):
         d_params = self.d.get_params()
         f_params = self.f.get_params()
 
-        q_updates = self.optimizer(-KL - loglike -KL_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(KL -loglike +KL_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(-self.gamma*(loglike + loglike_semi) + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
         d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
