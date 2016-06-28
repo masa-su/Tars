@@ -58,23 +58,23 @@ class VAE_semi(VAE):
             inputs=x+x_unlabel, outputs=lowerbound, on_unused_input='ignore')
 
     def train(self, train_set, train_set_unlabel):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         lowerbound_train = []
 
-        N_unlabel = train_set_unlabel[0].shape[0]
-        n_batch_unlabel = N_unlabel // nbatches
+        n_x_unlabel = train_set_unlabel[0].shape[0]
+        n_batch_unlabel = n_x_unlabel // nbatches
 
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
-            x = [_x[start:end] for _x in train_set]
+            batch_x = [_x[start:end] for _x in train_set]
 
             start = i * n_batch_unlabel
             end = start + n_batch_unlabel
-            x_unlabel = [_x[start:end] for _x in train_set_unlabel]
+            batch_x_unlabel = [_x[start:end] for _x in train_set_unlabel]
 
-            train_L = self.lowerbound_train(*x+x_unlabel)
+            train_L = self.lowerbound_train(*batch_x+batch_x_unlabel)
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 

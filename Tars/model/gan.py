@@ -46,8 +46,8 @@ class GAN(object):
         return p_loss, d_loss
 
     def train(self,train_set, n_z, rng, freq=1):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         train = []
 
         pbar = ProgressBar(maxval=nbatches).start()
@@ -55,13 +55,13 @@ class GAN(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in train_set]
-            z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z] + x
+            batch_x = [_x[start:end] for _x in train_set]
+            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), n_z)).astype(np.float32)
+            batch_zx = [batch_z] + batch_x
             if i % (freq+1) == 0:
-                train_L = self.p_train(*zx)
+                train_L = self.p_train(*batch_zx)
             else:
-                train_L = self.d_train(*zx)
+                train_L = self.d_train(*batch_zx)
             train.append(np.array(train_L))
             pbar.update(i)
 
@@ -70,8 +70,8 @@ class GAN(object):
         return train
 
     def gan_test(self,test_set, n_z, rng):
-        N = test_set[0].shape[0]
-        nbatches = N // self.n_batch
+        n_x = test_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         test = []
 
         pbar = ProgressBar(maxval=nbatches).start()
@@ -79,10 +79,10 @@ class GAN(object):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in test_set]
-            z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z] + x
-            test_L = self.test(*zx)
+            batch_x = [_x[start:end] for _x in test_set]
+            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), n_z)).astype(np.float32)
+            batch_zx = [batch_z] + batch_x
+            test_L = self.test(*batch_zx)
             test.append(np.array(test_L))
             pbar.update(i)
 

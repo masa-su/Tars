@@ -66,9 +66,9 @@ class VAEGAN(VAE, GAN):
         p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
-    def train(self, train_set, n_z, rng):
-        N = train_set[0].shape[0]
-        nbatches = N // self.n_batch
+    def train(self, train_set, z_dim, rng):
+        n_x = train_set[0].shape[0]
+        nbatches = n_x // self.n_batch
         lowerbound_train = []
 
         pbar = ProgressBar(maxval=nbatches).start()
@@ -76,13 +76,13 @@ class VAEGAN(VAE, GAN):
             start = i * self.n_batch
             end = start + self.n_batch
 
-            x = [_x[start:end] for _x in train_set]
-            z = rng.uniform(-1., 1., size=(len(x[0]), n_z)).astype(np.float32)
-            zx = [z]+x
+            batch_x = [_x[start:end] for _x in train_set]
+            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), z_dim)).astype(np.float32)
+            batch_zx = [batch_z]+batch_x
 
-            train_L = self.q_lowerbound_train(*zx)
-            train_L = self.p_lowerbound_train(*zx)
-            train_L = self.d_lowerbound_train(*zx)
+            train_L = self.q_lowerbound_train(*batch_zx)
+            train_L = self.p_lowerbound_train(*batch_zx)
+            train_L = self.d_lowerbound_train(*batch_zx)
 
             lowerbound_train.append(np.array(train_L))
             pbar.update(i)
