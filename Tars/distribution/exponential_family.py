@@ -4,7 +4,7 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 import lasagne
 
-from Tars.util import gaussian_like, tolist, _EPS
+from ..util import gaussian_like, tolist, _EPS
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
 class Distribution(object):
