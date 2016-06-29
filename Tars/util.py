@@ -1,7 +1,9 @@
-import theano.tensor as T
 import math
 
-_EPS = 1e-7
+import theano.tensor as T
+import numpy as np
+
+_EPS = np.finfo(np.float32).eps
 
 def set_epsilon(eps):
     global _EPS
