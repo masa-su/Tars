@@ -3,18 +3,18 @@ import math
 import theano.tensor as T
 import numpy as np
 
-_EPS = np.finfo(np.float32).eps
+EPSIRON = np.finfo(np.float32).eps
 
 def set_epsilon(eps):
-    global _EPS
-    _EPS = eps
+    global EPSIRON
+    EPSIRON = eps
 
 def get_epsilon():
-    return _EPS
+    return EPSIRON
 
 def gaussian_like(x, mean, var):
     c = - 0.5 * math.log(2 * math.pi)
-    _var = var + _EPS  # avoid NaN
+    _var = var + EPSIRON  # avoid NaN
     return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
 
 def KL_gauss_unitgauss(mean, var):
