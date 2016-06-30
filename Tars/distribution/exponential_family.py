@@ -229,17 +229,18 @@ class BivariateGauss(Gaussian):
         return self.log_likelihood(sample, mean, var, corr)
 
 
-class Gaussian_nonvar(Bernoulli):
+class GaussianConstantVar(Bernoulli):
     """
-    Gaussian distribution (no variance)
-    p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{{x-mean}^2}{2}}
+    Gaussian distribution (with a constant variance)
+    p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
 
-    def __init__(self, mean_network, given):
-        super(Gaussian_nonvar, self).__init__(mean_network, given)
+    def __init__(self, mean_network, given, var=1):
+        super(GaussianConstantVar, self).__init__(mean_network, given)
+        self.constant_var = var
 
     def log_likelihood(self, samples, mean):
-        loglike = gaussian_like(samples, mean, T.ones_like(mean))
+        loglike = gaussian_like(samples, mean, T.ones_like(mean)*self.constant_var)
         return self.mean_sum_samples(loglike)
 
 
