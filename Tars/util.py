@@ -5,12 +5,15 @@ import numpy as np
 
 _EPSILON = np.finfo(np.float32).eps
 
+
 def set_epsilon(eps):
     global _EPSILON
     _EPSILON = eps
 
+
 def epsilon():
     return _EPSILON
+
 
 def gaussian_like(x, mean, var):
     c = - 0.5 * math.log(2 * math.pi)
