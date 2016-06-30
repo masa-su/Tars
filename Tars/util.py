@@ -1,7 +1,8 @@
 import math
 
-import theano.tensor as T
+import lasagne.layers
 import numpy as np
+import theano.tensor as T
 
 _EPSILON = np.finfo(np.float32).eps
 
@@ -13,6 +14,16 @@ def set_epsilon(eps):
 
 def epsilon():
     return _EPSILON
+
+
+def save_weights(network, name):
+    np.savez(name, *lasagne.layers.get_all_param_values(network))
+
+
+def load_weights(network, name):
+    with np.load(name) as f:
+        param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+    lasagne.layers.set_all_param_values(network, param_values)
 
 
 def gaussian_like(x, mean, var):
