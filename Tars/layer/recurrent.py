@@ -15,7 +15,7 @@ __all__ = [
 
 
 class GRUCell(MergeLayer):
-    r"""
+    """
     Gated Recurrent Unit (GRU) Layer
     Implements the recurrent step proposed in [1]_, which computes the output
     by
