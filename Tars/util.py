@@ -52,6 +52,15 @@ def t_repeat(x, num_repeats, axis):
             elif axis == 1:
                 return T.alloc(x.dimshuffle(0, 'x', 1), x.shape[0], num_repeats, x.shape[1]).reshape((x.shape[0], num_repeats * x.shape[1]))
 
+    elif x.ndim == 3:
+        if num_repeats == 1:
+            return x
+        else:
+            if axis == 0:
+                return T.alloc(x.dimshuffle(1, 2, 0, 'x'), x.shape[1], x.shape[2], x.shape[0], num_repeats)\
+                        .reshape((x.shape[1], x.shape[2], num_repeats * x.shape[0]))\
+                        .dimshuffle(2, 0, 1)
+
     elif x.ndim == 4:
         if num_repeats == 1:
             return x
