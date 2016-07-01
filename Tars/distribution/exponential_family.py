@@ -38,6 +38,7 @@ class Distribution(object):
         else:
             return T.sum(samples, axis=-1)
 
+
 class Deterministic(Distribution):
     """
     Deterministic function
@@ -46,6 +47,7 @@ class Deterministic(Distribution):
 
     def __init__(self, network, given):
         super(Deterministic, self).__init__(network, given)
+
 
 class Bernoulli(Distribution):
     """
@@ -108,6 +110,7 @@ class Categorical(Bernoulli):
         loglike = samples * T.log(mean)
         return self.mean_sum_samples(loglike)
 
+
 class Gaussian(Distribution):
     """
     Gaussian distribution
@@ -159,6 +162,7 @@ class Gaussian(Distribution):
         x, sample = samples
         mean, var = self.fprop(x, deterministic=deterministic)
         return self.log_likelihood(sample, mean, var)
+
 
 class BivariateGauss(Gaussian):
 
@@ -262,6 +266,7 @@ class UnitGaussian(Distribution):
         loglike = gaussian_like(samples,
                                 T.zeros_like(samples), T.ones_like(samples))
         return T.mean(self.mean_sum_samples(loglike))
+
 
 class Laplace(Gaussian):
     """
