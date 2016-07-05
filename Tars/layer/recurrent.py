@@ -59,41 +59,15 @@ class LSTMCell(MergeLayer):
         Initializer for initial cell state (:math:`c_0`).
     hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
         Initializer for initial hidden state (:math:`h_0`).
-    backwards : bool
-        If True, process the sequence backwards and then reverse the
-        output again such that the output from the layer is always
-        from :math:`x_1` to :math:`x_n`.
     learn_init : bool
         If True, initial hidden values are learned.
     peepholes : bool
         If True, the LSTM uses peephole connections.
         When False, `ingate.W_cell`, `forgetgate.W_cell` and
         `outgate.W_cell` are ignored.
-    gradient_steps : int
-        Number of timesteps to include in the backpropagated gradient.
-        If -1, backpropagate through the entire sequence.
     grad_clipping : float
         If nonzero, the gradient messages are clipped to the given value during
         the backward pass.  See [1]_ (p. 6) for further explanation.
-    unroll_scan : bool
-        If True the recursion is unrolled instead of using scan. For some
-        graphs this gives a significant speed up but it might also consume
-        more memory. When `unroll_scan` is True, backpropagation always
-        includes the full sequence, so `gradient_steps` must be set to -1 and
-        the input sequence length must be known at compile time (i.e., cannot
-        be given as None).
-    precompute_input : bool
-        If True, precompute input_to_hid before iterating through
-        the sequence. This can result in a speedup at the expense of
-        an increase in memory usage.
-    mask_input : :class:`lasagne.layers.Layer`
-        Layer which allows for a sequence mask to be input, for when sequences
-        are of variable length.  Default `None`, which means no mask will be
-        supplied (i.e. all sequences are of the same length).
-    only_return_final : bool
-        If True, only return the final sequential output (e.g. for tasks where
-        a single target value for the entire sequence is desired).  In this
-        case, Theano makes an optimization which saves memory.
 
     References
     ----------
