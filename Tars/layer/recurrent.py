@@ -1,10 +1,10 @@
 import numpy as np
 import theano
 import theano.tensor as T
+
 from lasagne import nonlinearities
 from lasagne import init
 from lasagne.utils import unroll_scan
-
 from lasagne.layers import MergeLayer, Layer, InputLayer, DenseLayer
 from lasagne.layers import helper
 from lasagne.layers import Gate
@@ -13,6 +13,7 @@ __all__ = [
     "LSTMCell",
     "GRUCell"
 ]
+
 
 class LSTMCell(MergeLayer):
     """
@@ -99,6 +100,7 @@ class LSTMCell(MergeLayer):
     .. [1] Graves, Alex: "Generating sequences with recurrent neural networks."
            arXiv preprint arXiv:1308.0850 (2013).
     """
+
     def __init__(self, x, cell_previous, hid_previous, num_units,
                  ingate=Gate(),
                  forgetgate=Gate(),
@@ -128,7 +130,6 @@ class LSTMCell(MergeLayer):
             raise ValueError('first dimension output of x and hid_previous '
                              'should be equal')
 
-
         # Initialize parent layer
         super(LSTMCell, self).__init__([x, cell_previous, hid_previous], **kwargs)
 
@@ -151,8 +152,6 @@ class LSTMCell(MergeLayer):
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs_x = np.prod(input_shape_x[1:])
-
-
 
         def add_gate_params(gate, gate_name):
             """ Convenience function for adding layer parameters from a Gate
@@ -243,7 +242,6 @@ class LSTMCell(MergeLayer):
         # Treat all dimensions after the second as flattened feature dimensions
         if input_n.ndim > 2:
             input_n = T.flatten(input_n, 2)
-
 
         # At each call to scan, input_n will be (n_time_steps, 4*num_units).
         # We define a slicing function that extract the input to each LSTM gate
@@ -362,7 +360,6 @@ class GRUCell(MergeLayer):
             raise ValueError('first dimension output of x and hid_previous '
                              'should be equal')
 
-
         # Initialize parent layer
         super(GRUCell, self).__init__([x, hid_previous], **kwargs)
         self.learn_init = learn_init
@@ -376,8 +373,6 @@ class GRUCell(MergeLayer):
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs_x = np.prod(input_shape_x[1:])
-
-
 
         def add_gate_params(gate, gate_name):
             """ Convenience function for adding layer parameters from a Gate
@@ -406,7 +401,6 @@ class GRUCell(MergeLayer):
         self.hid_init = self.add_param(
             hid_init, (1, self.num_units), name="hid_init",
             trainable=learn_init, regularizable=False)
-
 
         # Stack input weight matrices into a (num_inputs, 3*num_units_gru)
         # matrix, which speeds up computation
@@ -444,7 +438,6 @@ class GRUCell(MergeLayer):
         # Treat all dimensions after the second as flattened feature dimensions
         if input_n.ndim > 2:
             input_n = T.flatten(input_n, 2)
-
 
         # At each call to scan, input_n will be (n_time_steps, 3*num_units_gru).
         # We define a slicing function that extract the input to each GRU gate
