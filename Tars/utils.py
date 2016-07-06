@@ -43,7 +43,9 @@ def gauss_gauss_kl(mean0, var0, mean1, var1):
 
 # https://github.com/yburda/iwae/blob/master/utils.py
 def t_repeat(x, num_repeats, axis):
-    '''Repeats x along an axis num_repeats times. Axis has to be 0 or 1, x has to be a matrix.'''
+    """
+    Repeats x along an axis num_repeats times. Axis has to be 0 or 1, x has to be a matrix.
+    """
     if x.ndim == 2:
         if num_repeats == 1:
             return x
