@@ -1,13 +1,17 @@
-from Tars.model import VAE
+from copy import copy
+
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..utils import KL_gauss_gauss, KL_gauss_unitgauss, t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
-from copy import copy
+
+from . import VAE
+from ..utils import (
+    KL_gauss_gauss,
+    KL_gauss_unitgauss,
+    t_repeat
+)
+
 
 class MVAE(VAE):
 
