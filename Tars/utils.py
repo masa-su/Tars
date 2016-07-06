@@ -87,7 +87,6 @@ def LogMeanExp(x, axis=0, keepdims=False):
 
 
 def tolist(x):
-    if type(x)==list:
+    if isinstance(x, list):
         return x
-    else:
-        return [x]
+    return [x]
