@@ -2,10 +2,9 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..utils import KL_gauss_gauss, t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
+
+from ..utils import KL_gauss_gauss
 
 
 class VRNN(object):
