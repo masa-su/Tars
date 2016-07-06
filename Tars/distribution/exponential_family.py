@@ -4,7 +4,7 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 import lasagne
 
-from ..utils import gaussian_like, tolist, epsilon
+from ..utils import gaussian_like, epsilon
 
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
