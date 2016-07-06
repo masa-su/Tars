@@ -8,7 +8,7 @@ from . import (
     GAN,
 )
 from ..utils import (
-    KL_gauss_unitgauss,
+    gauss_unitgauss_kl,
     t_repeat,
 )
 
@@ -38,7 +38,7 @@ class VAEGAN(VAE, GAN):
         # ---VAE---
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 

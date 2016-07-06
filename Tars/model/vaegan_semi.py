@@ -4,7 +4,7 @@ from progressbar import ProgressBar
 
 from . import VAEGAN
 from ..utils import (
-    KL_gauss_unitgauss,
+    gauss_unitgauss_kl,
     t_repeat,
 )
 
@@ -21,7 +21,7 @@ class VAEGAN_semi(VAEGAN):
         # ---VAE---
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -33,7 +33,7 @@ class VAEGAN_semi(VAEGAN):
         x_unlabel = self.f.inputs
         y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
         mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
-        KL_semi = KL_gauss_unitgauss(mean, var).mean()
+        KL_semi = gauss_unitgauss_kl(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
         rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]

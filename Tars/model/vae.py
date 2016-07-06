@@ -5,9 +5,9 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
 
 from ..utils import (
-    KL_gauss_unitgauss,
+    gauss_unitgauss_kl,
     t_repeat,
-    LogMeanExp,
+    log_mean_exp,
 )
 from ..distribution import UnitGaussian
 
@@ -37,7 +37,7 @@ class VAE(object):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
         
@@ -187,7 +187,7 @@ class VAE(object):
 
         log_iw = self.log_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = LogMeanExp(
+        log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate
