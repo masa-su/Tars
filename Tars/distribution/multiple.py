@@ -2,7 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from Tars.util import tolist
+from Tars.utils import tolist
 import lasagne
 
 class Concatenate(object):
