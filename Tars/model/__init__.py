@@ -12,3 +12,5 @@ from .vae_semi import *
 from .vaegan_semi import *
 
 from .vrnn import *
+
+from .draw import *
