@@ -1,14 +1,18 @@
-from Tars.model import MVAE
-from Tars.model import GAN
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from progressbar import ProgressBar
-from ..util import KL_gauss_gauss, KL_gauss_unitgauss, t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
-from copy import copy
+from . import (
+    MVAE,
+    GAN,
+)
+from ..utils import (
+    gauss_gauss_kl,
+    gauss_unitgauss_kl,
+    t_repeat,
+)
+
 
 class MVAEGAN(MVAE,GAN):
 
@@ -37,7 +41,7 @@ class MVAEGAN(MVAE,GAN):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -54,8 +58,8 @@ class MVAEGAN(MVAE,GAN):
         mean1, var1 = self.pq[1].fprop([x[1]], self.srng, deterministic=False)
 
         # KL[q(x0,0)||q(x0,x1)]
-        KL_0 = KL_gauss_gauss(mean, var, mean0, var0).mean()
-        KL_1 = KL_gauss_gauss(mean, var, mean1, var1).mean()
+        KL_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
+        KL_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---GAN---
         gz = self.p[0].inputs

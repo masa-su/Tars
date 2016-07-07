@@ -1,13 +1,17 @@
-from Tars.model import VAE
+from copy import copy
+
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..util import KL_gauss_gauss, KL_gauss_unitgauss, t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
-from copy import copy
+
+from . import VAE
+from ..utils import (
+    gauss_gauss_kl,
+    gauss_unitgauss_kl,
+    t_repeat
+)
+
 
 class MVAE(VAE):
 
@@ -19,7 +23,7 @@ class MVAE(VAE):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -36,8 +40,8 @@ class MVAE(VAE):
         mean1, var1 = self.q.fprop([T.zeros_like(x[0]),x[1]], self.srng, deterministic=False)
 
         # KL[q(x0,0)||q(x0,x1)]
-        KL_0 = KL_gauss_gauss(mean, var, mean0, var0).mean()
-        KL_1 = KL_gauss_gauss(mean, var, mean1, var1).mean()
+        KL_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
+        KL_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---
 

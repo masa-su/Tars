@@ -2,8 +2,10 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from Tars.util import tolist
 import lasagne
+
+from ..utils import tolist
+
 
 class Concatenate(object):
 

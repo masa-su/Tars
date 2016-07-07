@@ -1,13 +1,16 @@
-from Tars.model import VAE
-from Tars.model import GAN
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..util import KL_gauss_unitgauss, t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
+
+from . import (
+    VAE,
+    GAN,
+)
+from ..utils import (
+    gauss_unitgauss_kl,
+    t_repeat,
+)
 
 
 class VAEGAN(VAE, GAN):
@@ -35,7 +38,7 @@ class VAEGAN(VAE, GAN):
         # ---VAE---
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
