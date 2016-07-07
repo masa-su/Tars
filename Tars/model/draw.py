@@ -143,7 +143,6 @@ class DRAW(object):
                         sequences=[z_dimshuffle],
                         outputs_info=[init_cell_dec, init_hid_dec, init_canvas])
 
-
         canvas = self.p.fprop([canvas.dimshuffle(1, 0, 2)], self.srng, deterministic=True)
         self.p_sample_mean_x = theano.function(
             inputs=[z], outputs=canvas, updates=scan_updates, on_unused_input='ignore')
