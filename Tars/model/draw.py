@@ -29,7 +29,7 @@ class DRAW(object):
 
         # encoder
         x_err = x - T.nnet.sigmoid(canvas)
-        new_cell_enc, new_hid_enc = self.q_rnn.fprop([x, x_err, cell_enc, hid_enc], self.srng, deterministic=deterministic)
+        new_cell_enc, new_hid_enc = self.q_rnn.fprop([x, x_err, cell_enc, hid_enc, hid_dec], self.srng, deterministic=deterministic)
         mean, var = self.q.fprop([new_hid_enc], self.srng, deterministic=deterministic)
         kl = gauss_unitgauss_kl(mean, var).mean()
 
@@ -41,7 +41,7 @@ class DRAW(object):
 
         # write
         canvas = canvas + mean
-        return cell_enc, cell_dec, hid_enc, hid_dec, canvas, z, kl
+        return new_cell_enc, new_cell_dec, new_hid_enc, new_hid_dec, canvas, z, kl
 
     def lowerbound(self):
         x = T.fmatrix('x')
@@ -135,7 +135,7 @@ class DRAW(object):
             # write
             canvas = canvas + mean
 
-            return cell_dec, hid_dec, canvas
+            return new_cell_dec, new_hid_dec, canvas
 
         [cell_dec, hid_dec, canvas], scan_updates =\
             theano.scan(fn=p_step,
