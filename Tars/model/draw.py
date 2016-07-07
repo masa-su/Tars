@@ -2,9 +2,9 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..util import KL_gauss_unitgauss
+
+from ..util import gauss_unitgauss_kl
 
 
 class DRAW(object):
@@ -31,7 +31,7 @@ class DRAW(object):
         x_err = x - T.nnet.sigmoid(canvas)
         new_cell_enc, new_hid_enc = self.q_rnn.fprop([x, x_err, cell_enc, hid_enc], self.srng, deterministic=deterministic)
         mean, var = self.q.fprop([new_hid_enc], self.srng, deterministic=deterministic)
-        kl = KL_gauss_unitgauss(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
 
         z = self.q.sample_given_x([new_hid_enc], self.srng, deterministic=deterministic)[-1]
 
