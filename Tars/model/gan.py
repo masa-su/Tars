@@ -1,11 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..util import t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
 
 
 class GAN(object):

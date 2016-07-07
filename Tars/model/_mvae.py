@@ -1,13 +1,19 @@
-from Tars.model import VAE
+from copy import copy
+
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..util import KL_gauss_gauss, KL_gauss_unitgauss, t_repeat, LogMeanExp, tolist
-from ..distribution import UnitGaussian
-from copy import copy
+
+from ..model import VAE
+from ..utils import (
+    gauss_gauss_kl,
+    gauss_unitgauss_kl,
+    t_repeat,
+    log_mean_exp,
+    tolist,
+)
+
 
 class MVAE(VAE):
 
@@ -20,7 +26,7 @@ class MVAE(VAE):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = KL_gauss_unitgauss(mean, var).mean()
+        KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -37,8 +43,8 @@ class MVAE(VAE):
         mean1, var1 = self.pq[1].fprop([x[1]], self.srng, deterministic=False)
 
         # KL[q(x0,0)||q(x0,x1)]
-        KL_0 = KL_gauss_gauss(mean, var, mean0, var0).mean()
-        KL_1 = KL_gauss_gauss(mean, var, mean1, var1).mean()
+        KL_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
+        KL_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---
         q_params = self.q.get_params()
@@ -180,7 +186,7 @@ class MVAE(VAE):
         samples = self.single_input(samples,input=rep_x)
         log_iw = self.log_conditional_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = LogMeanExp(
+        log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate
@@ -246,7 +252,7 @@ class MVAE(VAE):
         samples = self.single_input(samples,input=rep_x)
         log_iw = self.log_mg_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = LogMeanExp(
+        log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate

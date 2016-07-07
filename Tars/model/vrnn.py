@@ -2,10 +2,9 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from progressbar import ProgressBar
-from ..util import KL_gauss_gauss, t_repeat, LogMeanExp
-from ..distribution import UnitGaussian
+
+from ..utils import gauss_gauss_kl
 
 
 class VRNN(object):
@@ -31,7 +30,7 @@ class VRNN(object):
         prior_mean, prior_var = self.prior.fprop([h], self.srng, deterministic=deterministic)
         q_mean, q_var = self.q.fprop([x, h], self.srng, deterministic=deterministic)
 
-        _KL = KL_gauss_gauss(q_mean, q_var, prior_mean, prior_var)
+        _KL = gauss_gauss_kl(q_mean, q_var, prior_mean, prior_var)
         KL = T.mean(_KL*mask)
         
         z = self.q.sample_given_x([x, h], self.srng, deterministic=deterministic) # z~q(z|x,h)
