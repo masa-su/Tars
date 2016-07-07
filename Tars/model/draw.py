@@ -4,7 +4,7 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
 
-from ..util import gauss_unitgauss_kl
+from ..utils import gauss_unitgauss_kl
 
 
 class DRAW(object):
