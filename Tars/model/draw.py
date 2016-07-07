@@ -41,10 +41,10 @@ class DRAW(object):
         new_cell_dec, new_hid_dec = self.p_rnn.fprop([z, cell_dec, hid_dec], self.srng, deterministic=deterministic)
 
         # write
-        mean = self.write.fprop([new_hid_dec], self.srng, deterministic=deterministic)
-        canvas = canvas + mean
+        new_canvas = self.write.fprop([new_hid_dec], self.srng, deterministic=deterministic)
+        new_canvas = canvas + new_canvas
 
-        return new_cell_enc, new_cell_dec, new_hid_enc, new_hid_dec, canvas, z, kl
+        return new_cell_enc, new_cell_dec, new_hid_enc, new_hid_dec, new_canvas, z, kl
 
     def lowerbound(self):
         x = T.fmatrix('x')
@@ -132,11 +132,11 @@ class DRAW(object):
 
         def p_step(z, cell_dec, hid_dec, canvas):
             new_cell_dec, new_hid_dec = self.p_rnn.fprop([z, cell_dec, hid_dec], self.srng, deterministic=True)
-            mean = self.write.fprop([new_hid_dec], self.srng, deterministic=True)
             # write
-            canvas = canvas + mean
+            new_canvas = self.write.fprop([new_hid_dec], self.srng, deterministic=True)
+            new_canvas = canvas + new_canvas
 
-            return new_cell_dec, new_hid_dec, canvas
+            return new_cell_dec, new_hid_dec, new_canvas
 
         [cell_dec, hid_dec, canvas], scan_updates =\
             theano.scan(fn=p_step,
