@@ -9,11 +9,12 @@ from ..utils import gauss_unitgauss_kl
 
 class DRAW(object):
 
-    def __init__(self, q, q_rnn, p, p_rnn, n_batch, optimizer, glimpses=64, random=1234):
+    def __init__(self, q, q_rnn, p, p_rnn, write, n_batch, optimizer, glimpses=64, random=1234):
         self.q = q
         self.q_rnn = q_rnn
         self.p = p
         self.p_rnn = p_rnn
+        self.write = write
         self.n_batch = n_batch
         self.optimizer = optimizer
         self.glimpses = glimpses
@@ -28,7 +29,8 @@ class DRAW(object):
         x_shape = np.array(x.shape[1:])
 
         # encoder
-        x_err = x - T.nnet.sigmoid(canvas)
+        x_err = x - self.p.fprop([canvas], self.srng, deterministic=deterministic)
+
         new_cell_enc, new_hid_enc = self.q_rnn.fprop([x, x_err, cell_enc, hid_enc, hid_dec], self.srng, deterministic=deterministic)
         mean, var = self.q.fprop([new_hid_enc], self.srng, deterministic=deterministic)
         kl = gauss_unitgauss_kl(mean, var).mean()
@@ -37,10 +39,11 @@ class DRAW(object):
 
         # decoder
         new_cell_dec, new_hid_dec = self.p_rnn.fprop([z, cell_dec, hid_dec], self.srng, deterministic=deterministic)
-        mean = self.p.fprop([new_hid_dec], self.srng, deterministic=deterministic)
 
         # write
+        mean = self.write.fprop([new_hid_dec], self.srng, deterministic=deterministic)
         canvas = canvas + mean
+
         return new_cell_enc, new_cell_dec, new_hid_enc, new_hid_dec, canvas, z, kl
 
     def lowerbound(self):
@@ -52,8 +55,6 @@ class DRAW(object):
         init_canvas = T.ones_like(x)
         outputs_info = [init_cell_enc, init_cell_dec, init_hid_enc, init_hid_dec, init_canvas, None, None]
 
-        cell_enc, cell_dec, hid_enc, hid_dec, canvas, z, kl = self.step(init_cell_enc, init_cell_dec, init_hid_enc, init_hid_dec, init_canvas, x)
-
         [cell_enc, cell_dec, hid_enc, hid_dec, canvas, z, kl], scan_updates =\
             theano.scan(fn=self.step,
                         sequences=None,
@@ -61,25 +62,25 @@ class DRAW(object):
                         non_sequences=x,
                         n_steps=self.glimpses)
 
-        canvas_T = T.nnet.sigmoid(canvas[-1])
-        log_like_T = self.p.log_likelihood(x, canvas_T).mean()
+        log_like_T = self.p.log_likelihood_given_x([[canvas[-1]], x]).mean()
         kl_T = T.sum(kl)
 
         lowerbound = [-kl_T, log_like_T]
         loss = -np.sum(lowerbound)
 
         p_rnn_params = self.p_rnn.get_params()
-        p_params = self.p.get_params()
         q_rnn_params = self.q_rnn.get_params()
+        p_params = self.p.get_params()
         q_params = self.q.get_params()
-        params = p_rnn_params + p_params + q_rnn_params + q_params
+        write_params = self.write.get_params()
+        params = p_rnn_params + p_params + q_rnn_params + q_params + write_params
 
         updates = self.optimizer(loss, params) + scan_updates
 
         self.get_log_likelihood = theano.function(
             inputs=[x], outputs=lowerbound, updates=scan_updates, on_unused_input='ignore')
 
-        canvas_all = T.nnet.sigmoid(canvas.dimshuffle(1, 0, 2))
+        canvas_all = self.p.fprop([canvas.dimshuffle(1, 0, 2)], self.srng, deterministic=True)
         self.reconst = theano.function(
             inputs=[x], outputs=canvas_all, updates=scan_updates, on_unused_input='ignore')
 
@@ -127,11 +128,11 @@ class DRAW(object):
         z_dimshuffle = z.dimshuffle(1, 0, 2)
         init_cell_dec = self.q_rnn.mean_network.get_cell_init(z.shape[0])
         init_hid_dec = self.p_rnn.mean_network.get_cell_init(z.shape[0])
-        init_canvas = T.ones((z.shape[0],) + self.p.mean_network.output_shape[1:])
+        init_canvas = T.ones((z.shape[0],) + self.write.mean_network.output_shape[1:])
 
         def p_step(z, cell_dec, hid_dec, canvas):
             new_cell_dec, new_hid_dec = self.p_rnn.fprop([z, cell_dec, hid_dec], self.srng, deterministic=True)
-            mean = self.p.fprop([new_hid_dec], self.srng, deterministic=True)
+            mean = self.write.fprop([new_hid_dec], self.srng, deterministic=True)
             # write
             canvas = canvas + mean
 
@@ -142,6 +143,7 @@ class DRAW(object):
                         sequences=[z_dimshuffle],
                         outputs_info=[init_cell_dec, init_hid_dec, init_canvas])
 
-        canvas = T.nnet.sigmoid(canvas.dimshuffle(1, 0, 2))
+
+        canvas = self.p.fprop([canvas.dimshuffle(1, 0, 2)], self.srng, deterministic=True)
         self.p_sample_mean_x = theano.function(
             inputs=[z], outputs=canvas, updates=scan_updates, on_unused_input='ignore')
