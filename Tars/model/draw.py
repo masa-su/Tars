@@ -79,8 +79,9 @@ class DRAW(object):
         self.get_log_likelihood = theano.function(
             inputs=[x], outputs=lowerbound, updates=scan_updates, on_unused_input='ignore')
 
+        canvas_all = T.nnet.sigmoid(canvas.dimshuffle(1, 0, 2))
         self.reconst = theano.function(
-            inputs=[x], outputs=canvas_T, updates=scan_updates, on_unused_input='ignore')
+            inputs=[x], outputs=canvas_all, updates=scan_updates, on_unused_input='ignore')
 
         self.lowerbound_train = theano.function(
             inputs=[x], outputs=lowerbound, updates=updates, on_unused_input='ignore')
