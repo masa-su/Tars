@@ -9,6 +9,8 @@ from lasagne.layers import helper
 from lasagne.layers import Gate
 from lasagne.utils import as_tuple
 
+from ..utils import t_repeat
+
 __all__ = [
     "ConvLSTMCell"
 ]
@@ -131,18 +133,19 @@ class ConvLSTMCell(MergeLayer):
         return (self.num_filters, num_input_channels) + self.filter_size
 
     def get_hid_init(self, num_batch):
-        return T.dot(T.ones((num_batch, 1)), self.hid_init)
+        return t_repeat(self.hid_init, num_batch, axis=0)
 
     def get_cell_init(self, num_batch):
-        return T.dot(T.ones((num_batch, 1)), self.cell_init)
+        return t_repeat(self.cell_init, num_batch, axis=0)
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for(self, input_shapes):
         pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * self.n
-        batchsize = input_shape[0]
+        input_shape_h = self.input_shapes[2]
+        batchsize = input_shape_h[0]
         return ((batchsize, self.num_filters) +
                 tuple(conv_output_length(input, filter, stride, p)
                       for input, filter, stride, p
-                      in zip(input_shape[2:], self.filter_size,
+                      in zip(input_shape_h[2:], self.filter_size,
                              self.stride, pad)))
 
     def get_output_for(self, inputs, **kwargs):
@@ -151,7 +154,7 @@ class ConvLSTMCell(MergeLayer):
         """
         # Retrieve the layer input
         input_n, cell_previous, hid_previous = inputs
-
+        
         def get_gates(input_n, hid, W0, W1, b, **kwargs):
             border_mode = 'half' if self.pad == 'same' else self.pad
             input_conved = self.convolution(input_n, W0,
