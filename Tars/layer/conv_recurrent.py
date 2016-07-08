@@ -20,15 +20,16 @@ __all__ = [
 class ConvLSTMCell(MergeLayer):
 
     def __init__(self, x, cell_previous, hid_previous,
-                 filter_size, stride=(1,1),
-                 pad='same', flip_filters=True, n=None, convolution=T.nnet.conv2d,
-                 ingate=Gate(W_in=init.GlorotUniform(), 
+                 filter_size, stride=(1, 1), pad='same',
+                 flip_filters=True, n=None,
+                 convolution=T.nnet.conv2d,
+                 ingate=Gate(W_in=init.GlorotUniform(),
                              W_hid=init.GlorotUniform()),
-                 forgetgate=Gate(W_in=init.GlorotUniform(), 
+                 forgetgate=Gate(W_in=init.GlorotUniform(),
                                  W_hid=init.GlorotUniform()),
-                 cell=Gate(W_in=init.GlorotUniform(), 
-                           W_hid=init.GlorotUniform(), 
-                           W_cell=None, 
+                 cell=Gate(W_in=init.GlorotUniform(),
+                           W_hid=init.GlorotUniform(),
+                           W_cell=None,
                            nonlinearity=nonlinearities.tanh),
                  outgate=Gate(),
                  nonlinearity=nonlinearities.tanh,
@@ -155,18 +156,18 @@ class ConvLSTMCell(MergeLayer):
         """
         # Retrieve the layer input
         input_n, cell_previous, hid_previous = inputs
-        
+
         def get_gates(input_n, hid, W0, W1, b, **kwargs):
             border_mode = 'half' if self.pad == 'same' else self.pad
             input_conved = self.convolution(input_n, W0,
-                                            self.input_shape_x, 
+                                            self.input_shape_x,
                                             self.get_W_shape(self.input_shape_x),
                                             subsample=self.stride,
                                             border_mode=border_mode,
                                             filter_flip=self.flip_filters)
 
             hid_conved = self.convolution(hid, W1,
-                                          self.input_shape_h, 
+                                          self.input_shape_h,
                                           self.get_W_shape(self.input_shape_h),
                                           subsample=self.stride,
                                           border_mode=border_mode,
