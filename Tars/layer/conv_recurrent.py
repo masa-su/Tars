@@ -7,6 +7,7 @@ from lasagne import init
 from lasagne.layers import MergeLayer, Layer, InputLayer, Conv2DLayer
 from lasagne.layers import helper
 from lasagne.layers import Gate
+from lasagne.layers.conv import conv_output_length
 from lasagne.utils import as_tuple
 
 from ..utils import t_repeat
