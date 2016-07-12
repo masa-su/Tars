@@ -126,7 +126,7 @@ class DRAW(object):
     def p_sample_mean_given_x(self):
         z = T.tensor3('z')
         z_dimshuffle = z.dimshuffle(1, 0, 2)
-        init_cell_dec = self.q_rnn.mean_network.get_cell_init(z.shape[0])
+        init_cell_dec = self.p_rnn.mean_network.get_cell_init(z.shape[0])
         init_hid_dec = self.p_rnn.mean_network.get_cell_init(z.shape[0])
         init_canvas = T.ones((z.shape[0],) + self.write.mean_network.output_shape[1:])
 
