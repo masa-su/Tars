@@ -61,3 +61,15 @@ class TestLogSumExp(TestCase):
         val_ed = log_sum_exp(x)
         val_true = -0.5598103014388045
         assert np.allclose(val_ed.eval(), val_true)
+
+
+class TestTRepeat(TestCase):
+
+    def test_2d(self):
+        from ..utils import t_repeat
+        x = T.constant([[-1.0], [-2.0], [-3.0], [-4.0]])
+        self.assertEqual(t_repeat(x, 1, 0), x)
+        x_rep2_axis0 = np.array([[-1.0], [-1.0], [-2.0], [-2.0], [-3.0], [-3.0], [-4.0], [-4.0]])
+        self.assert_(np.array_equal(t_repeat(x, 2, 0).eval(), x_rep2_axis0))
+        x_rep2_axis1 = np.array([[-1.0, -1.0], [-2.0, -2.0], [-3.0, -3.0], [-4.0, -4.0]])
+        self.assert_(np.array_equal(t_repeat(x, 2, 1).eval(), x_rep2_axis1))
