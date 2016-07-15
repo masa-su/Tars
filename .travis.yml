@@ -44,12 +44,6 @@ install:
     fi
 # command to run tests
 script:
-  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]]; then
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
-    elif [[ "$TEST_MODE" == "PEP8" ]]; then
-       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
-    else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
-    fi
+  - PYTHONPATH=$PWD:$PYTHONPATH py.test
 #after_success:
 #  - coveralls
