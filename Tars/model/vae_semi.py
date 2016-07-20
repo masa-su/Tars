@@ -11,10 +11,12 @@ from ..distribution import UnitGaussian
 
 class VAE_semi(VAE):
 
-    def __init__(self, q, p, f, n_batch, optimizer, l=1, k=1, f_alpha=0.1, random=1234):
+    def __init__(self, q, p, f, n_batch, optimizer,
+                 l=1, k=1, f_alpha=0.1, random=1234):
         self.f = f
         self.f_alpha = f_alpha
-        super(VAE_semi, self).__init__(q, p, n_batch, optimizer, l, k, alpha=None, random=random)
+        super(VAE_semi, self).__init__(q, p, n_batch, optimizer,
+                                       l, k, alpha=None, random=random)
         self.f_sample_mean_given_x()
 
     def lowerbound(self):
@@ -23,24 +25,36 @@ class VAE_semi(VAE):
         KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
-        
+
         inverse_z = self.inverse_samples(z)
         loglike = self.p.log_likelihood_given_x(inverse_z).mean()
 
         # --semi_supervise
         x_unlabel = self.f.inputs
-        y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
-        mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
+        y = self.f.sample_mean_given_x(
+            x_unlabel,
+            self.srng,
+            deterministic=False)[-1]
+        mean, var = self.q.fprop(
+            [x_unlabel[0], y],
+            self.srng,
+            deterministic=False)
         KL_semi = gauss_unitgauss_kl(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
-        rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]
-        z = self.q.sample_given_x([rep_x_unlabel[0],rep_y], self.srng, deterministic=False)      
+        rep_y = self.f.sample_mean_given_x(
+            rep_x_unlabel,
+            self.srng,
+            deterministic=False)[-1]
+        z = self.q.sample_given_x(
+            [rep_x_unlabel[0], rep_y],
+            self.srng,
+            deterministic=False)
         inverse_z = self.inverse_samples(z)
         loglike_semi = self.p.log_likelihood_given_x(inverse_z).mean()
 
         # --train f
-        loglike_f = self.f.log_likelihood_given_x([[x[0]],x[1]]).mean()
+        loglike_f = self.f.log_likelihood_given_x([[x[0]], x[1]]).mean()
 
         lowerbound = [-KL, loglike, -KL_semi, loglike_semi, loglike_f]
         loss = -np.sum(lowerbound[:-1]) - self.f_alpha*lowerbound[-1]
@@ -52,10 +66,15 @@ class VAE_semi(VAE):
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x+x_unlabel, outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x+x_unlabel,
+            outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
         self.lowerbound_test = theano.function(
-            inputs=x+x_unlabel, outputs=lowerbound, on_unused_input='ignore')
+            inputs=x+x_unlabel,
+            outputs=lowerbound,
+            on_unused_input='ignore')
 
     def train(self, train_set, train_set_unlabel):
         n_x = train_set[0].shape[0]
