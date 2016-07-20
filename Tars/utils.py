@@ -74,6 +74,7 @@ def t_repeat(x, num_repeats, axis):
                 return T.alloc(x.dimshuffle(1, 2, 3, 0, 'x'), x.shape[1], x.shape[2], x.shape[3], x.shape[0], num_repeats)\
                         .reshape((x.shape[1], x.shape[2], x.shape[3], num_repeats * x.shape[0]))\
                         .dimshuffle(3, 0, 1, 2)
+    raise NotImplementedError
 
 
 def log_sum_exp(x, axis=0, keepdims=False):
