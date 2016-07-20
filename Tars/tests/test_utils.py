@@ -70,9 +70,16 @@ class TestTRepeat(TestCase):
         from ..utils import t_repeat
         x = T.constant([[-1.0], [-2.0], [-3.0], [-4.0]])
         self.assertEqual(t_repeat(x, 1, 0), x)
-        x_rep2_axis0 = np.array([[-1.0], [-1.0], [-2.0], [-2.0], [-3.0], [-3.0], [-4.0], [-4.0]])
+        x_rep2_axis0 = np.array([[-1.0], [-1.0],
+                                 [-2.0], [-2.0],
+                                 [-3.0], [-3.0],
+                                 [-4.0], [-4.0]])
         self.assert_(np.array_equal(t_repeat(x, 2, 0).eval(), x_rep2_axis0))
-        x_rep2_axis1 = np.array([[-1.0, -1.0], [-2.0, -2.0], [-3.0, -3.0], [-4.0, -4.0]])
+        x_rep2_axis1 = np.array(
+            [[-1.0, -1.0],
+             [-2.0, -2.0],
+             [-3.0, -3.0],
+             [-4.0, -4.0]])
         self.assert_(np.array_equal(t_repeat(x, 2, 1).eval(), x_rep2_axis1))
 
     def test_3d(self):
