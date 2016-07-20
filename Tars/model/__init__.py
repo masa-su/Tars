@@ -14,3 +14,4 @@ from .vaegan_semi import *
 from .vrnn import *
 
 from .draw import *
+from .draw_conv import *
