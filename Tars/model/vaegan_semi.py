@@ -11,10 +11,12 @@ from ..utils import (
 
 class VAEGAN_semi(VAEGAN):
 
-    def __init__(self, q, p, d, f, n_batch, optimizer, l=1, k=1, gamma=1, f_alpha=0.1, random=1234):
+    def __init__(self, q, p, d, f, n_batch, optimizer,
+                 l=1, k=1, gamma=1, f_alpha=0.1, random=1234):
         self.f = f
         self.f_alpha = f_alpha
-        super(VAEGAN_semi, self).__init__(q, p, d, n_batch, optimizer, l, k, gamma, random=random)
+        super(VAEGAN_semi, self).__init__(q, p, d, n_batch, optimizer,
+                                          l, k, gamma, random=random)
         self.f_sample_mean_given_x()
 
     def lowerbound(self):
@@ -31,43 +33,80 @@ class VAEGAN_semi(VAEGAN):
 
         # --semi_supervise
         x_unlabel = self.f.inputs
-        y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
-        mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
+        y = self.f.sample_mean_given_x(
+            x_unlabel,
+            self.srng,
+            deterministic=False)[-1]
+        mean, var = self.q.fprop(
+            [x_unlabel[0], y],
+            self.srng,
+            deterministic=False)
         KL_semi = gauss_unitgauss_kl(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
-        rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]
-        z = self.q.sample_given_x([rep_x_unlabel[0],rep_y], self.srng, deterministic=False)      
+        rep_y = self.f.sample_mean_given_x(
+            rep_x_unlabel,
+            self.srng,
+            deterministic=False)[-1]
+        z = self.q.sample_given_x(
+            [rep_x_unlabel[0], rep_y],
+            self.srng,
+            deterministic=False)
         inverse_z = self.inverse_samples(z)
         loglike_semi = self.p.log_likelihood_given_x(inverse_z).mean()
 
         # --train f
-        loglike_f = self.f.log_likelihood_given_x([[x[0]],x[1]]).mean()
+        loglike_f = self.f.log_likelihood_given_x([[x[0]], x[1]]).mean()
 
         # ---GAN---
         gz = self.p.inputs
-        p_loss, d_loss = self.loss(gz,x,False)
+        p_loss, d_loss = self.loss(gz, x, False)
 
-        lowerbound = [-KL, loglike, p_loss, d_loss, -KL_semi, loglike_semi, loglike_f]
+        lowerbound = [-KL, loglike, p_loss, d_loss,
+                      -KL_semi, loglike_semi, loglike_f]
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         d_params = self.d.get_params()
         f_params = self.f.get_params()
 
-        q_updates = self.optimizer(KL -loglike +KL_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
-        p_updates = self.optimizer(-self.gamma*(loglike + loglike_semi) + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
-        d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(
+            KL - loglike + KL_semi - loglike_semi - self.f_alpha * loglike_f,
+            q_params+f_params,
+            learning_rate=1e-4,
+            beta1=0.5)
+        p_updates = self.optimizer(
+            -self.gamma * (loglike + loglike_semi) + p_loss,
+            p_params,
+            learning_rate=1e-4,
+            beta1=0.5)
+        d_updates = self.optimizer(
+            d_loss,
+            d_params,
+            learning_rate=1e-4,
+            beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel, outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+x_unlabel,
+            outputs=lowerbound,
+            updates=q_updates,
+            on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel, outputs=lowerbound, updates=p_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+x_unlabel,
+            outputs=lowerbound,
+            updates=p_updates,
+            on_unused_input='ignore')
         self.d_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel, outputs=lowerbound, updates=d_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+x_unlabel,
+            outputs=lowerbound,
+            updates=d_updates,
+            on_unused_input='ignore')
 
         p_loss, d_loss = self.loss(gz, x, True)
-        self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
+        self.test = theano.function(
+            inputs=gz[:1]+x,
+            outputs=[p_loss, d_loss],
+            on_unused_input='ignore')
 
     def train(self, train_set, train_set_unlabel, z_dim, rng):
         n_x = train_set[0].shape[0]
@@ -83,7 +122,9 @@ class VAEGAN_semi(VAEGAN):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), z_dim)).astype(np.float32)
+            batch_z = rng.uniform(
+                -1., 1., size=(len(batch_x[0]), z_dim)
+            ).astype(np.float32)
             batch_zx = [batch_z]+batch_x
 
             start = i * n_batch_unlabel
