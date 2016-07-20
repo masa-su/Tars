@@ -14,7 +14,8 @@ from ..distribution import UnitGaussian
 
 class VAE(object):
 
-    def __init__(self, q, p, n_batch, optimizer, l=1, k=1, alpha=None, random=1234):
+    def __init__(self, q, p, n_batch, optimizer,
+                 l=1, k=1, alpha=None, random=1234):
         self.q = q
         self.p = p
         self.n_batch = n_batch
@@ -40,8 +41,8 @@ class VAE(object):
         KL = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
-        
-        inverse_z = self.inverse_samples(z) 
+
+        inverse_z = self.inverse_samples(z)
         loglike = self.p.log_likelihood_given_x(inverse_z).mean()
 
         lowerbound = [-KL, loglike]
@@ -53,7 +54,10 @@ class VAE(object):
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x,
+            outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
     def lowerbound_renyi(self, alpha):
         x = self.q.inputs
@@ -92,7 +96,9 @@ class VAE(object):
 
         updates = self.optimizer(gparams, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x, outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
     def train(self, train_set):
         n_x = train_set[0].shape[0]
@@ -172,7 +178,7 @@ class VAE(object):
         KL = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
         samples = self.q.sample_given_x(rep_x, self.srng)
-        
+
         inverse_samples = self.inverse_samples(samples)
         log_iw = self.p.log_likelihood_given_x(inverse_samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
