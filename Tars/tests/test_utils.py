@@ -3,6 +3,7 @@ from unittest import TestCase
 import mock
 import numpy as np
 import theano.tensor as T
+import six
 
 
 class TestEpsilon(TestCase):
@@ -73,3 +74,27 @@ class TestTRepeat(TestCase):
         self.assert_(np.array_equal(t_repeat(x, 2, 0).eval(), x_rep2_axis0))
         x_rep2_axis1 = np.array([[-1.0, -1.0], [-2.0, -2.0], [-3.0, -3.0], [-4.0, -4.0]])
         self.assert_(np.array_equal(t_repeat(x, 2, 1).eval(), x_rep2_axis1))
+
+    def test_3d(self):
+        from ..utils import t_repeat
+        x = T.constant(np.random.random((5, 6, 7)))
+        self.assertEqual(t_repeat(x, 1, 0), x)
+        r = t_repeat(x, 2, axis=0)
+        self.assertEqual(r.eval().shape, (10, 6, 7))
+        for i in six.moves.range(10):
+            self.assert_(np.array_equal(x.eval()[i//2], r.eval()[i]))
+        with self.assertRaises(NotImplementedError):
+            # ndim=3 and axis=1 is not implemented
+            t_repeat(x, 2, axis=1)
+
+    def test_4d(self):
+        from ..utils import t_repeat
+        x = T.constant(np.random.random((5, 6, 7, 8)))
+        self.assertEqual(t_repeat(x, 1, 0), x)
+        r = t_repeat(x, 2, axis=0)
+        self.assertEqual(r.eval().shape, (10, 6, 7, 8))
+        for i in six.moves.range(10):
+            self.assert_(np.array_equal(x.eval()[i//2], r.eval()[i]))
+        with self.assertRaises(NotImplementedError):
+            # ndim=4 and axis=1 is not implemented
+            t_repeat(x, 2, axis=1)
