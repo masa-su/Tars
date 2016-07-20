@@ -1,4 +1,7 @@
 # Tars
+
+[![Build Status](https://travis-ci.com/masa-su/Tars.svg?branch=master&token=Tzd7hmaLjunaLnEja81y)](https://travis-ci.com/masa-su/Tars)
+
 Tars is a simple variational autoencoder library. It supports the following models:
 * Autoencoder
 * VAE
