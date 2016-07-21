@@ -19,8 +19,10 @@ class VAE_semi(VAE):
 
     def lowerbound(self):
         x = self.q.inputs
+        annealing_beta = T.fscalar("beta")
+
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
         
@@ -31,7 +33,7 @@ class VAE_semi(VAE):
         x_unlabel = self.f.inputs
         y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
         mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
-        KL_semi = gauss_unitgauss_kl(mean, var).mean()
+        kl_semi = gauss_unitgauss_kl(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
         rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]
@@ -42,8 +44,8 @@ class VAE_semi(VAE):
         # --train f
         loglike_f = self.f.log_likelihood_given_x([[x[0]],x[1]]).mean()
 
-        lowerbound = [-KL, loglike, -KL_semi, loglike_semi, loglike_f]
-        loss = -np.sum(lowerbound[:-1]) - self.f_alpha*lowerbound[-1]
+        lowerbound = [-kl, loglike, -kl_semi, loglike_semi, loglike_f]
+        loss = annealing_beta*kl -np.sum(lowerbound[1:-1]) - self.f_alpha*lowerbound[-1]
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
@@ -52,12 +54,12 @@ class VAE_semi(VAE):
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x+x_unlabel, outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x+x_unlabel+[annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
         self.lowerbound_test = theano.function(
             inputs=x+x_unlabel, outputs=lowerbound, on_unused_input='ignore')
 
-    def train(self, train_set, train_set_unlabel):
+    def train(self, train_set, train_set_unlabel, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -74,7 +76,7 @@ class VAE_semi(VAE):
             end = start + n_batch_unlabel
             batch_x_unlabel = [_x[start:end] for _x in train_set_unlabel]
 
-            train_L = self.lowerbound_train(*batch_x+batch_x_unlabel)
+            train_L = self.lowerbound_train(*batch_x+batch_x_unlabel+[annealing_beta])
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 
