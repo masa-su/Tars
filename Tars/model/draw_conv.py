@@ -48,6 +48,8 @@ class ConvDRAW(object):
 
     def lowerbound(self):
         x = T.ftensor4('x')
+        annealing_beta = T.fscalar("beta")
+
         init_cell_enc = self.q_rnn.mean_network.get_cell_init(x.shape[0])
         init_cell_dec = self.q_rnn.mean_network.get_cell_init(x.shape[0])
         init_hid_enc = self.p_rnn.mean_network.get_hid_init(x.shape[0])
@@ -67,7 +69,7 @@ class ConvDRAW(object):
         kl_T = T.sum(kl)
 
         lowerbound = [-kl_T, log_like_T]
-        loss = -np.sum(lowerbound)
+        loss = -(-annealing_beta*kl_T+log_like_T)
 
         p_rnn_params = self.p_rnn.get_params()
         q_rnn_params = self.q_rnn.get_params()
@@ -86,9 +88,9 @@ class ConvDRAW(object):
             inputs=[x], outputs=canvas_all, updates=scan_updates, on_unused_input='ignore')
 
         self.lowerbound_train = theano.function(
-            inputs=[x], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=[x,annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
-    def train(self, train_set):
+    def train(self, train_set, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -99,7 +101,7 @@ class ConvDRAW(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x)
+            train_L = self.lowerbound_train(*batch_x+[annealing_beta])
             lowerbound_train.append(np.array(train_L))
             pbar.update(i)
         lowerbound_train = np.mean(lowerbound_train, axis=0)
