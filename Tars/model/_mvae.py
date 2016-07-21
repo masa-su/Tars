@@ -25,8 +25,10 @@ class MVAE(VAE):
 
     def lowerbound(self):
         x = self.q.inputs
+        annealing_beta = T.fscalar("beta")
+
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -42,9 +44,9 @@ class MVAE(VAE):
         mean0, var0 = self.pq[0].fprop([x[0]], self.srng, deterministic=False)
         mean1, var1 = self.pq[1].fprop([x[1]], self.srng, deterministic=False)
 
-        # KL[q(x0,0)||q(x0,x1)]
-        KL_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
-        KL_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
+        # kl[q(x0,0)||q(x0,x1)]
+        kl_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
+        kl_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---
         q_params = self.q.get_params()
@@ -54,14 +56,14 @@ class MVAE(VAE):
         pq1_params = self.pq[1].get_params()
 
         params = q_params + p0_params + p1_params + pq0_params + pq1_params
-        lowerbound = [-KL, loglike0, loglike1, KL_0, KL_1]
-        loss = -np.sum(lowerbound[:3])+self.gamma*np.sum(lowerbound[3:])
+        lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1]
+        loss = annealing_beta*kl-np.sum(lowerbound[1:3])+self.gamma*np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x+[annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
-    def train(self, train_set):
+    def train(self, train_set, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -71,7 +73,7 @@ class MVAE(VAE):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x)
+            train_L = self.lowerbound_train(*batch_x+[annealing_beta])
 
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)

@@ -40,8 +40,10 @@ class MVAEGAN(MVAE,GAN):
 
     def lowerbound(self):
         x = self.q.inputs
+        annealing_beta = T.fscalar("beta")
+
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -57,9 +59,9 @@ class MVAEGAN(MVAE,GAN):
         mean0, var0 = self.pq[0].fprop([x[0]], self.srng, deterministic=False)
         mean1, var1 = self.pq[1].fprop([x[1]], self.srng, deterministic=False)
 
-        # KL[q(x0,0)||q(x0,x1)]
-        KL_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
-        KL_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
+        # kl[q(x0,0)||q(x0,x1)]
+        kl_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
+        kl_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---GAN---
         gz = self.p[0].inputs
@@ -72,14 +74,14 @@ class MVAEGAN(MVAE,GAN):
         pq1_params = self.pq[1].get_params()
         d_params = self.d.get_params()
 
-        lowerbound = [-KL, loglike0, loglike1, KL_0, KL_1, p_loss, d_loss]
+        lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1, p_loss, d_loss]
 
-        q_updates = self.optimizer(KL-loglike0-loglike1+self.gamma*(KL_0+KL_1), q_params+p1_params+pq0_params+pq1_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(annealing_beta*kl-loglike0-loglike1+self.gamma*(kl_0+kl_1), q_params+p1_params+pq0_params+pq1_params, learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(-self.gan_gamma*loglike0 + p_loss, p0_params, learning_rate=1e-4, beta1=0.5)
         d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x, outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+[annealing_beta], outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
             inputs=gz[:1]+x, outputs=lowerbound, updates=p_updates, on_unused_input='ignore')
         self.d_lowerbound_train = theano.function(
@@ -88,7 +90,7 @@ class MVAEGAN(MVAE,GAN):
         p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
-    def train(self, train_set, z_dim, rng):
+    def train(self, train_set, z_dim, rng, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -102,7 +104,7 @@ class MVAEGAN(MVAE,GAN):
             batch_z = rng.uniform(-1., 1., size=(len(batch_x[0]), z_dim)).astype(np.float32)
             batch_zx = [batch_z]+batch_x
 
-            train_L = self.q_lowerbound_train(*batch_zx)
+            train_L = self.q_lowerbound_train(*batch_zx+[annealing_beta])
             train_L = self.p_lowerbound_train(*batch_zx)
             train_L = self.d_lowerbound_train(*batch_zx)
             lowerbound_train.append(np.array(train_L))
