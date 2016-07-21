@@ -7,7 +7,7 @@ from progressbar import ProgressBar
 from ..utils import gauss_unitgauss_kl
 
 
-class DRAW(object):
+class ConvDRAW(object):
 
     def __init__(self, q, q_rnn, p, p_rnn, write, n_batch, optimizer, glimpses=64, random=1234):
         self.q = q
@@ -43,18 +43,17 @@ class DRAW(object):
         # write
         new_canvas = self.write.fprop([new_hid_dec], self.srng, deterministic=deterministic)
         new_canvas = canvas + new_canvas
-
+        
         return new_cell_enc, new_cell_dec, new_hid_enc, new_hid_dec, new_canvas, z, kl
 
     def lowerbound(self):
-        x = T.fmatrix('x')
-        annealing_beta = T.fscalar("beta")
-
-        init_cell_enc = self.q_rnn.mean_network.get_hid_init(x.shape[0])
+        x = T.ftensor4('x')
+        init_cell_enc = self.q_rnn.mean_network.get_cell_init(x.shape[0])
         init_cell_dec = self.q_rnn.mean_network.get_cell_init(x.shape[0])
         init_hid_enc = self.p_rnn.mean_network.get_hid_init(x.shape[0])
-        init_hid_dec = self.p_rnn.mean_network.get_cell_init(x.shape[0])
+        init_hid_dec = self.p_rnn.mean_network.get_hid_init(x.shape[0])
         init_canvas = T.ones_like(x)
+        
         outputs_info = [init_cell_enc, init_cell_dec, init_hid_enc, init_hid_dec, init_canvas, None, None]
 
         [cell_enc, cell_dec, hid_enc, hid_dec, canvas, z, kl], scan_updates =\
@@ -68,7 +67,7 @@ class DRAW(object):
         kl_T = T.sum(kl)
 
         lowerbound = [-kl_T, log_like_T]
-        loss = -(-annealing_beta*kl_T+log_like_T)
+        loss = -np.sum(lowerbound)
 
         p_rnn_params = self.p_rnn.get_params()
         q_rnn_params = self.q_rnn.get_params()
@@ -82,14 +81,14 @@ class DRAW(object):
         self.get_log_likelihood = theano.function(
             inputs=[x], outputs=lowerbound, updates=scan_updates, on_unused_input='ignore')
 
-        canvas_all = self.p.fprop([canvas.dimshuffle(1, 0, 2)], self.srng, deterministic=True)
+        canvas_all = self.p.fprop([canvas.dimshuffle(1, 0, 2, 3, 4)], self.srng, deterministic=True)
         self.reconst = theano.function(
             inputs=[x], outputs=canvas_all, updates=scan_updates, on_unused_input='ignore')
 
         self.lowerbound_train = theano.function(
-            inputs=[x,annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=[x], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
-    def train(self, train_set, annealing_beta=1):
+    def train(self, train_set):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -100,7 +99,7 @@ class DRAW(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x+[annealing_beta])
+            train_L = self.lowerbound_train(*batch_x)
             lowerbound_train.append(np.array(train_L))
             pbar.update(i)
         lowerbound_train = np.mean(lowerbound_train, axis=0)
@@ -129,13 +128,16 @@ class DRAW(object):
         z = T.tensor3('z')
         z_dimshuffle = z.dimshuffle(1, 0, 2)
         init_cell_dec = self.p_rnn.mean_network.get_cell_init(z.shape[0])
-        init_hid_dec = self.p_rnn.mean_network.get_cell_init(z.shape[0])
+        init_hid_dec = self.p_rnn.mean_network.get_hid_init(z.shape[0])
         init_canvas = T.ones((z.shape[0],) + self.write.mean_network.output_shape[1:])
 
         def p_step(z, cell_dec, hid_dec, canvas):
+            # decoder
             new_cell_dec, new_hid_dec = self.p_rnn.fprop([z, cell_dec, hid_dec], self.srng, deterministic=True)
+
             # write
-            new_canvas = self.write.fprop([new_hid_dec], self.srng, deterministic=True)
+            #TODO : Fix error
+            new_canvas = self.write.fprop([new_hid_dec], self.srng, deterministic=True).reshape(canvas.shape)
             new_canvas = canvas + new_canvas
 
             return new_cell_dec, new_hid_dec, new_canvas
@@ -145,6 +147,6 @@ class DRAW(object):
                         sequences=[z_dimshuffle],
                         outputs_info=[init_cell_dec, init_hid_dec, init_canvas])
 
-        canvas = self.p.fprop([canvas.dimshuffle(1, 0, 2)], self.srng, deterministic=True)
+        canvas = self.p.fprop([canvas.dimshuffle(1, 0, 2, 3, 4)], self.srng, deterministic=True)
         self.p_sample_mean_x = theano.function(
             inputs=[z], outputs=canvas, updates=scan_updates, on_unused_input='ignore')

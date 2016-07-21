@@ -1,0 +1,31 @@
+sudo: required
+dist: trusty
+language: python
+matrix:
+  include:
+  - python: 2.7
+install:
+- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
+  -O miniconda.sh; else wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  -O miniconda.sh; fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+- conda info -a
+- conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib
+  pandas pytest h5py
+- source activate test-environment
+- pip install pytest-cov python-coveralls mock
+- pip install pep8 pytest-pep8
+- pip install git+git://github.com/Theano/Theano.git
+- python setup.py install
+- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.9.0-cp27-none-linux_x86_64.whl;
+  elif [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.9.0-cp34-cp34m-linux_x86_64.whl;
+  fi
+script:
+- PYTHONPATH=$PWD:$PYTHONPATH py.test
+notifications:
+  slack:
+    secure: MwR+m4eGJT+cD8oBmcVhzHdXg7RajplRIRxiGWa4um77kn1S+FfzopzO+E6IyxBbhacDyxZFY8dld7Pk+q/Gsc5FLDhSAanqRsLfTfestpReVUp4kN5T0EeMkUm3c+pbNqBsqcRk1Wp0M3aAxSZGULFsUEY8+1CR2KeHN4wFMbsKJ0y/KxCP8vMNVSA5zeE7sKwlZQJnMp8lNLGmPaWlv41dAvKCTP94ZAy8tXftuBtNeta0bMpzWyUSEIsxPGm6zGhzseBbLKa9P1QIS8gxInyjfCEBp07OgPFKokXIzNc5VxY/1813xFifq0yvOw0wKvKLAKf77bf89cDmEshdpk1BXkmmDXbNbe1UPus9CSpqG3IOUpaUyFbWJWcWg9OQN7LMh5e9Tqojs13LEglyshLrMwGSszcY7hRPsa5m4tLQFbKJ9cWDvjghN3EqTN2adOKspSAKY9Knpkz4ON9luIJTLpwThnD9qfWWIBobX2CT8+Ka6npFpHfl57FOp0qQsxj+IevLKv4lOHfhzKmYdbF52MKVbuc+UXf7cHxvuV2NhfzUD5ltx5lf7n8dhBh88xyGwM7tuG1PzlcLEvqSTOcMJutDDysr7xk50/YL3dnKok0HxCe7WF48tUZ4wLOzsvAZjdjhidO0bb+xfSGEJEPivP7H5ezmgyo+AKa+yc0=

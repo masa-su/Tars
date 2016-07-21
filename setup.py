@@ -28,6 +28,7 @@ setup(
         'matplotlib',
         'progressbar2',
         'Theano',
-        'sklearn'
+        'sklearn',
+        'six',
     ]
 )
