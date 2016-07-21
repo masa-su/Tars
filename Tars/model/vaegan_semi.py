@@ -1,5 +1,6 @@
 import numpy as np
 import theano
+import theano.tensor as T
 from progressbar import ProgressBar
 
 from . import VAEGAN
@@ -20,8 +21,10 @@ class VAEGAN_semi(VAEGAN):
     def lowerbound(self):
         # ---VAE---
         x = self.q.inputs
+        annealing_beta = T.fscalar("beta")
+
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -33,7 +36,7 @@ class VAEGAN_semi(VAEGAN):
         x_unlabel = self.f.inputs
         y = self.f.sample_mean_given_x(x_unlabel, self.srng, deterministic=False)[-1]
         mean, var = self.q.fprop([x_unlabel[0],y], self.srng, deterministic=False)
-        KL_semi = gauss_unitgauss_kl(mean, var).mean()
+        kl_semi = gauss_unitgauss_kl(mean, var).mean()
 
         rep_x_unlabel = [t_repeat(_x, self.l, axis=0) for _x in x_unlabel]
         rep_y = self.f.sample_mean_given_x(rep_x_unlabel, self.srng, deterministic=False)[-1]
@@ -48,19 +51,19 @@ class VAEGAN_semi(VAEGAN):
         gz = self.p.inputs
         p_loss, d_loss = self.loss(gz,x,False)
 
-        lowerbound = [-KL, loglike, p_loss, d_loss, -KL_semi, loglike_semi, loglike_f]
+        lowerbound = [-kl, loglike, p_loss, d_loss, -kl_semi, loglike_semi, loglike_f]
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         d_params = self.d.get_params()
         f_params = self.f.get_params()
 
-        q_updates = self.optimizer(KL -loglike +KL_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(annealing_beta*kl -loglike +kl_semi -loglike_semi -self.f_alpha * loglike_f, q_params+f_params, learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(-self.gamma*(loglike + loglike_semi) + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
         d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel, outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+x_unlabel+[annealing_beta], outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
             inputs=gz[:1]+x+x_unlabel, outputs=lowerbound, updates=p_updates, on_unused_input='ignore')
         self.d_lowerbound_train = theano.function(
@@ -69,7 +72,7 @@ class VAEGAN_semi(VAEGAN):
         p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(inputs=gz[:1]+x, outputs=[p_loss,d_loss], on_unused_input='ignore')
 
-    def train(self, train_set, train_set_unlabel, z_dim, rng):
+    def train(self, train_set, train_set_unlabel, z_dim, rng, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -90,7 +93,7 @@ class VAEGAN_semi(VAEGAN):
             end = start + n_batch_unlabel
             batch_x_unlabel = [_x[start:end] for _x in train_set_unlabel]
 
-            train_L = self.q_lowerbound_train(*batch_zx+batch_x_unlabel)
+            train_L = self.q_lowerbound_train(*batch_zx+batch_x_unlabel+[annealing_beta])
             train_L = self.p_lowerbound_train(*batch_zx+batch_x_unlabel)
             train_L = self.d_lowerbound_train(*batch_zx+batch_x_unlabel)
             lowerbound_train.append(np.array(train_L))
