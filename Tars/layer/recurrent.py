@@ -105,7 +105,8 @@ class LSTMCell(MergeLayer):
                              'should be equal')
 
         # Initialize parent layer
-        super(LSTMCell, self).__init__([x, cell_previous, hid_previous], **kwargs)
+        super(LSTMCell, self).__init__(
+            [x, cell_previous, hid_previous], **kwargs)
 
         # If the provided nonlinearity is None, make it linear
         if nonlinearity is None:
@@ -413,7 +414,8 @@ class GRUCell(MergeLayer):
         if input_n.ndim > 2:
             input_n = T.flatten(input_n, 2)
 
-        # At each call to scan, input_n will be (n_time_steps, 3*num_units_gru).
+        # At each call to scan,
+        # input_n will be (n_time_steps, 3*num_units_gru).
         # We define a slicing function that extract the input to each GRU gate
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
