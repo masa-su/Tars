@@ -70,12 +70,24 @@ class VAEGAN(VAE, GAN):
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         d_params = self.d.get_params()
-        q_updates = self.optimizer(annealing_beta*kl -loglike, q_params, learning_rate=1e-4, beta1=0.5)
-        p_updates = self.optimizer(-self.gamma*loglike + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
-        d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(
+            annealing_beta*kl - loglike,
+            q_params,
+            learning_rate=1e-4,
+            beta1=0.5)
+        p_updates = self.optimizer(
+            -self.gamma*loglike + p_loss,
+            p_params,
+            learning_rate=1e-4,
+            beta1=0.5)
+        d_updates = self.optimizer(
+            d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+[annealing_beta], outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+[annealing_beta],
+            outputs=lowerbound,
+            updates=q_updates,
+            on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
             inputs=gz[:1]+x,
             outputs=lowerbound,
