@@ -142,7 +142,7 @@ class ConvDRAW(object):
             start = i * self.n_batch
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*batch_x)
+            log_likelihood = self.get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
             pbar.update(i)
 
