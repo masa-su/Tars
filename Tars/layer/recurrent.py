@@ -341,7 +341,6 @@ class GRUCell(MergeLayer):
 
         # Retrieve the dimensionality of the incoming layer
         input_shape_x = self.input_shapes[0]
-        input_shape_h = self.input_shapes[1]
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs_x = np.prod(input_shape_x[1:])
