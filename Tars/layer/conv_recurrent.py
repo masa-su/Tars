@@ -41,7 +41,8 @@ class ConvLSTMCell(MergeLayer):
                  **kwargs):
 
         # Initialize parent layer
-        super(ConvLSTMCell, self).__init__([x, cell_previous, hid_previous], **kwargs)
+        super(ConvLSTMCell, self).__init__(
+            [x, cell_previous, hid_previous], **kwargs)
 
         # If the provided nonlinearity is None, make it linear
         if nonlinearity is None:
@@ -84,14 +85,21 @@ class ConvLSTMCell(MergeLayer):
         def add_gate_params(gate, gate_name):
             """ Convenience function for adding layer parameters from a Gate
             instance. """
-            return (self.add_param(gate.W_in, self.get_W_shape(self.input_shape_x),
-                                   name="W_in_to_{}".format(gate_name)),
-                    self.add_param(gate.W_hid, self.get_W_shape(self.input_shape_h),
-                                   name="W_hid_to_{}".format(gate_name)),
-                    self.add_param(gate.b, (self.num_filters, ),
-                                   name="b_{}".format(gate_name),
-                                   regularizable=False),
-                    gate.nonlinearity)
+            return (
+                self.add_param(
+                    gate.W_in,
+                    self.get_W_shape(self.input_shape_x),
+                    name="W_in_to_{}".format(gate_name)),
+                self.add_param(
+                    gate.W_hid,
+                    self.get_W_shape(self.input_shape_h),
+                    name="W_hid_to_{}".format(gate_name)),
+                self.add_param(
+                    gate.b,
+                    (self.num_filters, ),
+                    name="b_{}".format(gate_name),
+                    regularizable=False),
+                gate.nonlinearity)
 
         # Add in parameters from the supplied Gate instances
         (self.W_in_to_ingate, self.W_hid_to_ingate, self.b_ingate,
@@ -113,13 +121,19 @@ class ConvLSTMCell(MergeLayer):
 
         if self.peepholes:
             self.W_cell_to_ingate = self.add_param(
-                ingate.W_cell, (self.num_filters, ), name="W_cell_to_ingate")
+                ingate.W_cell,
+                (self.num_filters, ),
+                name="W_cell_to_ingate")
 
             self.W_cell_to_forgetgate = self.add_param(
-                forgetgate.W_cell, (self.num_filters, ), name="W_cell_to_forgetgate")
+                forgetgate.W_cell,
+                (self.num_filters, ),
+                name="W_cell_to_forgetgate")
 
             self.W_cell_to_outgate = self.add_param(
-                outgate.W_cell, (self.num_filters, ), name="W_cell_to_outgate")
+                outgate.W_cell,
+                (self.num_filters, ),
+                name="W_cell_to_outgate")
 
         # Setup initial values for the cell and the hidden units
         self.cell_init = self.add_param(
@@ -159,19 +173,21 @@ class ConvLSTMCell(MergeLayer):
 
         def get_gates(input_n, hid, W0, W1, b, **kwargs):
             border_mode = 'half' if self.pad == 'same' else self.pad
-            input_conved = self.convolution(input_n, W0,
-                                            self.input_shape_x,
-                                            self.get_W_shape(self.input_shape_x),
-                                            subsample=self.stride,
-                                            border_mode=border_mode,
-                                            filter_flip=self.flip_filters)
+            input_conved = self.convolution(
+                input_n, W0,
+                self.input_shape_x,
+                self.get_W_shape(self.input_shape_x),
+                subsample=self.stride,
+                border_mode=border_mode,
+                filter_flip=self.flip_filters)
 
-            hid_conved = self.convolution(hid, W1,
-                                          self.input_shape_h,
-                                          self.get_W_shape(self.input_shape_h),
-                                          subsample=self.stride,
-                                          border_mode=border_mode,
-                                          filter_flip=self.flip_filters)
+            hid_conved = self.convolution(
+                hid, W1,
+                self.input_shape_h,
+                self.get_W_shape(self.input_shape_h),
+                subsample=self.stride,
+                border_mode=border_mode,
+                filter_flip=self.flip_filters)
 
             gate = input_conved+hid_conved
             gate = gate + b.dimshuffle(('x', 0) + ('x',) * self.n)
@@ -187,15 +203,38 @@ class ConvLSTMCell(MergeLayer):
         # input_n is the n'th vector of the input
         def step(input_n, cell_previous, hid_previous, *args):
 
-            ingate = get_gates(input_n, hid_previous, self.W_in_to_ingate, self.W_hid_to_ingate, self.b_ingate)
-            forgetgate = get_gates(input_n, hid_previous, self.W_in_to_forgetgate, self.W_hid_to_forgetgate, self.b_forgetgate)
-            cell_input = get_gates(input_n, hid_previous, self.W_in_to_cell, self.W_hid_to_cell, self.b_cell)
-            outgate = get_gates(input_n, hid_previous, self.W_in_to_outgate, self.W_hid_to_outgate, self.b_outgate)
+            ingate = get_gates(
+                input_n,
+                hid_previous,
+                self.W_in_to_ingate,
+                self.W_hid_to_ingate,
+                self.b_ingate)
+            forgetgate = get_gates(
+                input_n,
+                hid_previous,
+                self.W_in_to_forgetgate,
+                self.W_hid_to_forgetgate,
+                self.b_forgetgate)
+            cell_input = get_gates(
+                input_n,
+                hid_previous,
+                self.W_in_to_cell,
+                self.W_hid_to_cell,
+                self.b_cell)
+            outgate = get_gates(
+                input_n,
+                hid_previous,
+                self.W_in_to_outgate,
+                self.W_hid_to_outgate,
+                self.b_outgate)
 
             if self.peepholes:
                 # Compute peephole connections
-                ingate += cell_previous*self.W_cell_to_ingate.dimshuffle(('x', 0) + ('x',) * self.n)
-                forgetgate += cell_previous*self.W_cell_to_forgetgate.dimshuffle(('x', 0) + ('x',) * self.n)
+                ingate += cell_previous*self.W_cell_to_ingate.dimshuffle(
+                    ('x', 0) + ('x',) * self.n)
+                forgetgate += cell_previous * \
+                    self.W_cell_to_forgetgate.dimshuffle(
+                        ('x', 0) + ('x',) * self.n)
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)
@@ -206,7 +245,8 @@ class ConvLSTMCell(MergeLayer):
             cell = forgetgate*cell_previous + ingate*cell_input
 
             if self.peepholes:
-                outgate += cell*self.W_cell_to_outgate.dimshuffle(('x', 0) + ('x',) * self.n)
+                outgate += cell*self.W_cell_to_outgate.dimshuffle(
+                    ('x', 0) + ('x',) * self.n)
             outgate = self.nonlinearity_outgate(outgate)
 
             # Compute new hidden unit activation

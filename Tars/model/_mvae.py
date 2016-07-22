@@ -17,10 +17,12 @@ from ..utils import (
 
 class MVAE(VAE):
 
-    def __init__(self, q, p, pq, n_batch, optimizer, l=1, k=1, random=1234, gamma=1):
+    def __init__(self, q, p, pq, n_batch, optimizer,
+                 l=1, k=1, random=1234, gamma=1):
         self.gamma = gamma
         self.pq = pq
-        super(MVAE, self).__init__(q, p, n_batch, optimizer, l, k, None, random)
+        super(MVAE, self).__init__(q, p, n_batch, optimizer,
+                                   l, k, None, random)
         self.pq_sample_mean_given_x()
 
     def lowerbound(self):
@@ -32,12 +34,12 @@ class MVAE(VAE):
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
-        inverse_z = self.inverse_samples(self.single_input(z,0))
+        inverse_z = self.inverse_samples(self.single_input(z, 0))
         loglike0 = self.p[0].log_likelihood_given_x(inverse_z).mean()
 
-        inverse_z = self.inverse_samples(self.single_input(z,1))
+        inverse_z = self.inverse_samples(self.single_input(z, 1))
         loglike1 = self.p[1].log_likelihood_given_x(inverse_z).mean()
-        
+
         # ---penalty
         mean, var = self.q.fprop(x, deterministic=False)
         # z ~ q(x0)
@@ -57,11 +59,15 @@ class MVAE(VAE):
 
         params = q_params + p0_params + p1_params + pq0_params + pq1_params
         lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1]
-        loss = annealing_beta*kl-np.sum(lowerbound[1:3])+self.gamma*np.sum(lowerbound[3:])
+        loss = annealing_beta*kl-np.sum(
+            lowerbound[1:3])+self.gamma*np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x+[annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x+[annealing_beta],
+            outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
     def train(self, train_set, annealing_beta=1):
         n_x = train_set[0].shape[0]
@@ -142,14 +148,14 @@ class MVAE(VAE):
         log p(x0|z1,z2,...,zn,y,...)
         inverse_samples0 : [zn,zn-1,...,x0]
         """
-        inverse_samples0 = self.inverse_samples(self.single_input(samples,0))
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
         """
         log p(x1|z1,z2,...,zn,y,...)
         inverse_samples1 : [zn,zn-1,...,x1]
         """
-        inverse_samples1 = self.inverse_samples(self.single_input(samples,1))
+        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
         p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
 
         log_iw += p0_log_likelihood + p1_log_likelihood - q_log_likelihood
@@ -185,7 +191,7 @@ class MVAE(VAE):
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
         samples = self.q.sample_given_x(rep_x, self.srng)
 
-        samples = self.single_input(samples,input=rep_x)
+        samples = self.single_input(samples, input=rep_x)
         log_iw = self.log_conditional_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
@@ -209,14 +215,14 @@ class MVAE(VAE):
         log q(z1,z2,...,zn|x1)
         samples : [x1,z1,z2,...,zn]
         """
-        samples1 = self.single_input(samples,1)
+        samples1 = self.single_input(samples, 1)
         q1_log_likelihood = self.pq[1].log_likelihood_given_x(samples1)
 
         """
         log p(x0|z1,z2,...,zn)
         inverse_samples0 : [zn,zn-1,...,x0]
         """
-        inverse_samples0 = self.inverse_samples(self.single_input(samples,0))
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
         log_iw = p0_log_likelihood + q1_log_likelihood - q_log_likelihood
@@ -251,7 +257,7 @@ class MVAE(VAE):
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
         samples = self.q.sample_given_x(rep_x, self.srng)
 
-        samples = self.single_input(samples,input=rep_x)
+        samples = self.single_input(samples, input=rep_x)
         log_iw = self.log_mg_importance_weight(samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
@@ -276,7 +282,7 @@ class MVAE(VAE):
         log p(x0|z1,z2,...,zn)
         inverse_samples0 : [zn,zn-1,...,x0]
         """
-        inverse_samples0 = self.inverse_samples(self.single_input(samples,0))
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
         log_iw += p0_log_likelihood - q_log_likelihood
@@ -289,18 +295,24 @@ class MVAE(VAE):
         rep_x = [t_repeat(_x, l, axis=0) for _x in x]
 
         # z ~ q(x0,random_x)
-        z0 = self.pq[0].sample_given_x([rep_x[0]], self.srng, deterministic=True)
-        z1 = self.pq[1].sample_given_x([rep_x[1]], self.srng, deterministic=True)
+        z0 = self.pq[0].sample_given_x(
+            [rep_x[0]], self.srng, deterministic=True)
+        z1 = self.pq[1].sample_given_x(
+            [rep_x[1]], self.srng, deterministic=True)
 
-        inverse_z0 = self.inverse_samples(self.single_input(z1,input=rep_x[0]))
-        loglike0_given0 = self.p[0].log_likelihood_given_x(inverse_z0)# p(x0|z0)
+        inverse_z0 = self.inverse_samples(
+            self.single_input(z1, input=rep_x[0]))
+        # p(x0|z0)
+        loglike0_given0 = self.p[0].log_likelihood_given_x(inverse_z0)
         loglike0_given0 = T.mean(loglike0_given0)
 
-        inverse_z1 = self.inverse_samples(self.single_input(z0,input=rep_x[1]))
-        loglike1_given1 = self.p[1].log_likelihood_given_x(inverse_z1)# p(x1|z1)
+        inverse_z1 = self.inverse_samples(
+            self.single_input(z0, input=rep_x[1]))
+        # p(x1|z1)
+        loglike1_given1 = self.p[1].log_likelihood_given_x(inverse_z1)
         loglike1_given1 = T.mean(loglike1_given1)
-        
-        loss = [-loglike0_given0,-loglike1_given1]
+
+        loss = [-loglike0_given0, -loglike1_given1]
         self.loss_test = theano.function(
             inputs=x, outputs=loss, on_unused_input='ignore')
 
@@ -323,7 +335,7 @@ class MVAE(VAE):
     def single_input(self, samples, i=0, input=None):
         """
         inputs : [[x,y,...],z1,z2,....]
-        outputs : 
+        outputs :
            i=0 : [[x],z1,z2,....]
            i=1 : [[y],z1,z2,....]
         """
