@@ -85,12 +85,22 @@ class MVAEGAN(MVAE, GAN):
 
         lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1, p_loss, d_loss]
 
-        q_updates = self.optimizer(annealing_beta*kl-loglike0-loglike1+self.gamma*(kl_0+kl_1), q_params+p1_params+pq0_params+pq1_params, learning_rate=1e-4, beta1=0.5)
-        p_updates = self.optimizer(-self.gan_gamma*loglike0 + p_loss, p0_params, learning_rate=1e-4, beta1=0.5)
-        d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
+        q_updates = self.optimizer(
+            annealing_beta*kl-loglike0-loglike1+self.gamma*(kl_0+kl_1),
+            q_params+p1_params+pq0_params+pq1_params,
+            learning_rate=1e-4, beta1=0.5)
+        p_updates = self.optimizer(
+            -self.gan_gamma*loglike0 + p_loss, p0_params,
+            learning_rate=1e-4, beta1=0.5)
+        d_updates = self.optimizer(
+            d_loss, d_params,
+            learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+[annealing_beta], outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
+            inputs=gz[:1]+x+[annealing_beta],
+            outputs=lowerbound,
+            updates=q_updates,
+            on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
             inputs=gz[:1]+x,
             outputs=lowerbound,
