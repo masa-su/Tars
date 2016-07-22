@@ -4,8 +4,6 @@ import numpy as np
 import scipy as sp
 from scipy.io import loadmat
 import glob
-import os
-from sklearn import preprocessing
 import sys
 import pickle
 from copy import copy
