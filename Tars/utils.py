@@ -37,43 +37,59 @@ def gauss_unitgauss_kl(mean, var):
 
 
 def gauss_gauss_kl(mean0, var0, mean1, var1):
-    kl = T.log(var1) - T.log(var0) + T.exp(T.log(var0) - T.log(var1)) + (mean0 - mean1)**2 / T.exp(T.log(var1))
+    kl = T.log(var1) - T.log(var0) \
+         + T.exp(T.log(var0) - T.log(var1)) \
+         + (mean0 - mean1)**2 / T.exp(T.log(var1))
     return 0.5 * T.sum(kl, axis=1)
 
 
 # https://github.com/yburda/iwae/blob/master/utils.py
 def t_repeat(x, num_repeats, axis):
     """
-    Repeats x along an axis num_repeats times. Axis has to be 0 or 1, x has to be a matrix.
+    Repeats x along an axis num_repeats times.
+    Axis has to be 0 or 1, x has to be a matrix.
     """
     if x.ndim == 2:
         if num_repeats == 1:
             return x
         else:
             if axis == 0:
-                return T.alloc(x.dimshuffle(1, 0, 'x'), x.shape[1], x.shape[0], num_repeats)\
-                        .reshape((x.shape[1], num_repeats * x.shape[0]))\
-                        .dimshuffle(1, 0)
+                return T.alloc(
+                    x.dimshuffle(1, 0, 'x'),
+                    x.shape[1], x.shape[0], num_repeats
+                ).reshape(
+                    (x.shape[1], num_repeats * x.shape[0])
+                ).dimshuffle(1, 0)
             elif axis == 1:
-                return T.alloc(x.dimshuffle(0, 'x', 1), x.shape[0], num_repeats, x.shape[1]).reshape((x.shape[0], num_repeats * x.shape[1]))
+                return T.alloc(
+                    x.dimshuffle(0, 'x', 1),
+                    x.shape[0], num_repeats, x.shape[1]
+                ).reshape((x.shape[0], num_repeats * x.shape[1]))
 
     elif x.ndim == 3:
         if num_repeats == 1:
             return x
         else:
             if axis == 0:
-                return T.alloc(x.dimshuffle(1, 2, 0, 'x'), x.shape[1], x.shape[2], x.shape[0], num_repeats)\
-                        .reshape((x.shape[1], x.shape[2], num_repeats * x.shape[0]))\
-                        .dimshuffle(2, 0, 1)
+                return T.alloc(
+                    x.dimshuffle(1, 2, 0, 'x'),
+                    x.shape[1], x.shape[2], x.shape[0], num_repeats
+                ).reshape(
+                    (x.shape[1], x.shape[2], num_repeats * x.shape[0])
+                ).dimshuffle(2, 0, 1)
 
     elif x.ndim == 4:
         if num_repeats == 1:
             return x
         else:
             if axis == 0:
-                return T.alloc(x.dimshuffle(1, 2, 3, 0, 'x'), x.shape[1], x.shape[2], x.shape[3], x.shape[0], num_repeats)\
-                        .reshape((x.shape[1], x.shape[2], x.shape[3], num_repeats * x.shape[0]))\
-                        .dimshuffle(3, 0, 1, 2)
+                return T.alloc(
+                    x.dimshuffle(1, 2, 3, 0, 'x'),
+                    x.shape[1], x.shape[2], x.shape[3], x.shape[0], num_repeats
+                ).reshape(
+                    (x.shape[1], x.shape[2], x.shape[3],
+                     num_repeats * x.shape[0])
+                ).dimshuffle(3, 0, 1, 2)
     raise NotImplementedError
 
 
