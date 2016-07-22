@@ -1,11 +1,8 @@
-import numpy as np
 import theano
 import theano.tensor as T
-
 from lasagne import nonlinearities
 from lasagne import init
-from lasagne.layers import MergeLayer, Layer, InputLayer, Conv2DLayer
-from lasagne.layers import helper
+from lasagne.layers import MergeLayer
 from lasagne.layers import Gate
 from lasagne.layers.conv import conv_output_length
 from lasagne.utils import as_tuple
