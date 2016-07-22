@@ -28,8 +28,6 @@ class DRAW(object):
 
     def step(self, cell_enc, cell_dec, hid_enc, hid_dec,
              canvas, x, deterministic=False):
-        x_shape = np.array(x.shape[1:])
-
         # encoder
         x_err = x - self.p.fprop(
             [canvas],
