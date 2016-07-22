@@ -31,10 +31,10 @@ class Distribution(object):
 
     def mean_sum_samples(self, samples):
         n_dim = samples.ndim
-        if n_dim == 4: #TODO:fix 
+        if n_dim == 4:  # TODO:fix
             return T.mean(T.sum(T.sum(samples, axis=2), axis=2), axis=1)
         elif n_dim == 3:
-            return T.sum(T.sum(samples, axis=-1) ,axis=-1)
+            return T.sum(T.sum(samples, axis=-1), axis=-1)
         else:
             return T.sum(samples, axis=-1)
 
@@ -66,7 +66,8 @@ class Bernoulli(Distribution):
         return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
 
     def log_likelihood(self, samples, mean):
-        mean = T.clip(mean, epsilon(), 1.0-epsilon()) # for numerical stability
+        # for numerical stability
+        mean = T.clip(mean, epsilon(), 1.0-epsilon())
         loglike = samples * T.log(mean) + (1 - samples) * T.log(1 - mean)
         return self.mean_sum_samples(loglike)
 
@@ -106,7 +107,8 @@ class Categorical(Bernoulli):
         super(Categorical, self).__init__(mean_network, given)
 
     def log_likelihood(self, samples, mean):
-        mean = T.clip(mean, epsilon(), 1.0-epsilon()) # for numerical stability
+        # for numerical stability
+        mean = T.clip(mean, epsilon(), 1.0-epsilon())
         loglike = samples * T.log(mean)
         return self.mean_sum_samples(loglike)
 
@@ -167,7 +169,8 @@ class Gaussian(Distribution):
 class BivariateGauss(Gaussian):
 
     def __init__(self, mean_network, var_network, corr_network, given):
-        super(BivariateGauss, self).__init__(mean_network, var_network, corr_network, given)
+        super(BivariateGauss, self).__init__(
+            mean_network, var_network, corr_network, given)
 
     def get_params(self):
         params = super(BivariateGauss, self).get_params()
@@ -183,13 +186,13 @@ class BivariateGauss(Gaussian):
 
     def sample(self, mean, var, corr, srng):
         # Cholesky
-        L = T.zeros((mean.shape[1],mean.shape[1]))
-        L[0,0] = T.sqrt(var[:,0][np.newaxis])
-        L[1,0] = corr/L[0,0]
-        L[1,1] = T.sqrt(var[:,1][np.newaxis] - L[1,0]**2)
+        L = T.zeros((mean.shape[1], mean.shape[1]))
+        L[0, 0] = T.sqrt(var[:, 0][np.newaxis])
+        L[1, 0] = corr/L[0, 0]
+        L[1, 1] = T.sqrt(var[:, 1][np.newaxis] - L[1, 0]**2)
 
         eps = srng.normal(mean.shape)
-        return mean + T.dot(eps,L)
+        return mean + T.dot(eps, L)
 
     def log_likelihood(self, samples, mean, var):
         mean_0 = mean[:, 0].reshape((-1, 1))
@@ -202,11 +205,13 @@ class BivariateGauss(Gaussian):
         samples_1 = samples[:, 1].reshape((-1, 1))
         corr = T.clip(corr.reshape((-1, 1)), epsilon(), 1.0-epsilon())
 
-        inner1 =  ((0.5*T.log(1-corr**2)) +
-                   0.5 * T.log(var_0) + 0.5 * T.log(var_1) + T.log(2 * np.pi))
+        inner1 = 0.5*T.log(1-corr**2) + 0.5 * T.log(var_0)\
+            + 0.5 * T.log(var_1) + T.log(2 * np.pi)
 
-        z = ((samples_0 - mean_0))**2 / var_0 + ((samples_1 - mean_1))**2 / var_1 \
-             - (2. * (corr * (samples_0 - mean_0) * (samples_1 - mean_1)) / (T.sqrt(var_0) * T.sqrt(var_1)))
+        z = (samples_0 - mean_0)**2 / var_0 \
+            + (samples_1 - mean_1)**2 / var_1 \
+            - 2. * (corr * (samples_0 - mean_0) * (samples_1 - mean_1)) \
+            / (T.sqrt(var_0) * T.sqrt(var_1))
 
         inner2 = 0.5 * (1. / (1. - corr**2))
         loglike = inner1 + (inner2 * z)
@@ -246,7 +251,8 @@ class GaussianConstantVar(Bernoulli):
         self.constant_var = var
 
     def log_likelihood(self, samples, mean):
-        loglike = gaussian_like(samples, mean, T.ones_like(mean)*self.constant_var)
+        loglike = gaussian_like(
+            samples, mean, T.ones_like(mean)*self.constant_var)
         return self.mean_sum_samples(loglike)
 
 
@@ -279,9 +285,9 @@ class Laplace(Gaussian):
 
     def sample(self, mean, b, srng):
         eps = srng.uniform(mean.shape, low=-0.5, high=0.5)
-        return mean -b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
+        return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
 
     def log_likelihood(self, samples, mean, b):
-        b += epsilon() # for numerical stability
+        b += epsilon()  # for numerical stability
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return self.mean_sum_samples(loglike)
