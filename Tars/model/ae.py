@@ -24,7 +24,7 @@ class AE(object):
     def lowerbound(self, random):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
-        inverse_z = self.inverse_samples([x,z])
+        inverse_z = self.inverse_samples([x, z])
         loglike = self.p.log_likelihood_given_x(inverse_z).mean()
 
         q_params = self.q.get_params()
@@ -33,7 +33,10 @@ class AE(object):
 
         updates = self.optimizer(-loglike, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=loglike, updates=updates, on_unused_input='ignore')
+            inputs=x,
+            outputs=loglike,
+            updates=updates,
+            on_unused_input='ignore')
 
     def train(self, train_set):
         n_x = train_set[0].shape[0]
@@ -87,7 +90,7 @@ class AE(object):
     def log_marginal_likelihood(self, x):
         n_x = x[0].shape[0]
         z = self.q.fprop(x, deterministic=True)
-        inverse_z = self.inverse_samples([x,z])
+        inverse_z = self.inverse_samples([x, z])
         log_marginal_estimate = self.p.log_likelihood_given_x(inverse_z)
 
         return log_marginal_estimate
