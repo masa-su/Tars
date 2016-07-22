@@ -1,5 +1,8 @@
 # Tars
-Tars is a simple variational autoencoder library. It supports the following models:
+
+[![Build Status](https://travis-ci.com/masa-su/Tars.svg?branch=master&token=Tzd7hmaLjunaLnEja81y)](https://travis-ci.com/masa-su/Tars)
+
+Tars is the deep generative models library. It supports the following models:
 * Autoencoder
 * VAE
   * Conditional VAE
@@ -10,7 +13,9 @@ Tars is a simple variational autoencoder library. It supports the following mode
 * GAN
   * Conditional GAN
 * VAE-RNN
-  * Variational RNN (NEW!)
+  * Variational RNN
+  * DRAW
+  * Convolutional DRAW (NEW!)
 * Various lowerbounds
   * The evidence lowerbound (ELBO, which is the same as the original lowerbound)
   * The importance sampling lowerbound 
@@ -19,7 +24,7 @@ Tars is a simple variational autoencoder library. It supports the following mode
 * Semi-supervised model
   * VAE model
   * VAE-GAN model
-* Various distributions (Gaussian, Bernoulli, Laplace(NEW!),...) 
+* Various distributions (Gaussian, Bernoulli, Laplace,...) 
 
 ## Installation
 ```

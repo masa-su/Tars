@@ -25,7 +25,7 @@ class MVAE(VAE):
     def lowerbound(self):
         x = self.q.inputs
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -47,9 +47,9 @@ class MVAE(VAE):
             self.srng,
             deterministic=False)
 
-        # KL[q(x0,0)||q(x0,x1)]
-        KL_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
-        KL_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
+        # kl[q(x0,0)||q(x0,x1)]
+        kl_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
+        kl_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---
 
@@ -57,7 +57,7 @@ class MVAE(VAE):
         p0_params = self.p[0].get_params()
         p1_params = self.p[1].get_params()
         params = q_params + p0_params + p1_params
-        lowerbound = [-KL, loglike0, loglike1, KL_0, KL_1]
+        lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1]
         loss = -np.sum(lowerbound[:3])+self.gamma*np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)

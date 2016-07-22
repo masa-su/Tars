@@ -50,8 +50,10 @@ class VAEGAN(VAE, GAN):
     def lowerbound(self):
         # ---VAE---
         x = self.q.inputs
+        annealing_beta = T.fscalar("beta")
+
         mean, var = self.q.fprop(x, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
@@ -63,31 +65,17 @@ class VAEGAN(VAE, GAN):
         gz = self.p.inputs
         p_loss, d_loss = self.loss(gz, x, False)
 
-        lowerbound = [-KL, loglike, p_loss, d_loss]
+        lowerbound = [-kl, loglike, p_loss, d_loss]
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         d_params = self.d.get_params()
-        q_updates = self.optimizer(
-            KL - loglike, q_params,
-            learning_rate=1e-4,
-            beta1=0.5)
-        p_updates = self.optimizer(
-            -self.gamma * loglike + p_loss,
-            p_params,
-            learning_rate=1e-4,
-            beta1=0.5)
-        d_updates = self.optimizer(
-            d_loss,
-            d_params,
-            learning_rate=1e-4,
-            beta1=0.5)
+        q_updates = self.optimizer(annealing_beta*kl -loglike, q_params, learning_rate=1e-4, beta1=0.5)
+        p_updates = self.optimizer(-self.gamma*loglike + p_loss, p_params, learning_rate=1e-4, beta1=0.5)
+        d_updates = self.optimizer(d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x,
-            outputs=lowerbound,
-            updates=q_updates,
-            on_unused_input='ignore')
+            inputs=gz[:1]+x+[annealing_beta], outputs=lowerbound, updates=q_updates, on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
             inputs=gz[:1]+x,
             outputs=lowerbound,
@@ -104,7 +92,7 @@ class VAEGAN(VAE, GAN):
             outputs=[p_loss, d_loss],
             on_unused_input='ignore')
 
-    def train(self, train_set, z_dim, rng):
+    def train(self, train_set, z_dim, rng, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -121,7 +109,7 @@ class VAEGAN(VAE, GAN):
                                   ).astype(np.float32)
             batch_zx = [batch_z]+batch_x
 
-            train_L = self.q_lowerbound_train(*batch_zx)
+            train_L = self.q_lowerbound_train(*batch_zx+[annealing_beta])
             train_L = self.p_lowerbound_train(*batch_zx)
             train_L = self.d_lowerbound_train(*batch_zx)
 

@@ -22,6 +22,7 @@ class VAE(object):
         self.optimizer = optimizer
         self.l = l
         self.k = k
+        self.alpha = alpha
 
         np.random.seed(random)
         self.srng = RandomStreams(seed=random)
@@ -37,16 +38,18 @@ class VAE(object):
 
     def lowerbound(self):
         x = self.q.inputs
+        annealing_beta = T.fscalar("beta")
+
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
-        KL = gauss_unitgauss_kl(mean, var).mean()
+        kl = gauss_unitgauss_kl(mean, var).mean()
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         inverse_z = self.inverse_samples(z)
         loglike = self.p.log_likelihood_given_x(inverse_z).mean()
 
-        lowerbound = [-KL, loglike]
-        loss = -np.sum(lowerbound)
+        lowerbound = [-kl, loglike]
+        loss = -(loglike-annealing_beta*kl)
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
@@ -54,10 +57,7 @@ class VAE(object):
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x,
-            outputs=lowerbound,
-            updates=updates,
-            on_unused_input='ignore')
+            inputs=x+[annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
 
     def lowerbound_renyi(self, alpha):
         x = self.q.inputs
@@ -100,7 +100,7 @@ class VAE(object):
             updates=updates,
             on_unused_input='ignore')
 
-    def train(self, train_set):
+    def train(self, train_set, annealing_beta=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         lowerbound_train = []
@@ -110,7 +110,12 @@ class VAE(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x)
+
+            if self.alpha is None:
+                train_L = self.lowerbound_train(*batch_x+[annealing_beta])
+            else:
+                train_L = self.lowerbound_train(*batch_x)
+
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
 
@@ -175,14 +180,14 @@ class VAE(object):
         rep_x = [t_repeat(_x, l, axis=0) for _x in x]
 
         mean, var = self.q.fprop(x, self.srng, deterministic=True)
-        KL = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
+        kl = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
         samples = self.q.sample_given_x(rep_x, self.srng)
 
         inverse_samples = self.inverse_samples(samples)
         log_iw = self.p.log_likelihood_given_x(inverse_samples)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
-        log_marginal_estimate = KL + T.mean(log_iw_matrix, axis=1)
+        log_marginal_estimate = kl + T.mean(log_iw_matrix, axis=1)
 
         return log_marginal_estimate
 
