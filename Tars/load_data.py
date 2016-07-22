@@ -15,18 +15,21 @@ from sklearn.cross_validation import train_test_split
 
 sys.setrecursionlimit(5000)
 
+
 def one_of_k(a):
     a = np.array(a)
     b = np.zeros((a.size, 10)).astype('float32')
     b[np.arange(a.size), a] = 1
     return b
 
+
 def mnist(datapath, toFloat=False):
     p = paramaters()
 
     def load(test=False, one_hot=True):
         f = gzip.open(datapath + 'mnist.pkl.gz', 'rb')
-        (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = cPickle.load(f)
+        (train_x, train_y), (valid_x, valid_y), (test_x, test_y) =\
+            cPickle.load(f)
         f.close()
 
         if toFloat:
@@ -64,6 +67,7 @@ class paramaters():
     def __init__(self, mean=0, std=0):
         self.mean = mean
         self.std = std
+
 
 def svhn(datapath, toFloat=True, binarize_y=True, gray=False, extra=True):
     p = paramaters()
@@ -114,11 +118,6 @@ def svhn(datapath, toFloat=True, binarize_y=True, gray=False, extra=True):
             test_y = one_of_k(test_y)
 
         if test is True:
-            #            model_path = "save.pkl"
-            #            with open(model_path, "w") as f:
-            #                pickle.dump([train_x, train_y, test_x, test_y, test_x, test_y], f)
-            #            print "save save.pkl" %t
-
             return train_x, train_y, test_x, test_y, test_x, test_y
 
         else:
@@ -139,6 +138,7 @@ def svhn(datapath, toFloat=True, binarize_y=True, gray=False, extra=True):
             return X, None
 
     return load, plot
+
 
 def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
     p = paramaters()
@@ -207,8 +207,10 @@ def lfw(datapath, toFloat=True, gray=False, rate=0.1, rseed=0):
 
     return load, plot, preprocess
 
+
 def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
     p = paramaters()
+
     def load(test=False):
         x = np.load(datapath+'celeba_images.npy')
         y = np.load(datapath+'celeba_attributes.npy').astype(np.float32)
@@ -273,18 +275,22 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
 
     return load, plot, preprocess
 
+
 def flickr(datapath):
-    def load(version=1,label=True,toFloat=True):
+    def load(version=1, label=True, toFloat=True):
         if label:
-            train_indices = np.load(datapath + "flickr/splits/train_indices_%d.npy" %version)
-            valid_indices = np.load(datapath + "flickr/splits/valid_indices_%d.npy" %version)
-            test_indices  = np.load(datapath + "flickr/splits/test_indices_%d.npy" %version)
+            train_indices = np.load(
+                datapath + "flickr/splits/train_indices_%d.npy" % version)
+            valid_indices = np.load(
+                datapath + "flickr/splits/valid_indices_%d.npy" % version)
+            test_indices = np.load(
+                datapath + "flickr/splits/test_indices_%d.npy" % version)
 
             x_labelled_path = glob.glob(datapath+"flickr/image/labelled/*")
             x_labelled_path.sort()
             x_labelled = np.load(x_labelled_path[0])
             for path in x_labelled_path[1:]:
-                x_labelled = np.r_[x_labelled,np.load(path)]
+                x_labelled = np.r_[x_labelled, np.load(path)]
 
             trn = []
             val = []
@@ -298,19 +304,19 @@ def flickr(datapath):
             trn.append(x_labelled[train_indices])
             val.append(x_labelled[valid_indices])
             tst.append(x_labelled[test_indices])
-        
-            w_labelled = LoadSparse(datapath+'flickr/text/text_all_2000_labelled.npz')
+
+            w_labelled = LoadSparse(
+                datapath+'flickr/text/text_all_2000_labelled.npz')
             w_labelled = np.asarray(w_labelled.todense())
             trn.append(w_labelled[train_indices])
             val.append(w_labelled[valid_indices])
             tst.append(w_labelled[test_indices])
 
-            #xw_labelled = np.c_[x_labelled[:,:-2000],w_labelled]
-            xw_labelled = np.c_[x_labelled,w_labelled]
+            xw_labelled = np.c_[x_labelled, w_labelled]
             trn.append(xw_labelled[train_indices])
             val.append(xw_labelled[valid_indices])
             tst.append(xw_labelled[test_indices])
-            
+
             if toFloat:
                 norm = Normalizer()
                 norm.fit(trn[1])
@@ -324,70 +330,16 @@ def flickr(datapath):
                 val[3] = norm_xw.transform(val[3])
                 tst[3] = norm_xw.transform(tst[3])
 
-            return trn,val,tst
+            return trn, val, tst
 
         else:
-            """
-            w_unlabelled = LoadSparse(datapath+'flickr/text/text_all_2000_unlabelled.npz')
-            w_unlabelled = np.asarray(w_unlabelled.todense())
-
-            use_id = np.sum(w_unlabelled,axis=1)>=2
-            print w_unlabelled.shape
-
-            w_unlabelled = w_unlabelled[use_id]
-            print w_unlabelled.shape
-
-            x_unlabelled_path = glob.glob(datapath+"flickr/image/unlabelled/*")
-            x_unlabelled_path.sort()
-            x_unlabelled = np.load(x_unlabelled_path[0])
-            for path in x_unlabelled_path[1:]:
-                if os.path.splitext(path)[1]==".npy":
-                    print path
-                    x_unlabelled = np.r_[x_unlabelled,np.load(path)]
-
-            print x_unlabelled.shape
-            x_unlabelled = x_unlabelled[use_id]
-            print x_unlabelled.shape
-
-            unlabel_trn=[]
-            unlabel_tst=[]
-
-            train_x, test_x, train_w, test_w = train_test_split(x_unlabelled, w_unlabelled, test_size=0.2, random_state=version)
-
-            unlabel_trn.append(train_x)
-            unlabel_trn.append(train_w)
-
-            unlabel_tst.append(test_x)
-            unlabel_tst.append(test_w)
-            del train_x,train_w,test_x,test_w
-
-            if toFloat:
-                norm = Normalizer()
-                norm.fit(unlabel_trn[0])
-                unlabel_trn[0] = norm.transform(unlabel_trn[0])
-                unlabel_tst[0] = norm.transform(unlabel_tst[0])
-
-            print "test"
-
-            model_path = datapath+"flickr/image/unlabelled/unlabelled_trn.pkl"
-            with open(model_path, "w") as f:
-                pickle.dump(unlabel_trn, f)
-            print "save flickr/image/unlabelled/unlabelled_trn.pkl"
-            del unlabel_trn
-
-            model_path = datapath+"flickr/image/unlabelled/unlabelled_tst.pkl"
-            with open(model_path, "w") as f:
-                pickle.dump(unlabel_tst, f)
-            print "save flickr/image/unlabelled/unlabelled_tst.pkl"
-            del unlabel_tst
-            """
             model_path = datapath+"flickr/image/unlabelled/unlabelled_trn.pkl"
             unlabel_trn = pickle.load(open(model_path))
 
             model_path = datapath+"flickr/image/unlabelled/unlabelled_tst.pkl"
             unlabel_tst = pickle.load(open(model_path))
 
-            return unlabel_trn,unlabel_tst
+            return unlabel_trn, unlabel_tst
 
     def plot():
         pass
@@ -395,23 +347,24 @@ def flickr(datapath):
     def LoadSparse(inputfile, verbose=False):
         """Loads a sparse matrix stored as npz file."""
         npzfile = np.load(inputfile)
-        mat = sp.sparse.csr_matrix((npzfile['data'], npzfile['indices'],
-                             npzfile['indptr']),
-                            shape=tuple(list(npzfile['shape'])))
+        mat = sp.sparse.csr_matrix(
+            (npzfile['data'], npzfile['indices'], npzfile['indptr']),
+            shape=tuple(list(npzfile['shape'])))
         if verbose:
-            print 'Loaded sparse matrix from %s of shape %s' % (inputfile,
-                                                                mat.shape.__str__())
+            print 'Loaded sparse matrix from %s of shape %s' % (
+                inputfile,
+                mat.shape.__str__())
         return mat
 
-    def shuffle(trn,each_permutation=False):
+    def shuffle(trn, each_permutation=False):
         trn = copy(trn)
 
         change_num = np.random.permutation(trn[0].shape[0])
-        
+
         for i in range(len(trn)):
             if trn[i] is not None:
-                trn[i]=trn[i][change_num]
+                trn[i] = trn[i][change_num]
 
         return trn
 
-    return load,shuffle,plot
+    return load, shuffle, plot
