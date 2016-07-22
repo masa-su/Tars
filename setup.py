@@ -1,5 +1,8 @@
-import io,os,re
+import io
+import os
+import re
 from setuptools import setup, find_packages
+
 
 def read(*names, **kwargs):
     with io.open(
@@ -7,6 +10,7 @@ def read(*names, **kwargs):
         encoding=kwargs.get("encoding", "utf8")
     ) as fp:
         return fp.read()
+
 
 def find_version(*file_paths):
     version_file = read(*file_paths)
@@ -22,7 +26,9 @@ setup(
     description='Variational autoencoder library',
     url='https://github.com/masa-su/Tars',
     author='Masahiro Suzuki',
-    dependency_links=['git+https://github.com/Lasagne/Lasagne.git#egg=lasagne-0.2.dev1'],
+    dependency_links=[
+        'git+https://github.com/Lasagne/Lasagne.git#egg=lasagne-0.2.dev1',
+    ],
     install_requires=[
         'Lasagne==0.2.dev1',
         'matplotlib',
