@@ -5,8 +5,7 @@ import theano.tensor as T
 from lasagne import nonlinearities
 from lasagne import init
 from lasagne.utils import unroll_scan
-from lasagne.layers import MergeLayer, Layer, InputLayer, DenseLayer
-from lasagne.layers import helper
+from lasagne.layers import MergeLayer
 from lasagne.layers import Gate
 
 __all__ = [
