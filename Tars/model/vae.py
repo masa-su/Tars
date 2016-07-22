@@ -57,7 +57,10 @@ class VAE(object):
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x+[annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x+[annealing_beta],
+            outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
     def lowerbound_renyi(self, alpha):
         x = self.q.inputs
