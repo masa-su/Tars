@@ -59,11 +59,15 @@ class MVAE(VAE):
 
         params = q_params + p0_params + p1_params + pq0_params + pq1_params
         lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1]
-        loss = annealing_beta*kl-np.sum(lowerbound[1:3])+self.gamma*np.sum(lowerbound[3:])
+        loss = annealing_beta*kl-np.sum(
+            lowerbound[1:3])+self.gamma*np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x+[annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=x+[annealing_beta],
+            outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
     def train(self, train_set, annealing_beta=1):
         n_x = train_set[0].shape[0]
