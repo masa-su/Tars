@@ -119,7 +119,10 @@ class DRAW(object):
             on_unused_input='ignore')
 
         self.lowerbound_train = theano.function(
-            inputs=[x,annealing_beta], outputs=lowerbound, updates=updates, on_unused_input='ignore')
+            inputs=[x, annealing_beta],
+            outputs=lowerbound,
+            updates=updates,
+            on_unused_input='ignore')
 
     def train(self, train_set, annealing_beta=1):
         n_x = train_set[0].shape[0]
