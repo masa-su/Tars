@@ -192,6 +192,7 @@ class BivariateGauss(Gaussian):
         eps = srng.normal(mean.shape)
         return mean + T.dot(eps, L)
 
+    """
     def log_likelihood(self, samples, mean, var):
         mean_0 = mean[:, 0].reshape((-1, 1))
         mean_1 = mean[:, 1].reshape((-1, 1))
@@ -215,6 +216,7 @@ class BivariateGauss(Gaussian):
         loglike = inner1 + (inner2 * z)
 
         return self.mean_sum_samples(loglike)
+    """
 
     def sample_given_x(self, x, srng, deterministic=False):
         """
