@@ -19,9 +19,9 @@ class AE(object):
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
 
-        self.lowerbound_train = self.lowerbound()
+        self.lowerbound_train = self._init_lowerbound()
 
-    def lowerbound(self):
+    def _init_lowerbound(self):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
         inverse_z = self.inverse_samples([x, z])
