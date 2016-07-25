@@ -2,6 +2,7 @@ import numpy as np
 import theano
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
+import six
 
 
 class AE(object):
@@ -42,7 +43,7 @@ class AE(object):
         nbatches = n_x // self.n_batch
         lowerbound_train = []
 
-        for i in range(nbatches):
+        for i in six.moves.range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
 
@@ -64,7 +65,7 @@ class AE(object):
 
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
-        for i in range(nbatches):
+        for i in six.moves.range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in test_set]
