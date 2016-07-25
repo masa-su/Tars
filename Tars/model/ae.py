@@ -19,7 +19,7 @@ class AE(object):
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
 
-        self.lowerbound(random)
+        self.lowerbound()
 
     def lowerbound(self):
         x = self.q.inputs
