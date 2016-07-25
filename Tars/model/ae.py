@@ -21,7 +21,7 @@ class AE(object):
 
         self.lowerbound(random)
 
-    def lowerbound(self, random):
+    def lowerbound(self):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
         inverse_z = self.inverse_samples([x, z])
