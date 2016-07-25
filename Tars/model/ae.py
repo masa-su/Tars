@@ -19,7 +19,7 @@ class AE(object):
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
 
-        self.lowerbound()
+        self.lowerbound_train = self.lowerbound()
 
     def lowerbound(self):
         x = self.q.inputs
@@ -32,7 +32,7 @@ class AE(object):
         params = q_params + p_params
 
         updates = self.optimizer(-loglike, params)
-        self.lowerbound_train = theano.function(
+        return theano.function(
             inputs=x,
             outputs=loglike,
             updates=updates,
