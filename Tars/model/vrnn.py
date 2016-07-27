@@ -51,7 +51,8 @@ class VRNN(object):
             deterministic=deterministic)
         inverse_z = self.inverse_samples(z)
         # p(x|z,h)
-        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
+        _loglike = self.p.log_likelihood_given_x(inverse_z).mean()
+        loglike = T.mean(_loglike*mask)
 
         h = self.f.fprop([x, z[-1], h], deterministic=deterministic)
         return h, KL, loglike
