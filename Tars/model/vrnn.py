@@ -139,42 +139,6 @@ class VRNN(object):
 
         return all_log_likelihood
 
-    def p_sample_mean_given_x(self):
-        z = T.tensor3('z')
-        z_dimshuffle = z.dimshuffle(1, 0, 2)
-        init_h = self.f.mean_network.get_hid_init(z.shape[0])
-
-        def iterate_p_sample(z, h):
-            samples_mean = self.p.sample_mean_given_x(
-                [z, h],
-                self.srng,
-                deterministic=True)
-            samples = self.p.sample_given_x(
-                [z, h],
-                self.srng,
-                deterministic=True)
-            h = self.f.fprop(
-                [samples[-1], z, h],
-                deterministic=True)
-            return h, samples[-1], samples_mean[-1]
-
-        [all_h, all_samples, all_samples_mean], scan_updates =\
-            theano.scan(fn=iterate_p_sample,
-                        sequences=[z_dimshuffle],
-                        outputs_info=[init_h, None, None])
-
-        self.p_sample_mean_x = theano.function(
-            inputs=[z],
-            outputs=all_samples_mean,
-            updates=scan_updates,
-            on_unused_input='ignore')
-
-        self.p_sample_x = theano.function(
-            inputs=[z],
-            outputs=all_samples,
-            updates=scan_updates,
-            on_unused_input='ignore')
-
     def reconst(self):
         x = T.tensor3('x')
         x_dimshuffle = x.dimshuffle(1, 0, 2)
@@ -203,9 +167,49 @@ class VRNN(object):
                         sequences=[x_dimshuffle],
                         outputs_info=[init_h,None])
 
+        all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
         self.reconst_x = theano.function(
             inputs=[x],
-            outputs=all_samples,
+            outputs=all_samples_dimshuffle,
+            updates=scan_updates,
+            on_unused_input='ignore')
+
+    def p_sample_mean_given_x(self):
+        z = T.tensor3('z')
+        z_dimshuffle = z.dimshuffle(1, 0, 2)
+        init_h = self.f.mean_network.get_hid_init(z.shape[0])
+
+        def iterate_p_sample(z, h):
+            samples_mean = self.p.sample_mean_given_x(
+                [z, h],
+                self.srng,
+                deterministic=True)
+            samples = self.p.sample_given_x(
+                [z, h],
+                self.srng,
+                deterministic=True)
+            h = self.f.fprop(
+                [samples[-1], z, h],
+                deterministic=True)
+            return h, samples[-1], samples_mean[-1]
+
+        [all_h, all_samples, all_samples_mean], scan_updates =\
+            theano.scan(fn=iterate_p_sample,
+                        sequences=[z_dimshuffle],
+                        outputs_info=[init_h, None, None])
+
+        all_samples_dimshuffle = all_samples.dimshuffle(all_samples)
+        all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(all_samples)
+
+        self.p_sample_mean_x = theano.function(
+            inputs=[z],
+            outputs=all_samples_mean_dimshuffle,
+            updates=scan_updates,
+            on_unused_input='ignore')
+
+        self.p_sample_x = theano.function(
+            inputs=[z],
+            outputs=all_samples_dimshuffle,
             updates=scan_updates,
             on_unused_input='ignore')
         
@@ -233,15 +237,18 @@ class VRNN(object):
                         sequences=[x_dimshuffle],
                         outputs_info=[init_h, None, None])
 
+        all_samples_dimshuffle = all_samples.dimshuffle(all_samples)
+        all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(all_samples)
+
         self.q_sample_mean_x = theano.function(
             inputs=[x],
-            outputs=all_samples_mean,
+            outputs=all_samples_mean_dimshuffle,
             updates=scan_updates,
             on_unused_input='ignore')
 
         self.q_sample_x = theano.function(
             inputs=[x],
-            outputs=all_samples,
+            outputs=all_samples_dimshuffle,
             updates=scan_updates,
             on_unused_input='ignore')
 
