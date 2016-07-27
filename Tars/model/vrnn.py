@@ -24,6 +24,7 @@ class VRNN(object):
 
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
+        self.reconst()
 
         self.lowerbound()
 
@@ -55,7 +56,7 @@ class VRNN(object):
         loglike = T.mean(_loglike[mask==1])
 
         h = self.f.fprop([x, z[-1], h], deterministic=deterministic)
-        return h, KL, loglike
+        return h, kl, loglike
 
     def lowerbound(self):
         x = T.tensor3('x')
@@ -64,12 +65,12 @@ class VRNN(object):
         mask_dimshuffle = mask.dimshuffle(1, 0)
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
 
-        [h_all, KL_all, loglike_all], scan_updates =\
+        [h_all, kl_all, loglike_all], scan_updates =\
             theano.scan(fn=self.iterate_lowerbound,
                         sequences=[x_dimshuffle, mask_dimshuffle],
                         outputs_info=[init_h, None, None])
 
-        lowerbound = [-T.sum(KL_all), T.sum(loglike_all)]
+        lowerbound = [-T.sum(kl_all), T.sum(loglike_all)]
         loss = -np.sum(lowerbound)
 
         f_params = self.f.get_params()
@@ -174,6 +175,40 @@ class VRNN(object):
             updates=scan_updates,
             on_unused_input='ignore')
 
+    def reconst(self):
+        x = T.tensor3('x')
+        x_dimshuffle = x.dimshuffle(1, 0, 2)
+        init_h = self.f.mean_network.get_hid_init(x.shape[0])
+
+        def iterate_sample(x, h):
+            z = self.q.sample_mean_given_x(
+                [x, h],
+                self.srng,
+                deterministic=True)
+            inverse_z = self.inverse_samples(z)
+
+            samples = self.p.sample_mean_given_x(
+                inverse_z[0],
+                self.srng,
+                deterministic=True)
+
+            h = self.f.fprop(
+                [x, z[-1], h],
+                deterministic=True)
+
+            return h, samples[-1]
+
+        [all_h, all_samples], scan_updates =\
+            theano.scan(fn=iterate_sample,
+                        sequences=[x_dimshuffle],
+                        outputs_info=[init_h,None])
+
+        self.reconst_x = theano.function(
+            inputs=[x],
+            outputs=all_samples,
+            updates=scan_updates,
+            on_unused_input='ignore')
+        
     def q_sample_mean_given_x(self):
         x = T.tensor3('x')
         x_dimshuffle = x.dimshuffle(1, 0, 2)
@@ -212,11 +247,11 @@ class VRNN(object):
 
     def log_marginal_likelihood(self, x, mask, init_h):
         # TODO : deterministic=True
-        [h_all, KL_all, loglike_all], scan_updates = \
+        [h_all, kl_all, loglike_all], scan_updates = \
             theano.scan(fn=self.iterate_lowerbound,
                         sequences=[x, mask],
                         outputs_info=[init_h, None, None])
-        log_marginal_estimate = -T.sum(KL_all) + T.sum(loglike_all)
+        log_marginal_estimate = -T.sum(kl_all) + T.sum(loglike_all)
         return log_marginal_estimate, scan_updates
 
     def inverse_samples(self, samples):
