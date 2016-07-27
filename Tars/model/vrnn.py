@@ -199,8 +199,8 @@ class VRNN(object):
                         sequences=[z_dimshuffle],
                         outputs_info=[init_h, None, None])
 
-        all_samples_dimshuffle = all_samples.dimshuffle(all_samples)
-        all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(all_samples)
+        all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
+        all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(1, 0, 2)
 
         self.p_sample_mean_x = theano.function(
             inputs=[z],
@@ -238,8 +238,8 @@ class VRNN(object):
                         sequences=[x_dimshuffle],
                         outputs_info=[init_h, None, None])
 
-        all_samples_dimshuffle = all_samples.dimshuffle(all_samples)
-        all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(all_samples)
+        all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
+        all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(1, 0, 2)
 
         self.q_sample_mean_x = theano.function(
             inputs=[x],
