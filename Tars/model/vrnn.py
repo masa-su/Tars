@@ -43,8 +43,8 @@ class VRNN(object):
             self.srng,
             deterministic=deterministic)
 
-        _KL = gauss_gauss_kl(q_mean, q_var, prior_mean, prior_var)
-        KL = T.mean(_KL * mask)
+        _kl = gauss_gauss_kl(q_mean, q_var, prior_mean, prior_var)
+        kl = T.mean(_kl[mask == 1])
         # z~q(z|x,h)
         z = self.q.sample_given_x(
             [x, h],
@@ -53,7 +53,7 @@ class VRNN(object):
         inverse_z = self.inverse_samples(z)
         # p(x|z,h)
         _loglike = self.p.log_likelihood_given_x(inverse_z)
-        loglike = T.mean(_loglike[mask==1])
+        loglike = T.mean(_loglike[mask == 1])
 
         h = self.f.fprop([x, z[-1], h], deterministic=deterministic)
         return h, kl, loglike
@@ -114,7 +114,8 @@ class VRNN(object):
         mask = T.matrix('mask')
         mask_dimshuffle = mask.dimshuffle(1, 0)
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
-        log_likelihood, updates = self.log_marginal_likelihood(x_dimshuffle, mask_dimshuffle, init_h)
+        log_likelihood, updates = self.log_marginal_likelihood(
+            x_dimshuffle, mask_dimshuffle, init_h)
         get_log_likelihood = theano.function(
             inputs=[x, mask],
             outputs=log_likelihood,
@@ -165,7 +166,7 @@ class VRNN(object):
         [all_h, all_samples], scan_updates =\
             theano.scan(fn=iterate_sample,
                         sequences=[x_dimshuffle],
-                        outputs_info=[init_h,None])
+                        outputs_info=[init_h, None])
 
         all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
         self.reconst_x = theano.function(
@@ -212,7 +213,7 @@ class VRNN(object):
             outputs=all_samples_dimshuffle,
             updates=scan_updates,
             on_unused_input='ignore')
-        
+
     def q_sample_mean_given_x(self):
         x = T.tensor3('x')
         x_dimshuffle = x.dimshuffle(1, 0, 2)
