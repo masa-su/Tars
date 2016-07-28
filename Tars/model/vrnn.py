@@ -44,7 +44,7 @@ class VRNN(object):
             deterministic=deterministic)
 
         _kl = gauss_gauss_kl(q_mean, q_var, prior_mean, prior_var)
-        kl = T.mean(_kl[mask == 1])
+        kl = T.mean(_kl * mask)
         # z~q(z|x,h)
         z = self.q.sample_given_x(
             [x, h],
@@ -53,7 +53,7 @@ class VRNN(object):
         inverse_z = self.inverse_samples(z)
         # p(x|z,h)
         _loglike = self.p.log_likelihood_given_x(inverse_z)
-        loglike = T.mean(_loglike[mask == 1])
+        loglike = T.mean(_loglike * mask)
 
         h = self.f.fprop([x, z[-1], h], deterministic=deterministic)
         return h, kl, loglike
