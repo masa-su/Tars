@@ -89,7 +89,7 @@ class TestTRepeat(TestCase):
         r = t_repeat(x, 2, axis=0)
         self.assertEqual(r.eval().shape, (10, 6, 7))
         for i in six.moves.range(10):
-            self.assert_(np.array_equal(x.eval()[i//2], r.eval()[i]))
+            self.assert_(np.array_equal(x.eval()[i // 2], r.eval()[i]))
         with self.assertRaises(NotImplementedError):
             # ndim=3 and axis=1 is not implemented
             t_repeat(x, 2, axis=1)
@@ -101,7 +101,7 @@ class TestTRepeat(TestCase):
         r = t_repeat(x, 2, axis=0)
         self.assertEqual(r.eval().shape, (10, 6, 7, 8))
         for i in six.moves.range(10):
-            self.assert_(np.array_equal(x.eval()[i//2], r.eval()[i]))
+            self.assert_(np.array_equal(x.eval()[i // 2], r.eval()[i]))
         with self.assertRaises(NotImplementedError):
             # ndim=4 and axis=1 is not implemented
             t_repeat(x, 2, axis=1)
