@@ -1,7 +1,4 @@
-import numpy as np
-import theano
 import theano.tensor as T
-
 from lasagne.layers import Layer
 
 __all__ = [
@@ -27,6 +24,6 @@ class RepeatLayer(Layer):
     def get_output_for(self, input, **kwargs):
         # repeat the input n times
         tensors = [input]*self.n
-        stacked = theano.tensor.stack(*tensors)
+        stacked = T.stack(*tensors)
         dim = [1, 0] + range(2, input.ndim + 1)
         return stacked.dimshuffle(dim)

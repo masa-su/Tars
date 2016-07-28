@@ -1,8 +1,8 @@
 import numpy as np
 import theano
-import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
+import six
 
 
 class AE(object):
@@ -16,12 +16,12 @@ class AE(object):
         np.random.seed(random)
         self.srng = RandomStreams(seed=random)
 
-        self.p_sample_mean_given_x()
-        self.q_sample_mean_given_x()
+        self.p_sample_mean_x = self._init_p_sample_mean_given_x()
+        self.q_sample_mean_x = self._init_q_sample_mean_given_x()
 
-        self.lowerbound(random)
+        self.lowerbound_train = self._init_lowerbound()
 
-    def lowerbound(self, random):
+    def _init_lowerbound(self):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
         inverse_z = self.inverse_samples([x, z])
@@ -32,7 +32,7 @@ class AE(object):
         params = q_params + p_params
 
         updates = self.optimizer(-loglike, params)
-        self.lowerbound_train = theano.function(
+        return theano.function(
             inputs=x,
             outputs=loglike,
             updates=updates,
@@ -43,7 +43,7 @@ class AE(object):
         nbatches = n_x // self.n_batch
         lowerbound_train = []
 
-        for i in range(nbatches):
+        for i in six.moves.range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
 
@@ -65,7 +65,7 @@ class AE(object):
 
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
-        for i in range(nbatches):
+        for i in six.moves.range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in test_set]
@@ -75,20 +75,19 @@ class AE(object):
 
         return all_log_likelihood
 
-    def p_sample_mean_given_x(self):
+    def _init_p_sample_mean_given_x(self):
         x = self.p.inputs
         samples = self.p.sample_mean_given_x(x, False)
-        self.p_sample_mean_x = theano.function(
+        return theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-    def q_sample_mean_given_x(self):
+    def _init_q_sample_mean_given_x(self):
         x = self.q.inputs
         samples = self.q.sample_mean_given_x(x, False)
-        self.q_sample_mean_x = theano.function(
+        return theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x):
-        n_x = x[0].shape[0]
         z = self.q.fprop(x, deterministic=True)
         inverse_z = self.inverse_samples([x, z])
         log_marginal_estimate = self.p.log_likelihood_given_x(inverse_z)

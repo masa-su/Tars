@@ -1,12 +1,9 @@
-from Tars.model import VAE
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-from progressbar import ProgressBar
-from ..utils import gauss_gauss_kl, gauss_unitgauss_kl, t_repeat, log_mean_exp
-from ..distribution import UnitGaussian
+from . import VAE
+from ..utils import gauss_unitgauss_kl, t_repeat
 
 
 class VAE_semi(VAE):
