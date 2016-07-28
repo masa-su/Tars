@@ -41,18 +41,15 @@ class AE(object):
     def train(self, train_set):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
-        lowerbound_train = []
-
+        lowerbounds = []
         for i in six.moves.range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x)
-            lowerbound_train.append(np.array(train_L))
-        lowerbound_train = np.mean(lowerbound_train, axis=0)
-
-        return lowerbound_train
+            lowerbound = self.lowerbound_train(*batch_x)
+            lowerbounds.append(np.array(lowerbound))
+        return np.mean(lowerbounds, axis=0)
 
     def log_likelihood_test(self, test_set):
         x = self.q.inputs
