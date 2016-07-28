@@ -16,8 +16,8 @@ class AE(object):
         np.random.seed(random)
         self.srng = RandomStreams(seed=random)
 
-        self.p_sample_mean_given_x()
-        self.q_sample_mean_given_x()
+        self.p_sample_mean_x = self._init_p_sample_mean_given_x()
+        self.q_sample_mean_x = self._init_q_sample_mean_given_x()
 
         self.lowerbound_train = self._init_lowerbound()
 
@@ -75,16 +75,16 @@ class AE(object):
 
         return all_log_likelihood
 
-    def p_sample_mean_given_x(self):
+    def _init_p_sample_mean_given_x(self):
         x = self.p.inputs
         samples = self.p.sample_mean_given_x(x, False)
-        self.p_sample_mean_x = theano.function(
+        return theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-    def q_sample_mean_given_x(self):
+    def _init_q_sample_mean_given_x(self):
         x = self.q.inputs
         samples = self.q.sample_mean_given_x(x, False)
-        self.q_sample_mean_x = theano.function(
+        return theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x):
