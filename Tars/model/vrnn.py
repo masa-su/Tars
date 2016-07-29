@@ -167,7 +167,7 @@ class VRNN(object):
 
             return c, h, samples[-1]
 
-        [all_c, all_h, all_samples], scan_updates =\
+        [_, _, all_samples], scan_updates =\
             theano.scan(fn=iterate_sample,
                         sequences=[x_dimshuffle],
                         outputs_info=[init_c, init_h, None])
