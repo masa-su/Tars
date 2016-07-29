@@ -28,8 +28,6 @@ class DRAW(object):
 
     def step(self, cell_enc, cell_dec, hid_enc, hid_dec,
              canvas, x, deterministic=False):
-        x_shape = np.array(x.shape[1:])
-
         # encoder
         x_err = x - self.p.fprop(
             [canvas],
@@ -154,7 +152,7 @@ class DRAW(object):
             start = i * self.n_batch
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*batch_x)
+            log_likelihood = self.get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
             pbar.update(i)
 

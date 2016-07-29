@@ -5,8 +5,7 @@ import theano.tensor as T
 from lasagne import nonlinearities
 from lasagne import init
 from lasagne.utils import unroll_scan
-from lasagne.layers import MergeLayer, Layer, InputLayer, DenseLayer
-from lasagne.layers import helper
+from lasagne.layers import MergeLayer
 from lasagne.layers import Gate
 
 __all__ = [
@@ -122,8 +121,6 @@ class LSTMCell(MergeLayer):
 
         # Retrieve the dimensionality of the incoming layer
         input_shape_x = self.input_shapes[0]
-        input_shape_c = self.input_shapes[1]
-        input_shape_h = self.input_shapes[2]
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs_x = np.prod(input_shape_x[1:])
@@ -344,7 +341,6 @@ class GRUCell(MergeLayer):
 
         # Retrieve the dimensionality of the incoming layer
         input_shape_x = self.input_shapes[0]
-        input_shape_h = self.input_shapes[1]
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs_x = np.prod(input_shape_x[1:])

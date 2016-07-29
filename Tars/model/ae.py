@@ -1,6 +1,5 @@
 import numpy as np
 import theano
-import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
 
@@ -88,7 +87,6 @@ class AE(object):
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x):
-        n_x = x[0].shape[0]
         z = self.q.fprop(x, deterministic=True)
         inverse_z = self.inverse_samples([x, z])
         log_marginal_estimate = self.p.log_likelihood_given_x(inverse_z)
