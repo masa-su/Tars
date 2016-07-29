@@ -28,18 +28,19 @@ class VRNN(object):
 
         self.lowerbound()
 
-    def step(self, x, mask, h, deterministic=False):
+    def step(self, x, mask, c, h, deterministic=False):
         # input
         # x : (batch_size, x_dim)
         # mask : (batch_size)
+        # c : (batch_size, rnn_dim)
         # h : (batch_size, rnn_dim)
 
         prior_mean, prior_var = self.prior.fprop(
-            [h],
+            [c, h],
             self.srng,
             deterministic=deterministic)
         q_mean, q_var = self.q.fprop(
-            [x, h],
+            [x, c, h],
             self.srng,
             deterministic=deterministic)
 
@@ -47,7 +48,7 @@ class VRNN(object):
         kl = T.mean(_kl * mask)
         # z~q(z|x,h)
         z = self.q.sample_given_x(
-            [x, h],
+            [x, c, h],
             self.srng,
             deterministic=deterministic)
         inverse_z = self.inverse_samples(z)
@@ -55,20 +56,21 @@ class VRNN(object):
         _loglike = self.p.log_likelihood_given_x(inverse_z)
         loglike = T.mean(_loglike * mask)
 
-        h = self.f.fprop([x, z[-1], h], deterministic=deterministic)
-        return h, kl, loglike
+        c, h = self.f.fprop([x, z[-1], c, h], deterministic=deterministic)
+        return c, h, kl, loglike
 
     def lowerbound(self):
         x = T.tensor3('x')
         x_dimshuffle = x.dimshuffle(1, 0, 2)
         mask = T.matrix('mask')
         mask_dimshuffle = mask.dimshuffle(1, 0)
+        init_c = self.f.mean_network.get_cell_init(x.shape[0])
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
 
-        [h_all, kl_all, loglike_all], scan_updates =\
+        [c_all, h_all, kl_all, loglike_all], scan_updates =\
             theano.scan(fn=self.step,
                         sequences=[x_dimshuffle, mask_dimshuffle],
-                        outputs_info=[init_h, None, None])
+                        outputs_info=[init_c, init_h, None, None])
 
         lowerbound = [-T.sum(kl_all), T.sum(loglike_all)]
         loss = -np.sum(lowerbound)
@@ -114,8 +116,9 @@ class VRNN(object):
         mask = T.matrix('mask')
         mask_dimshuffle = mask.dimshuffle(1, 0)
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
+        init_c = self.f.mean_network.get_cell_init(x.shape[0])
         log_likelihood, updates = self.log_marginal_likelihood(
-            x_dimshuffle, mask_dimshuffle, init_h)
+            x_dimshuffle, mask_dimshuffle, init_c, init_h)
         get_log_likelihood = theano.function(
             inputs=[x, mask],
             outputs=log_likelihood,
@@ -144,10 +147,11 @@ class VRNN(object):
         x = T.tensor3('x')
         x_dimshuffle = x.dimshuffle(1, 0, 2)
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
+        init_c = self.f.mean_network.get_cell_init(x.shape[0])
 
-        def iterate_sample(x, h):
+        def iterate_sample(x, c, h):
             z = self.q.sample_mean_given_x(
-                [x, h],
+                [x, c, h],
                 self.srng,
                 deterministic=True)
             inverse_z = self.inverse_samples(z)
@@ -157,16 +161,16 @@ class VRNN(object):
                 self.srng,
                 deterministic=True)
 
-            h = self.f.fprop(
-                [x, z[-1], h],
+            c, h = self.f.fprop(
+                [x, z[-1], c, h],
                 deterministic=True)
 
-            return h, samples[-1]
+            return c, h, samples[-1]
 
-        [all_h, all_samples], scan_updates =\
+        [all_c, all_h, all_samples], scan_updates =\
             theano.scan(fn=iterate_sample,
                         sequences=[x_dimshuffle],
-                        outputs_info=[init_h, None])
+                        outputs_info=[init_c, init_h, None])
 
         all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
         self.reconst_x = theano.function(
@@ -179,25 +183,26 @@ class VRNN(object):
         z = T.tensor3('z')
         z_dimshuffle = z.dimshuffle(1, 0, 2)
         init_h = self.f.mean_network.get_hid_init(z.shape[0])
+        init_c = self.f.mean_network.get_cell_init(z.shape[0])
 
-        def iterate_p_sample(z, h):
+        def iterate_p_sample(z, c, h):
             samples_mean = self.p.sample_mean_given_x(
-                [z, h],
+                [z, c, h],
                 self.srng,
                 deterministic=True)
             samples = self.p.sample_given_x(
-                [z, h],
+                [z, c, h],
                 self.srng,
                 deterministic=True)
-            h = self.f.fprop(
-                [samples[-1], z, h],
+            c, h = self.f.fprop(
+                [samples[-1], z, c, h],
                 deterministic=True)
-            return h, samples[-1], samples_mean[-1]
+            return c, h, samples[-1], samples_mean[-1]
 
-        [all_h, all_samples, all_samples_mean], scan_updates =\
+        [all_c, all_h, all_samples, all_samples_mean], scan_updates =\
             theano.scan(fn=iterate_p_sample,
                         sequences=[z_dimshuffle],
-                        outputs_info=[init_h, None, None])
+                        outputs_info=[init_c, init_h, None, None])
 
         all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
         all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(1, 0, 2)
@@ -218,25 +223,26 @@ class VRNN(object):
         x = T.tensor3('x')
         x_dimshuffle = x.dimshuffle(1, 0, 2)
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
+        init_c = self.f.mean_network.get_cell_init(x.shape[0])
 
-        def iterate_q_sample(x, h):
+        def iterate_q_sample(x, c, h):
             samples_mean = self.q.sample_mean_given_x(
-                [x, h],
+                [x, c, h],
                 self.srng,
                 deterministic=True)
             samples = self.q.sample_given_x(
-                [x, h],
+                [x, c, h],
                 self.srng,
                 deterministic=True)
-            h = self.f.fprop(
-                [x, samples[-1], h],
+            c, h = self.f.fprop(
+                [x, samples[-1], c, h],
                 deterministic=True)
-            return h, samples[-1], samples_mean[-1]
+            return c, h, samples[-1], samples_mean[-1]
 
-        [all_h, all_samples, all_samples_mean], scan_updates =\
+        [all_c, all_h, all_samples, all_samples_mean], scan_updates =\
             theano.scan(fn=iterate_q_sample,
                         sequences=[x_dimshuffle],
-                        outputs_info=[init_h, None, None])
+                        outputs_info=[init_c, init_h, None, None])
 
         all_samples_dimshuffle = all_samples.dimshuffle(1, 0, 2)
         all_samples_mean_dimshuffle = all_samples_mean.dimshuffle(1, 0, 2)
@@ -253,12 +259,12 @@ class VRNN(object):
             updates=scan_updates,
             on_unused_input='ignore')
 
-    def log_marginal_likelihood(self, x, mask, init_h):
+    def log_marginal_likelihood(self, x, mask, init_c, init_h):
         # TODO : deterministic=True
-        [h_all, kl_all, loglike_all], scan_updates = \
+        [c_all, h_all, kl_all, loglike_all], scan_updates = \
             theano.scan(fn=self.step,
                         sequences=[x, mask],
-                        outputs_info=[init_h, None, None])
+                        outputs_info=[init_c, init_h, None, None])
         log_marginal_estimate = -T.sum(kl_all) + T.sum(loglike_all)
         return log_marginal_estimate, scan_updates
 
