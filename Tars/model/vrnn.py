@@ -67,7 +67,7 @@ class VRNN(object):
         init_c = self.f.mean_network.get_cell_init(x.shape[0])
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
 
-        [c_all, h_all, kl_all, loglike_all], scan_updates =\
+        [_, _, kl_all, loglike_all], scan_updates =\
             theano.scan(fn=self.step,
                         sequences=[x_dimshuffle, mask_dimshuffle],
                         outputs_info=[init_c, init_h, None, None])
@@ -199,7 +199,7 @@ class VRNN(object):
                 deterministic=True)
             return c, h, samples[-1], samples_mean[-1]
 
-        [all_c, all_h, all_samples, all_samples_mean], scan_updates =\
+        [_, _, all_samples, all_samples_mean], scan_updates =\
             theano.scan(fn=iterate_p_sample,
                         sequences=[z_dimshuffle],
                         outputs_info=[init_c, init_h, None, None])
@@ -239,7 +239,7 @@ class VRNN(object):
                 deterministic=True)
             return c, h, samples[-1], samples_mean[-1]
 
-        [all_c, all_h, all_samples, all_samples_mean], scan_updates =\
+        [_, _, all_samples, all_samples_mean], scan_updates =\
             theano.scan(fn=iterate_q_sample,
                         sequences=[x_dimshuffle],
                         outputs_info=[init_c, init_h, None, None])
@@ -261,7 +261,7 @@ class VRNN(object):
 
     def log_marginal_likelihood(self, x, mask, init_c, init_h):
         # TODO : deterministic=True
-        [c_all, h_all, kl_all, loglike_all], scan_updates = \
+        [_, _, kl_all, loglike_all], scan_updates = \
             theano.scan(fn=self.step,
                         sequences=[x, mask],
                         outputs_info=[init_c, init_h, None, None])
