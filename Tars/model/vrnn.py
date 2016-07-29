@@ -28,7 +28,7 @@ class VRNN(object):
 
         self.lowerbound()
 
-    def iterate_lowerbound(self, x, mask, h, deterministic=False):
+    def step(self, x, mask, h, deterministic=False):
         # input
         # x : (batch_size, x_dim)
         # mask : (batch_size)
@@ -66,7 +66,7 @@ class VRNN(object):
         init_h = self.f.mean_network.get_hid_init(x.shape[0])
 
         [h_all, kl_all, loglike_all], scan_updates =\
-            theano.scan(fn=self.iterate_lowerbound,
+            theano.scan(fn=self.step,
                         sequences=[x_dimshuffle, mask_dimshuffle],
                         outputs_info=[init_h, None, None])
 
@@ -256,7 +256,7 @@ class VRNN(object):
     def log_marginal_likelihood(self, x, mask, init_h):
         # TODO : deterministic=True
         [h_all, kl_all, loglike_all], scan_updates = \
-            theano.scan(fn=self.iterate_lowerbound,
+            theano.scan(fn=self.step,
                         sequences=[x, mask],
                         outputs_info=[init_h, None, None])
         log_marginal_estimate = -T.sum(kl_all) + T.sum(loglike_all)
