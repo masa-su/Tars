@@ -1,6 +1,7 @@
 # Tars
 
 [![Build Status](https://travis-ci.com/masa-su/Tars.svg?branch=master&token=Tzd7hmaLjunaLnEja81y)](https://travis-ci.com/masa-su/Tars)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/6e6c735a1bc9484986a0d5877302042b)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=masa-su/Tars&amp;utm_campaign=Badge_Grade)
 
 Tars is the deep generative models library. It supports the following models:
 * Autoencoder

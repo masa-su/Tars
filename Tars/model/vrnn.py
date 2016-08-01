@@ -38,7 +38,7 @@ class VRNN(object):
             deterministic=deterministic)
 
         _KL = gauss_gauss_kl(q_mean, q_var, prior_mean, prior_var)
-        KL = T.mean(_KL*mask)
+        KL = T.mean(_KL * mask)
         # z~q(z|x,h)
         z = self.q.sample_given_x(
             [x, h],

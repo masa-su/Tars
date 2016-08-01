@@ -82,17 +82,17 @@ class VAEGAN_semi(VAEGAN):
             d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel+[annealing_beta],
+            inputs=gz[:1] + x + x_unlabel + [annealing_beta],
             outputs=lowerbound,
             updates=q_updates,
             on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel,
+            inputs=gz[:1] + x + x_unlabel,
             outputs=lowerbound,
             updates=p_updates,
             on_unused_input='ignore')
         self.d_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+x_unlabel,
+            inputs=gz[:1] + x + x_unlabel,
             outputs=lowerbound,
             updates=d_updates,
             on_unused_input='ignore')
@@ -121,16 +121,16 @@ class VAEGAN_semi(VAEGAN):
             batch_z = rng.uniform(
                 -1., 1., size=(len(batch_x[0]), z_dim)
             ).astype(np.float32)
-            batch_zx = [batch_z]+batch_x
+            batch_zx = [batch_z] + batch_x
 
             start = i * n_batch_unlabel
             end = start + n_batch_unlabel
             batch_x_unlabel = [_x[start:end] for _x in train_set_unlabel]
 
             train_L = self.q_lowerbound_train(
-                *batch_zx+batch_x_unlabel+[annealing_beta])
-            train_L = self.p_lowerbound_train(*batch_zx+batch_x_unlabel)
-            train_L = self.d_lowerbound_train(*batch_zx+batch_x_unlabel)
+                *batch_zx + batch_x_unlabel + [annealing_beta])
+            train_L = self.p_lowerbound_train(*batch_zx + batch_x_unlabel)
+            train_L = self.d_lowerbound_train(*batch_zx + batch_x_unlabel)
             lowerbound_train.append(np.array(train_L))
             pbar.update(i)
 
