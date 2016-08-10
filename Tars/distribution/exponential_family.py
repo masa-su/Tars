@@ -2,7 +2,7 @@ import theano.tensor as T
 import lasagne
 from abc import ABCMeta, abstractmethod
 
-from ..utils import gaussian_like, epsilon
+from ..utils import gaussian_like, epsilon, tolist
 
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
@@ -45,7 +45,7 @@ class Distribution(object):
         Returns
         -------
         mean : Theano variable
-            The paramater of this distribution.
+            The output of this distribution.
         """
 
         inputs = dict(zip(self.given, x))
@@ -72,24 +72,71 @@ class Distribution(object):
         else:
             return T.sum(samples, axis=-1)
 
+    def sample_given_x(self, x, srng, deterministic=False):
+        """
+        Augments
+        --------
+        x : list
+           This contains Theano variables, which must to correspond
+           to 'given'.
+           
+        srng : theano.sandbox.MRG_RandomStreams
+
+        deterministic : bool
+
+        Returns
+        --------
+        list 
+           This contains 'x' and sample ~ p(*|x), such as [x, sample].
+        """
+
+        mean = self.fprop(x, deterministic=deterministic)
+        return [x, self.sample(*tolist(mean), srng)]
+
+    def sample_mean_given_x(self, x, *args, deterministic=False):
+        """
+        Augments
+        --------
+        x : list
+           This contains Theano variables, which must to correspond
+           to 'given'.
+           
+        deterministic : bool
+
+        Returns
+        --------
+        list 
+           This contains 'x' and a mean value of sample ~ p(*|x).
+        """
+
+        mean = self.fprop(x, deterministic=deterministic)
+        return [x, tolist(mean)[0]]
+
+    def log_likelihood_given_x(self, samples, deterministic=False):
+        """
+        Augments
+        --------
+        samples : list
+           This contains 'x', which has Theano variables, and test sample.
+           
+        deterministic : bool
+
+        Returns
+        --------
+        Theano variable, shape (n_samples,)
+           A log-likelihood, p(sample|x).
+        """
+
+        x, sample = samples
+        mean = self.fprop(x, deterministic=deterministic)
+        return self.log_likelihood(sample, *tolist(mean))
+
     @abstractmethod
     def sample(self):
         pass
 
     @abstractmethod
     def log_likelihood(self):
-        pass
-
-    @abstractmethod
-    def sample_given_x(self):
-        pass
-
-    @abstractmethod
-    def sample_mean_given_x(self):
-        pass
-
-    @abstractmethod
-    def log_likelihood_given_x(self):
         pass
         
 
@@ -102,6 +149,11 @@ class Deterministic(Distribution):
     def __init__(self, network, given):
         super(Deterministic, self).__init__(network, given)
 
+    def sample(self, mean, *args):
+        return mean
+
+    def loglikelihood(self, sample, mean):
+        raise NotImplementedError
 
 class Bernoulli(Distribution):
     """
@@ -138,65 +190,6 @@ class Bernoulli(Distribution):
         mean = T.clip(mean, epsilon(), 1.0-epsilon())
         loglike = sample * T.log(mean) + (1 - sample) * T.log(1 - mean)
         return self.mean_sum_samples(loglike)
-
-    def sample_given_x(self, x, srng, deterministic=False):
-        """
-        Augments
-        --------
-        x : list
-           This contains Theano variables, which must to correspond
-           to 'given'.
-           
-        srng : theano.sandbox.MRG_RandomStreams
-
-        deterministic : bool
-
-        Returns
-        --------
-        list 
-           This contains 'x' and sample ~ p(*|x).
-        """
-
-        mean = self.fprop(x, deterministic=deterministic)
-        return [x, self.sample(mean, srng)]
-
-    def sample_mean_given_x(self, x, deterministic=False, **kwargs):
-        """
-        Augments
-        --------
-        x : list
-           This contains Theano variables, which must to correspond
-           to 'given'.
-           
-        deterministic : bool
-
-        Returns
-        --------
-        list 
-           This contains 'x' and a mean value of sample ~ p(*|x).
-        """
-
-        mean = self.fprop(x, deterministic=deterministic)
-        return [x, mean]
-
-    def log_likelihood_given_x(self, samples, deterministic=False):
-        """
-        Augments
-        --------
-        samples : list
-           This contains 'x', which has Theano variables, and test sample.
-           
-        deterministic : bool
-
-        Returns
-        --------
-        Theano variable, shape (n_samples,)
-           A log-likelihood, p(sample|x).
-        """
-
-        x, sample = samples
-        mean = self.fprop(x, deterministic=deterministic)
-        return self.log_likelihood(sample, mean)
 
 
 class Categorical(Bernoulli):
@@ -245,27 +238,6 @@ class Gaussian(Distribution):
     def log_likelihood(self, samples, mean, var):
         loglike = gaussian_like(samples, mean, var)
         return self.mean_sum_samples(loglike)
-
-    def sample_given_x(self, x, srng, deterministic=False):
-        """
-        inputs : x
-        outputs : [x,z]
-        """
-        mean, var = self.fprop(x, deterministic=deterministic)
-        return [x, self.sample(mean, var, srng)]
-
-    def sample_mean_given_x(self, x, srng=None, deterministic=False):
-        """
-        inputs : x
-        outputs : [x,z]
-        """
-        mean, _ = self.fprop(x, deterministic=deterministic)
-        return [x, mean]
-
-    def log_likelihood_given_x(self, samples, deterministic=False):
-        x, sample = samples
-        mean, var = self.fprop(x, deterministic=deterministic)
-        return self.log_likelihood(sample, mean, var)
 
 
 class GaussianConstantVar(Bernoulli):
