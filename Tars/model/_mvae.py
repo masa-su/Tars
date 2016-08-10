@@ -163,46 +163,11 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_conditional_likelihood_test(self, test_set, l=1, k=1, mode='iw'):
-        x = self.q.inputs
-        log_likelihood = self.log_conditional_likelihood_iwae(x, k)
-        get_log_likelihood = theano.function(
-            inputs=x, outputs=log_likelihood, on_unused_input='ignore')
-
-        print "start sampling"
-
-        n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
-
-        pbar = ProgressBar(maxval=nbatches).start()
-        all_log_likelihood = []
-        for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
-            batch_x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*batch_x)
-            all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
-            pbar.update(i)
-
-        return all_log_likelihood
-
-    def log_conditional_likelihood_iwae(self, x, k):
-        n_x = x[0].shape[0]
-        rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples = self.q.sample_given_x(rep_x, self.srng)
-
-        samples = self.single_input(samples, input=rep_x)
-        log_iw = self.log_conditional_importance_weight(samples)
-        log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = log_mean_exp(
-            log_iw_matrix, axis=1, keepdims=True)
-
-        return log_marginal_estimate
-
     def log_conditional_importance_weight(self, samples):
         """
         inputs : [[x0,x1],z1,z2,...,zn]
-        outputs : log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)/q(z1,z2,...,zn|x0,x1)
+        outputs : log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
+                  /q(z1,z2,...,zn|x0,x1)
         """
 
         """
@@ -229,42 +194,6 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_mg_likelihood_test(self, test_set, l=1, k=1, mode='iw'):
-        x = self.q.inputs
-        log_likelihood = self.log_mg_likelihood_iwae(x, k)
-        get_log_likelihood = theano.function(
-            inputs=x, outputs=log_likelihood, on_unused_input='ignore')
-
-        print "start sampling"
-
-        n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
-
-        pbar = ProgressBar(maxval=nbatches).start()
-        all_log_likelihood = []
-        for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
-            batch_x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*batch_x)
-            all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
-            pbar.update(i)
-
-        return all_log_likelihood
-
-    def log_mg_likelihood_iwae(self, x, k):
-        n_x = x[0].shape[0]
-        rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples = self.q.sample_given_x(rep_x, self.srng)
-
-        samples = self.single_input(samples, input=rep_x)
-        log_iw = self.log_mg_importance_weight(samples)
-        log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = log_mean_exp(
-            log_iw_matrix, axis=1, keepdims=True)
-
-        return log_marginal_estimate
-
     def log_mg_importance_weight(self, samples):
         """
         inputs : [[x0,x1],z1,z2,...,zn]
@@ -289,6 +218,79 @@ class MVAE(VAE):
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
+
+    def log_pseudo_mg_importance_weight(self, samples):
+        """
+        inputs : [[x0],z1,z2,...,zn]
+        outputs : log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0)
+        """
+        log_iw = 0
+
+        """
+        log q(z1,z2,...,zn|x0)
+        samples : [[x0],z1,z2,...,zn]
+        """
+        q0_log_likelihood = self.pq[0].log_likelihood_given_x(samples)
+
+        """
+        log p(x0|z1,z2,...,zn)
+        inverse_samples0 : [zn,zn-1,...,x0]
+        """
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+
+        log_iw += p0_log_likelihood - q0_log_likelihood
+        log_iw += self.prior.log_likelihood(samples[-1])
+
+        return log_iw
+
+    def log_likelihood_iwae(self, x, k, type_p="joint"):
+        n_x = x[0].shape[0]
+        rep_x = [t_repeat(_x, k, axis=0) for _x in x]
+        if type_p == "pseudo_marginal":
+            samples = self.pq[0].sample_given_x(rep_x, self.srng)
+            log_iw = self.log_pseudo_mg_importance_weight(samples)
+        else:
+            samples = self.q.sample_given_x(rep_x, self.srng)
+            if type_p == "joint":
+                log_iw = self.log_importance_weight(samples)
+            elif type_p == "marginal":
+                log_iw = self.log_mg_importance_weight(samples)
+            elif type_p == "conditional":
+                log_iw = self.log_conditional_importance_weight(samples)
+
+        log_iw_matrix = T.reshape(log_iw, (n_x, k))
+        log_marginal_estimate = log_mean_exp(
+            log_iw_matrix, axis=1, keepdims=True)
+
+        return log_marginal_estimate
+
+    def log_likelihood_test(self, test_set, l=1, k=1,
+                            mode='iw', type_p="joint"):
+        x = self.q.inputs
+        if type_p == "pseudo_marginal":
+            x = tolist(x[0])
+
+        log_likelihood = self.log_likelihood_iwae(x, k, type_p=type_p)
+        get_log_likelihood = theano.function(
+            inputs=x, outputs=log_likelihood, on_unused_input='ignore')
+
+        print "start sampling"
+
+        n_x = test_set[0].shape[0]
+        nbatches = n_x // self.n_batch
+
+        pbar = ProgressBar(maxval=nbatches).start()
+        all_log_likelihood = []
+        for i in range(nbatches):
+            start = i * self.n_batch
+            end = start + self.n_batch
+            batch_x = [_x[start:end] for _x in test_set]
+            log_likelihood = get_log_likelihood(*batch_x)
+            all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
+            pbar.update(i)
+
+        return all_log_likelihood
 
     def single_input(self, samples, i=0, input=None):
         """
