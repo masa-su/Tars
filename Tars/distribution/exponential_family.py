@@ -69,8 +69,11 @@ class Distribution(object):
             return T.mean(T.sum(T.sum(samples, axis=2), axis=2), axis=1)
         elif n_dim == 3:
             return T.sum(T.sum(samples, axis=-1), axis=-1)
-        else:
+        elif n_dim == 2:
             return T.sum(samples, axis=-1)
+        else:
+            raise ValueError("The dim of samples must be 2, 3, 4, got"
+                             "dim %s." % type_p)            
 
     def sample_given_x(self, x, srng, deterministic=False):
         """
