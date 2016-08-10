@@ -48,7 +48,11 @@ class Distribution(object):
             The output of this distribution.
         """
 
-        inputs = dict(zip(self.given, x))
+        try:
+            inputs = dict(zip(self.given, x))
+        except:
+            "The length of 'x' is the same as 'given'"
+
         deterministic = kwargs.pop('deterministic', False)
         mean = lasagne.layers.get_output(
             self.mean_network, inputs, deterministic=deterministic)
