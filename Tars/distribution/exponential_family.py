@@ -268,7 +268,7 @@ class Gaussian(Distribution):
         mean = super(Gaussian, self).fprop(x, deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
-            self.var_network, inputs, deterministic=deterministic)  # simga**2
+            self.var_network, inputs, deterministic=deterministic)
         return mean, var
 
     def sample(self, mean, var, srng):
@@ -328,6 +328,7 @@ class Laplace(Gaussian):
         return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
 
     def log_likelihood(self, samples, mean, b):
-        b += epsilon()  # for numerical stability
+        # for numerical stability
+        b += epsilon()
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return self.mean_sum_samples(loglike)
