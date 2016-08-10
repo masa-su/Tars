@@ -31,7 +31,7 @@ class Distribution(object):
             self.mean_network, trainable=True)
         return params
 
-    def fprop(self, x, deterministic=False, **kwargs):
+    def fprop(self, x, *args, **kwargs):
         """
         Arguments
         ----------
@@ -49,6 +49,7 @@ class Distribution(object):
         """
 
         inputs = dict(zip(self.given, x))
+        deterministic = kwargs.pop('deterministic', False)
         mean = lasagne.layers.get_output(
             self.mean_network, inputs, deterministic=deterministic)
         return mean
@@ -73,9 +74,9 @@ class Distribution(object):
             return T.sum(samples, axis=-1)
         else:
             raise ValueError("The dim of samples must be 2, 3, 4, got"
-                             "dim %s." % type_p)
+                             "dim %s." % n_dim)
 
-    def sample_given_x(self, x, srng, deterministic=False):
+    def sample_given_x(self, x, srng, **kwargs):
         """
         Augments
         --------
@@ -93,10 +94,10 @@ class Distribution(object):
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
 
-        mean = self.fprop(x, deterministic=deterministic)
-        return [x, self.sample(*tolist(mean), srng)]
+        mean = self.fprop(x, **kwargs)
+        return [x, self.sample(*tolist(mean)+[srng])]
 
-    def sample_mean_given_x(self, x, *args, deterministic=False):
+    def sample_mean_given_x(self, x, *args, **kwargs):
         """
         Augments
         --------
@@ -112,10 +113,10 @@ class Distribution(object):
            This contains 'x' and a mean value of sample ~ p(*|x).
         """
 
-        mean = self.fprop(x, deterministic=deterministic)
+        mean = self.fprop(x, **kwargs)
         return [x, tolist(mean)[0]]
 
-    def log_likelihood_given_x(self, samples, deterministic=False):
+    def log_likelihood_given_x(self, samples, **kwargs):
         """
         Augments
         --------
@@ -131,7 +132,7 @@ class Distribution(object):
         """
 
         x, sample = samples
-        mean = self.fprop(x, deterministic=deterministic)
+        mean = self.fprop(x, **kwargs)
         return self.log_likelihood(sample, *tolist(mean))
 
     @abstractmethod
