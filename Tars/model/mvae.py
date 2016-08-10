@@ -133,28 +133,31 @@ class MVAE(VAE):
 
     def log_importance_weight(self, samples):
         """
-        inputs : [[x0,x1],z1,z2,...,zn]
-        outputs : log p(x0,x1,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples)
+           Estimated log likelihood.
+           log p(x0,x1,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
         """
+
         log_iw = 0
 
-        """
-        log q(z1,z2,...,zn|x0,x1)
-        samples : [[x0,x1],z1,z2,...,zn]
-        """
+        # log q(z1,z2,...,zn|x0,x1)
+        # samples : [[x0,x1],z1,z2,...,zn]
         q_log_likelihood = self.q.log_likelihood_given_x(samples)
 
-        """
-        log p(x0|z1,z2,...,zn)
-        inverse_samples0 : [zn,zn-1,...,x0]
-        """
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
-        """
-        log p(x1|z1,z2,...,zn)
-        inverse_samples1 : [zn,zn-1,...,x1]
-        """
+        # log p(x1|z1,z2,...,zn)
+        # inverse_samples1 : [zn,zn-1,...,x1]
         inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
         p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
 
@@ -165,28 +168,30 @@ class MVAE(VAE):
 
     def log_conditional_importance_weight(self, samples):
         """
-        inputs : [[x0,x1],z1,z2,...,zn]
-        outputs : log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
-                  /q(z1,z2,...,zn|x0,x1)
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
+               /q(z1,z2,...,zn|x0,x1)
         """
 
-        """
-        log q(z1,z2,...,zn|x0,x1)
-        samples : [[x0,x1],z1,z2,...,zn]
-        """
+        # log q(z1,z2,...,zn|x0,x1)
+        # samples : [[x0,x1],z1,z2,...,zn]
         q_log_likelihood = self.q.log_likelihood_given_x(samples)
 
-        """
-        log q(z1,z2,...,zn|x1)
-        samples : [x1,z1,z2,...,zn]
-        """
+        # log q(z1,z2,...,zn|x1)
+        # samples1 : [x1,z1,z2,...,zn]
         samples1 = self.single_input(samples, 1)
         q1_log_likelihood = self.pq[1].log_likelihood_given_x(samples1)
 
-        """
-        log p(x0|z1,z2,...,zn)
-        inverse_samples0 : [zn,zn-1,...,x0]
-        """
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
@@ -196,21 +201,26 @@ class MVAE(VAE):
 
     def log_mg_importance_weight(self, samples):
         """
-        inputs : [[x0,x1],z1,z2,...,zn]
-        outputs : log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
         """
+
         log_iw = 0
 
-        """
-        log q(z1,z2,...,zn|x0,x1)
-        samples : [[x0,x1],z1,z2,...,zn]
-        """
+        # log q(z1,z2,...,zn|x0,x1)
+        # samples : [[x0,x1],z1,z2,...,zn]
         q_log_likelihood = self.q.log_likelihood_given_x(samples)
 
-        """
-        log p(x0|z1,z2,...,zn)
-        inverse_samples0 : [zn,zn-1,...,x0]
-        """
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
@@ -221,21 +231,26 @@ class MVAE(VAE):
 
     def log_pseudo_mg_importance_weight(self, samples):
         """
-        inputs : [[x0],z1,z2,...,zn]
-        outputs : log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0)
+        Paramaters
+        ----------
+        samples : list
+           [[x0],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0)
         """
+
         log_iw = 0
 
-        """
-        log q(z1,z2,...,zn|x0)
-        samples : [[x0],z1,z2,...,zn]
-        """
+        # log q(z1,z2,...,zn|x0)
+        # samples : [[x0],z1,z2,...,zn]
         q0_log_likelihood = self.pq[0].log_likelihood_given_x(samples)
 
-        """
-        log p(x0|z1,z2,...,zn)
-        inverse_samples0 : [zn,zn-1,...,x0]
-        """
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
@@ -245,6 +260,23 @@ class MVAE(VAE):
         return log_iw
 
     def log_likelihood_iwae(self, x, k, type_p="joint"):
+        """
+        Paramaters
+        ----------
+        x : TODO
+
+        k : TODO
+
+        type_p : {'joint', 'conditional', 'marginal' 'pseudo_marginal'}
+           Specifies the type of the log likelihood.
+
+        Returns
+        --------
+        log_marginal_estimate : array, shape (n_samples)
+           Estimated log likelihood.
+
+        """
+
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
         if type_p == "pseudo_marginal":
@@ -270,6 +302,12 @@ class MVAE(VAE):
         """
         Paramaters
         ----------
+        test_set : TODO
+
+        l : TODO
+
+        k : TODO
+
         mode : {'iw', 'lower_bound'}
            Specifies the way of sampling to estimate the log likelihood,
            whether an importance weighted lower bound or a original
@@ -320,6 +358,25 @@ class MVAE(VAE):
         return all_log_likelihood
 
     def single_input(self, samples, i=0, inputs=None):
+        """
+        Paramaters
+        ----------
+        samples : list
+           [[x,y,...],z1,z2,....]
+
+        i : int
+           Selects an input from [x,y...].
+
+        inputs : list
+           The inputs which you want to replace from [x,y,...].
+
+        Returns
+        ----------
+        _samples : list
+           if i=0, then _samples = [[x],z1,z2,....]
+           if i=1, then _samples = [[y],z1,z2,....]
+        """
+
         _samples = copy(samples)
         if inputs:
             _samples[0] = tolist(inputs)
