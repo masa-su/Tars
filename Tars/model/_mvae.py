@@ -133,7 +133,7 @@ class MVAE(VAE):
 
     def log_importance_weight(self, samples):
         """
-        inputs : [[x1],z1,z2,...,zn]
+        inputs : [[x0,x1],z1,z2,...,zn]
         outputs : log p(x0,x1,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
         """
         log_iw = 0
@@ -145,14 +145,14 @@ class MVAE(VAE):
         q_log_likelihood = self.q.log_likelihood_given_x(samples)
 
         """
-        log p(x0|z1,z2,...,zn,y,...)
+        log p(x0|z1,z2,...,zn)
         inverse_samples0 : [zn,zn-1,...,x0]
         """
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
         """
-        log p(x1|z1,z2,...,zn,y,...)
+        log p(x1|z1,z2,...,zn)
         inverse_samples1 : [zn,zn-1,...,x1]
         """
         inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
@@ -202,7 +202,7 @@ class MVAE(VAE):
     def log_conditional_importance_weight(self, samples):
         """
         inputs : [[x0,x1],z1,z2,...,zn]
-        outputs : log p(x0|z1,z2,...,zn)q(z|y)/q(z|x,y)
+        outputs : log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)/q(z1,z2,...,zn|x0,x1)
         """
 
         """
@@ -268,7 +268,7 @@ class MVAE(VAE):
     def log_mg_importance_weight(self, samples):
         """
         inputs : [[x0,x1],z1,z2,...,zn]
-        outputs : log p(x0|z1,z2,...,zn)p(z)/q(z|x,y)
+        outputs : log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
         """
         log_iw = 0
 
