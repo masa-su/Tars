@@ -29,13 +29,36 @@ class Distribution(object):
             self.mean_network, trainable=True)
         return params
 
-    def fprop(self, x, srng=None, deterministic=False):
+    def fprop(self, x, deterministic=False, **kwargs):
+        """
+        Arguments
+        ----------
+        x : list
+           This contains Theano variables, which must to correspond
+           to 'given'. 
+        
+        deterministic : bool
+           This argment is used in lasagne.layers.get_output.
+
+        Returns
+        -------
+        mean : Theano variable
+            The paramater of this distribution.
+        """
+
         inputs = dict(zip(self.given, x))
         mean = lasagne.layers.get_output(
             self.mean_network, inputs, deterministic=deterministic)
         return mean
 
     def get_output_shape(self):
+        """
+        Returns
+        -------
+        tuple
+          This represents the shape of the output of this distribution.
+        """
+
         return self.mean_network.get_output_shape_for(self.inputs)
 
     def mean_sum_samples(self, samples):
