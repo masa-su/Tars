@@ -108,4 +108,6 @@ def log_mean_exp(x, axis=0, keepdims=False):
 def tolist(x):
     if isinstance(x, list):
         return x
+    elif isinstance(x, tuple):
+        return list(x)
     return [x]
