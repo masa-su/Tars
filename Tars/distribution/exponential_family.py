@@ -1,11 +1,13 @@
 import theano.tensor as T
 import lasagne
+from abc import ABCMeta, abstractmethod
 
 from ..utils import gaussian_like, epsilon
 
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
 class Distribution(object):
+    __metaclass__ = ABCMeta
     """
     Arguments
     ----------
@@ -70,6 +72,26 @@ class Distribution(object):
         else:
             return T.sum(samples, axis=-1)
 
+    @abstractmethod
+    def sample(self):
+        pass
+
+    @abstractmethod
+    def log_likelihood(self):
+        pass
+
+    @abstractmethod
+    def sample_given_x(self):
+        pass
+
+    @abstractmethod
+    def sample_mean_given_x(self):
+        pass
+
+    @abstractmethod
+    def log_likelihood_given_x(self):
+        pass
+        
 
 class Deterministic(Distribution):
     """
@@ -97,11 +119,11 @@ class Bernoulli(Distribution):
     def sample(self, mean, srng):
         return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
 
-    def log_likelihood(self, samples, mean):
+    def log_likelihood(self, sample, mean):
         """
         Augments
         --------
-        samples : Theano variable
+        sample : Theano variable
            This variable means test samples which you use to estimate
            a test log-likelihood.
 
@@ -118,7 +140,7 @@ class Bernoulli(Distribution):
 
         # for numerical stability
         mean = T.clip(mean, epsilon(), 1.0-epsilon())
-        loglike = samples * T.log(mean) + (1 - samples) * T.log(1 - mean)
+        loglike = sample * T.log(mean) + (1 - sample) * T.log(1 - mean)
         return self.mean_sum_samples(loglike)
 
     def sample_given_x(self, x, srng, deterministic=False):
