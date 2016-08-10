@@ -5,7 +5,7 @@ import theano
 import theano.tensor as T
 from progressbar import ProgressBar
 
-from ..model import VAE
+from . import VAE
 from ..utils import (
     gauss_gauss_kl,
     gauss_unitgauss_kl,
