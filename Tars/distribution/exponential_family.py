@@ -73,7 +73,7 @@ class Distribution(object):
             return T.sum(samples, axis=-1)
         else:
             raise ValueError("The dim of samples must be 2, 3, 4, got"
-                             "dim %s." % type_p)            
+                             "dim %s." % type_p)
 
     def sample_given_x(self, x, srng, deterministic=False):
         """
@@ -82,14 +82,14 @@ class Distribution(object):
         x : list
            This contains Theano variables, which must to correspond
            to 'given'.
-           
+
         srng : theano.sandbox.MRG_RandomStreams
 
         deterministic : bool
 
         Returns
         --------
-        list 
+        list
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
 
@@ -103,12 +103,12 @@ class Distribution(object):
         x : list
            This contains Theano variables, which must to correspond
            to 'given'.
-           
+
         deterministic : bool
 
         Returns
         --------
-        list 
+        list
            This contains 'x' and a mean value of sample ~ p(*|x).
         """
 
@@ -121,7 +121,7 @@ class Distribution(object):
         --------
         samples : list
            This contains 'x', which has Theano variables, and test sample.
-           
+
         deterministic : bool
 
         Returns
@@ -141,7 +141,7 @@ class Distribution(object):
     @abstractmethod
     def log_likelihood(self):
         pass
-        
+
 
 class Deterministic(Distribution):
     """
@@ -157,6 +157,7 @@ class Deterministic(Distribution):
 
     def loglikelihood(self, sample, mean):
         raise NotImplementedError
+
 
 class Bernoulli(Distribution):
     """
