@@ -3,7 +3,7 @@ from .ae import AE
 from .vae import VAE
 from .gan import GAN
 
-from ._mvae import MVAE
+from .mvae import MVAE
 
 from .vaegan import VAEGAN
 from .mvaegan import MVAEGAN
