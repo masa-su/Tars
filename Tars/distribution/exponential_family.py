@@ -9,7 +9,7 @@ from ..utils import gaussian_like, epsilon, tolist
 class Distribution(object):
     __metaclass__ = ABCMeta
     """
-    Arguments
+    Paramaters
     ----------
     mean_network : lasagne.layers.Layer
        The network whose outputs express the paramater of this distribution.
@@ -33,7 +33,7 @@ class Distribution(object):
 
     def fprop(self, x, *args, **kwargs):
         """
-        Arguments
+        Paramaters
         ----------
         x : list
            This contains Theano variables, which must to correspond
@@ -82,7 +82,7 @@ class Distribution(object):
 
     def sample_given_x(self, x, srng, **kwargs):
         """
-        Augments
+        Paramaters
         --------
         x : list
            This contains Theano variables, which must to correspond
@@ -103,7 +103,7 @@ class Distribution(object):
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
-        Augments
+        Paramaters
         --------
         x : list
            This contains Theano variables, which must to correspond
@@ -122,7 +122,7 @@ class Distribution(object):
 
     def log_likelihood_given_x(self, samples, **kwargs):
         """
-        Augments
+        Paramaters
         --------
         samples : list
            This contains 'x', which has Theano variables, and test sample.
@@ -175,7 +175,7 @@ class Bernoulli(Distribution):
 
     def sample(self, mean, srng):
         """
-        Augments
+        Paramaters
         --------
         mean : Theano variable
            The paramater (mean value) of this distribution.
@@ -191,7 +191,7 @@ class Bernoulli(Distribution):
 
     def log_likelihood(self, sample, mean):
         """
-        Augments
+        Paramaters
         --------
         sample : Theano variable
            This variable means test samples which you use to estimate
@@ -225,7 +225,7 @@ class Categorical(Bernoulli):
 
     def log_likelihood(self, samples, mean):
         """
-        Augments
+        Paramaters
         --------
         sample : Theano variable
            This variable means test samples which you use to estimate
