@@ -290,48 +290,6 @@ class MVAE(VAE):
 
         return log_iw
 
-    def penalty_test(self, test_set, l=1):
-        x = self.q.inputs
-        rep_x = [t_repeat(_x, l, axis=0) for _x in x]
-
-        # z ~ q(x0,random_x)
-        z0 = self.pq[0].sample_given_x(
-            [rep_x[0]], self.srng, deterministic=True)
-        z1 = self.pq[1].sample_given_x(
-            [rep_x[1]], self.srng, deterministic=True)
-
-        inverse_z0 = self.inverse_samples(
-            self.single_input(z1, input=rep_x[0]))
-        # p(x0|z0)
-        loglike0_given0 = self.p[0].log_likelihood_given_x(inverse_z0)
-        loglike0_given0 = T.mean(loglike0_given0)
-
-        inverse_z1 = self.inverse_samples(
-            self.single_input(z0, input=rep_x[1]))
-        # p(x1|z1)
-        loglike1_given1 = self.p[1].log_likelihood_given_x(inverse_z1)
-        loglike1_given1 = T.mean(loglike1_given1)
-
-        loss = [-loglike0_given0, -loglike1_given1]
-        self.loss_test = theano.function(
-            inputs=x, outputs=loss, on_unused_input='ignore')
-
-        n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
-        pbar = ProgressBar(maxval=nbatches).start()
-        loss = []
-
-        for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
-
-            batch_x = [_x[start:end] for _x in test_set]
-            test_L = self.loss_test(*batch_x)
-            loss.append(np.array(test_L))
-            pbar.update(i)
-        loss = np.mean(loss, axis=0)
-        return loss
-
     def single_input(self, samples, i=0, input=None):
         """
         inputs : [[x,y,...],z1,z2,....]
