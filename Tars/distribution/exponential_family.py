@@ -77,8 +77,8 @@ class Distribution(object):
         elif n_dim == 2:
             return T.sum(samples, axis=-1)
         else:
-            raise ValueError("The dim of samples must be 2, 3, 4, got"
-                             "dim %s." % n_dim)
+            raise ValueError("The dim of samples must be any of 2, 3, or 4,"
+                             "got dim %s." % n_dim)
 
     def sample_given_x(self, x, srng, **kwargs):
         """
@@ -174,6 +174,19 @@ class Bernoulli(Distribution):
         super(Bernoulli, self).__init__(mean_network, given)
 
     def sample(self, mean, srng):
+        """
+        Augments
+        --------
+        mean : Theano variable
+           The paramater (mean value) of this distribution.
+
+        Returns
+        -------
+        Theano variable, shape (mean.shape)
+           This variable is sampled from this distribution.
+           i.e. sample ~ p(x|mean)
+        """
+
         return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
 
     def log_likelihood(self, sample, mean):
@@ -190,9 +203,9 @@ class Bernoulli(Distribution):
 
         Returns
         -------
-        Theano varaiable, shape (n_samples,)
+        Theano variable, shape (n_samples,)
             A log-likelihood, which is the same meaning as a negative
-            reconstruction error.
+            binary cross-entropy error.
         """
 
         # for numerical stability
@@ -211,6 +224,24 @@ class Categorical(Bernoulli):
         super(Categorical, self).__init__(mean_network, given)
 
     def log_likelihood(self, samples, mean):
+        """
+        Augments
+        --------
+        sample : Theano variable
+           This variable means test samples which you use to estimate
+           a test log-likelihood.
+
+        mean : Theano variable
+           This variable is a reconstruction of test samples. This must have
+           the same shape as 'sample'.
+
+        Returns
+        -------
+        Theano variable, shape (n_samples,)
+            A log-likelihood, which is the same meaning as a negative
+            categorical cross-entropy error.
+        """
+
         # for numerical stability
         mean = T.clip(mean, epsilon(), 1.0-epsilon())
         loglike = samples * T.log(mean)
