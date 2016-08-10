@@ -267,6 +267,33 @@ class MVAE(VAE):
 
     def log_likelihood_test(self, test_set, l=1, k=1,
                             mode='iw', type_p="joint"):
+        """
+        Paramaters
+        ----------
+        mode : {'iw', 'lower_bound'}
+           Specifies the way of sampling to estimate the log likelihood,
+           whether an importance weighted lower bound or a original
+           lower bound.
+
+        type_p : {'joint', 'conditional', 'marginal' 'pseudo_marginal'}
+           Specifies the type of the log likelihood.
+
+        Returns
+        --------
+        all_log_likelihood : array, shape (n_samples)
+           Estimated log likelihood.
+
+        """
+
+        if mode not in ['iw', 'lower_bound']:
+            raise ValueError("mode must be whether 'iw' or 'lower_bound',"
+                             "got %s." % mode)
+
+        if type_p not in ['joint', 'conditional', 'marginal'
+                          'pseudo_marginal']:
+            raise ValueError("type_p must be one of {'joint', 'conditional', "
+                             "'marginal' 'pseudo_marginal'}, got %s." % type_p)
+
         x = self.q.inputs
         if type_p == "pseudo_marginal":
             x = tolist(x[0])
