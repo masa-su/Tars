@@ -243,7 +243,7 @@ class Gaussian(Distribution):
         return self.mean_sum_samples(loglike)
 
 
-class GaussianConstantVar(Bernoulli):
+class GaussianConstantVar(Deterministic):
     """
     Gaussian distribution (with a constant variance)
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
