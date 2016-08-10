@@ -24,6 +24,8 @@ class TestToList(TestCase):
         from ..utils import tolist
         sample_list = [1, 2, 3, 4]
         self.assertEqual(sample_list, tolist(sample_list))
+        sample_tuple = (1, 2, 3, 4)
+        self.assertEqual(sample_list, tolist(sample_tuple))
         sample_value = 1
         self.assertEqual([sample_value], tolist(sample_value))
 
