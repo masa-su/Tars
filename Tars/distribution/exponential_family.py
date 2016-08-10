@@ -112,10 +112,6 @@ class Bernoulli(Distribution):
     def __init__(self, mean_network, given):
         super(Bernoulli, self).__init__(mean_network, given)
 
-    def fprop(self, x, srng=None, deterministic=False):
-        mean = super(Bernoulli, self).fprop(x, deterministic)
-        return mean
-
     def sample(self, mean, srng):
         return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
 
