@@ -6,6 +6,18 @@ from ..utils import gaussian_like, epsilon
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
 class Distribution(object):
+    """
+    Arguments
+    ----------
+    mean_network : lasagne.layers.Layer
+       The network whose outputs express the paramater of this distribution.
+
+    given : list
+       This contains instances of lasagne.layers.InputLayer, which mean the
+       conditioning variables.
+       e.g. if given = [x,y], then the corresponding log-likehood is
+            log p(*|x,y)
+    """
 
     def __init__(self, mean_network, given):
         self.mean_network = mean_network
