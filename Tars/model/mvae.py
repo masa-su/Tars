@@ -319,16 +319,10 @@ class MVAE(VAE):
 
         return all_log_likelihood
 
-    def single_input(self, samples, i=0, input=None):
-        """
-        inputs : [[x,y,...],z1,z2,....]
-        outputs :
-           i=0 : [[x],z1,z2,....]
-           i=1 : [[y],z1,z2,....]
-        """
+    def single_input(self, samples, i=0, inputs=None):
         _samples = copy(samples)
-        if input:
-            _samples[0] = tolist(input)
+        if inputs:
+            _samples[0] = tolist(inputs)
         else:
             _samples[0] = [_samples[0][i]]
         return _samples
