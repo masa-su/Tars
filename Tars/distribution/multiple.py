@@ -4,6 +4,19 @@ from ..utils import tolist
 
 
 class Concatenate(object):
+    """
+    This distribution is used to concatenate different distributions in
+    their feature axis. Therefore, we can handle multiple distributions
+    as one distribution when sampling from them or estimating their 
+    log-likelihood.
+
+    Examples
+    --------
+    >>> from Tars.distribution import Concatenate, Gaussian, Bernoulli
+    >>> gauss = Gaussian(mean, var, given=[x1])
+    >>> bernoulli = Bernoulli(mean, given=[x2])
+    >>> concat = Concatenate([gauss, bernoulli])
+    """
 
     def __init__(self, distributions):
         self.distributions = distributions
