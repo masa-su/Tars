@@ -158,6 +158,13 @@ class Deterministic(Distribution):
         super(Deterministic, self).__init__(network, given)
 
     def sample(self, mean, *args):
+        """
+        Paramaters
+        ----------
+
+        mean : Theano variable, the output of a fully connected layer
+               (any activation function)
+        """
         return mean
 
     def loglikelihood(self, sample, mean):
@@ -177,7 +184,7 @@ class Bernoulli(Distribution):
         """
         Paramaters
         --------
-        mean : Theano variable
+        mean : Theano variable, the output of a fully connected layer (Sigmoid)
            The paramater (mean value) of this distribution.
 
         Returns
@@ -197,7 +204,7 @@ class Bernoulli(Distribution):
            This variable means test samples which you use to estimate
            a test log-likelihood.
 
-        mean : Theano variable
+        mean : Theano variable, the output of a fully connected layer (Sigmoid)
            This variable is a reconstruction of test samples. This must have
            the same shape as 'sample'.
 
@@ -231,7 +238,7 @@ class Categorical(Bernoulli):
            This variable means test samples which you use to estimate
            a test log-likelihood.
 
-        mean : Theano variable
+        mean : Theano variable, the output of a fully connected layer (Softmax)
            This variable is a reconstruction of test samples. This must have
            the same shape as 'sample'.
 
@@ -260,7 +267,7 @@ class Gaussian(Distribution):
 
     def get_params(self):
         params = super(Gaussian, self).get_params()
-        params += self.var_network.get_params(trainable=Tue)
+        params += self.var_network.get_params(trainable=True)
         # TODO: fix duplicated paramaters
         return params
 
@@ -272,10 +279,29 @@ class Gaussian(Distribution):
         return mean, var
 
     def sample(self, mean, var, srng):
+        """
+        Paramaters
+        ----------
+
+        mean : Theano variable, the output of a fully connected layer (Linear)
+
+        var : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
         eps = srng.normal(mean.shape)
         return mean + T.sqrt(var) * eps
 
     def log_likelihood(self, samples, mean, var):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        mean : Theano variable, the output of a fully connected layer (Linear)
+
+        var : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
         loglike = gaussian_like(samples, mean, var)
         return self.mean_sum_samples(loglike)
 
@@ -291,6 +317,14 @@ class GaussianConstantVar(Deterministic):
         self.constant_var = var
 
     def log_likelihood(self, samples, mean):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        mean : Theano variable, the output of a fully connected layer (Linear)
+        """
+
         loglike = gaussian_like(
             samples, mean, T.ones_like(mean)*self.constant_var)
         return self.mean_sum_samples(loglike)
@@ -306,9 +340,22 @@ class UnitGaussian(Distribution):
         pass
 
     def sample(self, shape, srng):
+        """
+        Paramaters
+        --------
+        shape : tuple
+           sets a shape of the output sample
+        """
+
         return srng.normal(shape)
 
     def log_likelihood(self, samples):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+        """
+
         loglike = gaussian_like(samples,
                                 T.zeros_like(samples), T.ones_like(samples))
         return T.mean(self.mean_sum_samples(loglike))
@@ -324,10 +371,28 @@ class Laplace(Gaussian):
         super(Laplace, self).__init__(mean_network, var_network, given)
 
     def sample(self, mean, b, srng):
+        """
+        Paramaters
+        --------
+        mean : Theano variable, the output of a fully connected layer (Linear)
+
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
         eps = srng.uniform(mean.shape, low=-0.5, high=0.5)
         return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
 
     def log_likelihood(self, samples, mean, b):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        mean : Theano variable, the output of a fully connected layer (Linear)
+
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
         # for numerical stability
         b += epsilon()
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
