@@ -51,7 +51,7 @@ class Distribution(object):
         try:
             inputs = dict(zip(self.given, x))
         except:
-            "The length of 'x' is the same as 'given'"
+            print "The length of 'x' is the same as 'given'"
 
         deterministic = kwargs.pop('deterministic', False)
         mean = lasagne.layers.get_output(
@@ -260,7 +260,7 @@ class Gaussian(Distribution):
 
     def get_params(self):
         params = super(Gaussian, self).get_params()
-        params += self.var_network.get_params(trainable=True)
+        params += self.var_network.get_params(trainable=Tue)
         # TODO: fix duplicated paramaters
         return params
 
