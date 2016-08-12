@@ -8,20 +8,29 @@ class Concatenate(object):
     This distribution is used to concatenate different distributions in
     their feature axis. Therefore, we can handle multiple distributions
     as one distribution when sampling from them or estimating their
-    log-likelihood.
+    log-likelihood. However, every distribution must have same given
+    variables.
+
+    Samples
+    -------
+    distributions : list
+       Contain multiple distributions.
 
     Examples
     --------
     >>> from Tars.distribution import Concatenate, Gaussian, Bernoulli
-    >>> gauss = Gaussian(mean, var, given=[x1])
-    >>> bernoulli = Bernoulli(mean, given=[x2])
+    >>> gauss = Gaussian(mean, var, given=[x])
+    >>> bernoulli = Bernoulli(mean, given=[x])
     >>> concat = Concatenate([gauss, bernoulli])
     """
 
     def __init__(self, distributions):
         self.distributions = distributions
+        for d in self.distributions:
+            if self.distributions[0].given != d.given:
+                raise ValueError("Every distribution must have same"
+                                 "given variables")
         self.inputs = self.distributions[0].inputs
-        # TODO: check distributions[0].inputs == distributions[0].inputs
 
     def get_params(self):
         params = []
@@ -31,9 +40,13 @@ class Concatenate(object):
 
     def fprop(self, x, *args, **kwargs):
         """
-        inputs : x
-        outputs : mean
+        Samples
+        -------
+        x : list
+           This contains Theano variables. The number of them must be
+           same as 'distributions'.
         """
+
         samples = []
         for d in self.distributions:
             samples.append(d.fprop(x, *args, **kwargs))
