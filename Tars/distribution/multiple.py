@@ -7,7 +7,7 @@ class Concatenate(object):
     """
     This distribution is used to concatenate different distributions in
     their feature axis. Therefore, we can handle multiple distributions
-    as one distribution when sampling from them or estimating their 
+    as one distribution when sampling from them or estimating their
     log-likelihood.
 
     Examples
@@ -29,31 +29,31 @@ class Concatenate(object):
             params += d.get_params()
         return params
 
-    def fprop(self, x, srng=None, deterministic=False):
+    def fprop(self, x, *args, **kwargs):
         """
         inputs : x
         outputs : mean
         """
         samples = []
         for d in self.distributions:
-            samples.append(d.fprop(x, srng, deterministic=deterministic))
+            samples.append(d.fprop(x, *args, **kwargs))
         return T.concatenate(samples, axis=-1)
 
-    def sample_given_x(self, x, srng, deterministic=False):
+    def sample_given_x(self, x, srng, **kwargs):
         samples = []
         for d in self.distributions:
             samples.append(
-                d.sample_given_x(x, srng, deterministic=deterministic)[-1])
+                d.sample_given_x(x, srng, **kwargs)[-1])
         return [x, T.concatenate(samples, axis=-1)]
 
-    def sample_mean_given_x(self, x, srng, deterministic=False):
+    def sample_mean_given_x(self, x, *args, **kwargs):
         samples = []
         for d in self.distributions:
             samples.append(d.sample_mean_given_x(
-                x, srng, deterministic=deterministic)[-1])
+                x, *args, **kwargs)[-1])
         return [x, T.concatenate(samples, axis=-1)]
 
-    def log_likelihood_given_x(self, samples, deterministic=False):
+    def log_likelihood_given_x(self, samples, **kwargs):
         """
         inputs : [[x,y,...],sample]
         outputs : p(sample|x)
@@ -64,7 +64,7 @@ class Concatenate(object):
             shape = d.get_output_shape()[-1]
             loglikes += d.log_likelihood_given_x(
                 [samples[0], samples[1][:, start:start+shape]],
-                deterministic=deterministic)
+                **kwargs)
             start += shape
         return loglikes
 
