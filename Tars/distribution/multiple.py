@@ -29,7 +29,7 @@ class Concatenate(object):
         self.outputs_dim = 0
         for d in self.distributions:
             if self.distributions[0].given != d.given:
-                raise ValueError("Every distribution must have same"
+                raise ValueError("Every distribution must have same "
                                  "given variables")
             self.outputs_dim += d.get_output_shape()[-1]
 
@@ -86,7 +86,7 @@ class Concatenate(object):
         x, sample = samples
 
         if sample.shape[-1] != self.outputs_dim:
-            raise ValueError("The dimension of test sample must be same as"
+            raise ValueError("The dimension of test sample must be same as "
                              "output_dim.")
 
         loglikes = 0
@@ -130,13 +130,13 @@ class Multilayer(object):
         self.inputs = self.distributions[0].inputs
         for i, d in enumerate(distributions[1:]):
             if len(d.given) != 1:
-                raise ValueError("So far, each distribution except first"
-                                 "layer cannot have conditioned variables"
+                raise ValueError("So far, each distribution except first "
+                                 "layer cannot have conditioned variables "
                                  "more than two.")
 
             if distributions[i].get_output_shape != d.given[0].shape:
-                raise ValueError("An output's shape of a distribution must be"
-                                 "same as an input's shape of the next layer"
+                raise ValueError("An output's shape of a distribution must be "
+                                 "same as an input's shape of the next layer "
                                  "distribution.")
 
     def get_params(self):
