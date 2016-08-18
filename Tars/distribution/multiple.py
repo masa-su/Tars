@@ -134,7 +134,7 @@ class Multilayer(object):
                                  "layer cannot have conditioned variables "
                                  "more than two.")
 
-            if distributions[i].get_output_shape != d.given[0].shape:
+            if distributions[i].get_output_shape() != d.given[0].shape:
                 raise ValueError("An output's shape of a distribution must be "
                                  "same as an input's shape of the next layer "
                                  "distribution.")

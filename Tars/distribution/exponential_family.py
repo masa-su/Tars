@@ -67,7 +67,7 @@ class Distribution(object):
 
     def mean_sum_samples(self, samples):
         n_dim = samples.ndim
-        if n_dim == 4:  # TODO:fix
+        if n_dim == 4:
             return T.mean(T.sum(T.sum(samples, axis=2), axis=2), axis=1)
         elif n_dim == 3:
             return T.sum(T.sum(samples, axis=-1), axis=-1)
