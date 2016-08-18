@@ -63,7 +63,7 @@ class Distribution(object):
           This represents the shape of the output of this distribution.
         """
 
-        return self.mean_network.get_output_shape_for(self.inputs)
+        return lasagne.layers.get_output_shape(self.mean_network)
 
     def mean_sum_samples(self, samples):
         n_dim = samples.ndim
