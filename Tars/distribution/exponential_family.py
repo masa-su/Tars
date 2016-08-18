@@ -39,9 +39,6 @@ class Distribution(object):
            This contains Theano variables, which must to correspond
            to 'given'.
 
-        deterministic : bool
-           This argment is used in lasagne.layers.get_output.
-
         Returns
         -------
         mean : Theano variable
@@ -90,8 +87,6 @@ class Distribution(object):
 
         srng : theano.sandbox.MRG_RandomStreams
 
-        deterministic : bool
-
         Returns
         --------
         list
@@ -109,8 +104,6 @@ class Distribution(object):
            This contains Theano variables, which must to correspond
            to 'given'.
 
-        deterministic : bool
-
         Returns
         --------
         list
@@ -126,8 +119,6 @@ class Distribution(object):
         --------
         samples : list
            This contains 'x', which has Theano variables, and test sample.
-
-        deterministic : bool
 
         Returns
         --------
@@ -161,10 +152,10 @@ class Deterministic(Distribution):
         """
         Paramaters
         ----------
-
         mean : Theano variable, the output of a fully connected layer
                (any activation function)
         """
+
         return mean
 
     def loglikelihood(self, sample, mean):
