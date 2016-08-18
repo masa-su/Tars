@@ -118,7 +118,7 @@ class Multilayer(object):
             params += d.get_params()
         return params
 
-    def __sampling(self, x, srng, deterministic):
+    def _sampling(self, x, srng, deterministic):
         """
         inputs : x
         outputs : [x,z1,...,zn-1]
@@ -135,7 +135,7 @@ class Multilayer(object):
         inputs : x
         outputs : mean
         """
-        samples = self.__sampling(x, srng, deterministic)
+        samples = self._sampling(x, srng, deterministic)
         sample = self.distributions[-1].fprop(
             tolist(samples[-1]), deterministic=deterministic)
         return sample
@@ -145,7 +145,7 @@ class Multilayer(object):
         inputs : x
         outputs : [x,z1,...,zn]
         """
-        samples = self.__sampling(x, srng, deterministic)
+        samples = self._sampling(x, srng, deterministic)
         samples += self.distributions[-1].sample_given_x(
             tolist(samples[-1]), srng, deterministic=deterministic)[-1:]
         return samples
@@ -155,7 +155,7 @@ class Multilayer(object):
         inputs : x
         outputs : [x,z1,...,zn]
         """
-        mean = self.__sampling(x, srng, deterministic)
+        mean = self._sampling(x, srng, deterministic)
         mean += self.distributions[-1].sample_mean_given_x(
             tolist(mean[-1]), deterministic=deterministic)[-1:]
         return mean
