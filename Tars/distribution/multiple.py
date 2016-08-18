@@ -26,10 +26,13 @@ class Concatenate(object):
 
     def __init__(self, distributions):
         self.distributions = distributions
+        self.output_dim = 0
         for d in self.distributions:
             if self.distributions[0].given != d.given:
                 raise ValueError("Every distribution must have same"
                                  "given variables")
+            self.output_dim += d.get_output_shape()[-1]
+            
         self.inputs = self.distributions[0].inputs
 
     def get_params(self):
@@ -68,15 +71,30 @@ class Concatenate(object):
 
     def log_likelihood_given_x(self, samples, **kwargs):
         """
-        inputs : [[x,y,...],sample]
-        outputs : p(sample|x)
+        Samples
+        -------
+        samples : list
+           This contains 'x', which has Theano variables, and test sample.
+           The dimension of test sample must be same as output_dim.
+        
+        Returns
+        -------
+        Theano variable, shape (n_samples,)
+           A log-likelihood, p(sample|x)
         """
+
+        x, sample = samples
+
+        if sample.shape[-1] != self.output_dim:
+            raise ValueError("The dimension of test sample must be same as"
+                             "output_dim.")
+
         loglikes = 0
         start = 0
-        for i, d in enumerate(self.distributions):
+        for d in enumerate(self.distributions):
             shape = d.get_output_shape()[-1]
             loglikes += d.log_likelihood_given_x(
-                [samples[0], samples[1][:, start:start+shape]],
+                [x, sample[:, start:start+shape]],
                 **kwargs)
             start += shape
         return loglikes
