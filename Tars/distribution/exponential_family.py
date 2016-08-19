@@ -48,7 +48,7 @@ class Distribution(object):
         try:
             inputs = dict(zip(self.given, x))
         except:
-            print "The length of 'x' must be same as 'given'"
+            raise ValueError("The length of 'x' must be same as 'given'")
 
         deterministic = kwargs.pop('deterministic', False)
         mean = lasagne.layers.get_output(
