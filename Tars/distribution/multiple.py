@@ -228,15 +228,13 @@ class Multilayer(object):
             tolist(mean[-1]), **kwargs)[-1:]
         return mean
 
-    def log_likelihood_given_x(self, samples, deterministic=False):
+    def log_likelihood_given_x(self, samples, **kwargs):
         """
         Paramaters
         --------
         samples : list
            This contains 'x', which has Theano variables, and test samples,
            such as z1, z2,...,zn.
-
-        deterministic : bool
 
         Returns
         --------
@@ -247,6 +245,7 @@ class Multilayer(object):
 
         all_log_likelihood = 0
         for x, sample, d in zip(samples, samples[1:], self.distributions):
-            log_likelihood = d.log_likelihood_given_x([tolist(x), sample])
+            log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
+                                                      **kwargs)
             all_log_likelihood += log_likelihood
         return all_log_likelihood
