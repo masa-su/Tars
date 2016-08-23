@@ -327,7 +327,7 @@ class MVAE(VAE):
             raise ValueError("mode must be whether 'iw' or 'lower_bound',"
                              "got %s." % mode)
 
-        if type_p not in ['joint', 'conditional', 'marginal'
+        if type_p not in ['joint', 'conditional', 'marginal',
                           'pseudo_marginal']:
             raise ValueError("type_p must be one of {'joint', 'conditional', "
                              "'marginal' 'pseudo_marginal'}, got %s." % type_p)
