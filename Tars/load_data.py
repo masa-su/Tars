@@ -294,7 +294,7 @@ def flickr(datapath):
             val = []
             tst = []
 
-            y_ = np.load(datapath + "flickr/labels.npy")
+            y_ = np.load(datapath + "flickr/labels.npy").astype(np.float32)
             trn.append(y_[train_indices])
             val.append(y_[valid_indices])
             tst.append(y_[test_indices])
@@ -305,7 +305,7 @@ def flickr(datapath):
 
             w_labelled = LoadSparse(
                 datapath+'flickr/text/text_all_2000_labelled.npz')
-            w_labelled = np.asarray(w_labelled.todense())
+            w_labelled = np.asarray(w_labelled.todense()).astype(np.float32)
             trn.append(w_labelled[train_indices])
             val.append(w_labelled[valid_indices])
             tst.append(w_labelled[test_indices])
@@ -316,17 +316,19 @@ def flickr(datapath):
             tst.append(xw_labelled[test_indices])
 
             if toFloat:
-                norm = Normalizer()
-                norm.fit(trn[1])
-                trn[1] = norm.transform(trn[1])
-                val[1] = norm.transform(val[1])
-                tst[1] = norm.transform(tst[1])
+                mean = np.mean(trn[1],axis=0)
+                std  = np.sqrt(np.mean((trn[1]-mean[np.newaxis,:])**2,axis=0))
+                trn[1] = ((trn[1]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                val[1] = ((val[1]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                tst[1] = ((tst[1]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
 
-                norm_xw = Normalizer()
-                norm_xw.fit(trn[3])
-                trn[3] = norm_xw.transform(trn[3])
-                val[3] = norm_xw.transform(val[3])
-                tst[3] = norm_xw.transform(tst[3])
+                """
+                mean = np.mean(trn[3],axis=0)
+                std  = np.sqrt(np.mean((trn[3]-mean[np.newaxis,:])**2,axis=0))
+                trn[3] = ((trn[3]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                val[3] = ((val[3]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                tst[3] = ((tst[3]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                """
 
             return trn, val, tst
 
