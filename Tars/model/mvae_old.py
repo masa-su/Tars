@@ -246,6 +246,32 @@ class MVAE_OLD(VAE):
 
         return log_iw
 
+    def log_pseudo_conditional_importance_weight(self, samples):
+        """
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
+               /q(z1,z2,...,zn|x1)
+        """
+
+        log_iw = 0
+
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+
+        log_iw += p0_log_likelihood
+
+        return log_iw
+
     def log_likelihood_iwae(self, x, k, type_p="joint"):
         """
         Paramaters
@@ -266,15 +292,22 @@ class MVAE_OLD(VAE):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
 
-        samples = self.q.sample_given_x(rep_x, self.srng)
-        if type_p == "joint":
-            log_iw = self.log_importance_weight(samples)
-        elif type_p == "marginal":
-            log_iw = self.log_mg_importance_weight(samples)
-        elif type_p == "conditional":
-            log_iw = self.log_conditional_importance_weight(samples)
-        elif type_p == "pseudo_marginal":
-            log_iw = self.log_pseudo_mg_importance_weight(samples)
+        if type_p == "pseudo_conditional":
+            _rep_x = copy(rep_x)
+            _rep_x[0] = T.zeros_like(_rep_x[0])
+            samples = self.q.sample_given_x(_rep_x, self.srng)
+            samples[0] = rep_x
+            log_iw = self.log_pseudo_conditional_importance_weight(samples)
+        else:
+            samples = self.q.sample_given_x(rep_x, self.srng)
+            if type_p == "joint":
+                log_iw = self.log_importance_weight(samples)
+            elif type_p == "marginal":
+                log_iw = self.log_mg_importance_weight(samples)
+            elif type_p == "conditional":
+                log_iw = self.log_conditional_importance_weight(samples)
+            elif type_p == "pseudo_marginal":
+                log_iw = self.log_pseudo_mg_importance_weight(samples)
 
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
@@ -313,9 +346,10 @@ class MVAE_OLD(VAE):
                              "got %s." % mode)
 
         if type_p not in ['joint', 'conditional', 'marginal',
-                          'pseudo_marginal']:
+                          'pseudo_marginal', 'pseudo_conditional']:
             raise ValueError("type_p must be one of {'joint', 'conditional', "
-                             "'marginal' 'pseudo_marginal'}, got %s." % type_p)
+                             "'marginal' 'pseudo_marginal' 'pseudo_conditional'"
+                             "}, got %s." % type_p)
 
         x = self.q.inputs
         if type_p == "pseudo_marginal":
