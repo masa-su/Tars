@@ -360,8 +360,8 @@ class MVAE(VAE):
         if type_p not in ['joint', 'conditional', 'marginal',
                           'pseudo_marginal', 'pseudo_conditional']:
             raise ValueError("type_p must be one of {'joint', 'conditional', "
-                             "'marginal' 'pseudo_marginal' 'pseudo_conditional'"
-                             "}, got %s." % type_p)
+                             "'marginal', 'pseudo_marginal', "
+                             "'pseudo_conditional'}, got %s." % type_p)
 
         x = self.q.inputs
         if type_p == "pseudo_marginal":

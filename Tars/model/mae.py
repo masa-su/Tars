@@ -1,7 +1,4 @@
-import numpy as np
 import theano
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from progressbar import ProgressBar
 
 from . import AE
 

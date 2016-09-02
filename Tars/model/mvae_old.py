@@ -235,7 +235,7 @@ class MVAE_OLD(VAE):
         # log q(z1,z2,...,zn|x0,0)
         # samples : [[x0,0],z1,z2,...,zn]
         q0_log_likelihood = self.q.log_likelihood_given_x(samples)
-        
+
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
@@ -348,8 +348,8 @@ class MVAE_OLD(VAE):
         if type_p not in ['joint', 'conditional', 'marginal',
                           'pseudo_marginal', 'pseudo_conditional']:
             raise ValueError("type_p must be one of {'joint', 'conditional', "
-                             "'marginal' 'pseudo_marginal' 'pseudo_conditional'"
-                             "}, got %s." % type_p)
+                             "'marginal', 'pseudo_marginal', "
+                             "'pseudo_conditional'}, got %s." % type_p)
 
         x = self.q.inputs
         if type_p == "pseudo_marginal":
