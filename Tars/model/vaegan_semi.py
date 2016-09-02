@@ -13,7 +13,8 @@ from ..utils import (
 class VAEGAN_semi(VAEGAN):
 
     def __init__(self, q, p, d, f, n_batch, optimizer,
-                 feature_wise_p=None, l=1, k=1, gamma=1, f_alpha=0.1, random=1234):
+                 feature_wise_p=None, l=1, k=1, gamma=1, f_alpha=0.1,
+                 random=1234):
         self.f = f
         self.f_alpha = f_alpha
         self.feature_wise_p = feature_wise_p
@@ -36,7 +37,7 @@ class VAEGAN_semi(VAEGAN):
             f_rep_x = self.feature_wise_p.fprop([rep_x[0]])
             reconst_x = self.p.fprop(inverse_z[0])
             f_reconst_x = self.feature_wise_p.fprop([reconst_x])
-            loglike = self.p.log_likelihood(f_rep_x, f_reconst_x).mean()            
+            loglike = self.p.log_likelihood(f_rep_x, f_reconst_x).mean()
         else:
             loglike = self.p.log_likelihood_given_x(inverse_z).mean()
         # TODO: feature-wise errors
