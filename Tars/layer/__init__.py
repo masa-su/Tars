@@ -1,5 +1,4 @@
 from .recurrent import GRUCell
-from .recurrent import LSTMCell
 from .conv_recurrent import ConvLSTMCell
 
 from .shape import RepeatLayer
