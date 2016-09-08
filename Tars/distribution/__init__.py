@@ -7,6 +7,7 @@ from .exponential_family import (
     GaussianConstantVar,
     UnitGaussian,
     Laplace,
+    Kumaraswamy,
 )
 from .multiple import (
     Concatenate,
@@ -23,6 +24,7 @@ __all__ = [
     'GaussianConstantVar',
     'UnitGaussian',
     'Laplace',
+    'Kumaraswamy',
     'Concatenate',
     'Multilayer',
 ]
