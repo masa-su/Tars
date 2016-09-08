@@ -397,7 +397,7 @@ class Kumaraswamy(Gaussian):
     """
 
     def __init__(self, a_network, b_network, given):
-        super(Laplace, self).__init__(a_network, b_network, given)
+        super(Kumaraswamy, self).__init__(a_network, b_network, given)
 
     def sample(self, a, b, srng):
         """
@@ -408,7 +408,7 @@ class Kumaraswamy(Gaussian):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.uniform(a.shape, low=0, high=1)
+        eps = srng.uniform(a.shape, low=epsilon(), high=1-epsilon())
         return (1 - eps**(1./b))**(1./a)
 
     def log_likelihood(self, samples, a, b):
