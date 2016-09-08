@@ -1,4 +1,5 @@
 import theano.tensor as T
+import theano
 import lasagne
 from abc import ABCMeta, abstractmethod
 
@@ -408,7 +409,8 @@ class Kumaraswamy(Gaussian):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.uniform(a.shape, low=epsilon(), high=1-epsilon())
+        eps = srng.uniform(a.shape, low=epsilon(), high=1-epsilon(),
+                           dtype=theano.config.floatX)
         return (1 - eps**(1./b))**(1./a)
 
     def log_likelihood(self, samples, a, b):
