@@ -8,7 +8,6 @@ import sys
 import pickle
 from copy import copy
 
-from sklearn.preprocessing import Normalizer
 from sklearn.cross_validation import train_test_split
 
 sys.setrecursionlimit(5000)
@@ -210,8 +209,8 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
     p = paramaters()
 
     def load(test=False):
-        x = np.load(datapath+'celeba_images.npy')
-        y = np.load(datapath+'celeba_attributes.npy').astype(np.float32)
+        x = np.load(datapath + 'celeba_images.npy')
+        y = np.load(datapath + 'celeba_attributes.npy').astype(np.float32)
 
         x = np.rollaxis(x, 3, 1)
 
@@ -284,7 +283,7 @@ def flickr(datapath):
             test_indices = np.load(
                 datapath + "flickr/splits/test_indices_%d.npy" % version)
 
-            x_labelled_path = glob.glob(datapath+"flickr/image/labelled/*")
+            x_labelled_path = glob.glob(datapath + "flickr/image/labelled/*")
             x_labelled_path.sort()
             x_labelled = np.load(x_labelled_path[0])
             for path in x_labelled_path[1:]:
@@ -304,7 +303,7 @@ def flickr(datapath):
             tst.append(x_labelled[test_indices])
 
             w_labelled = LoadSparse(
-                datapath+'flickr/text/text_all_2000_labelled.npz')
+                datapath + 'flickr/text/text_all_2000_labelled.npz')
             w_labelled = np.asarray(w_labelled.todense()).astype(np.float32)
             trn.append(w_labelled[train_indices])
             val.append(w_labelled[valid_indices])
@@ -316,27 +315,36 @@ def flickr(datapath):
             tst.append(xw_labelled[test_indices])
 
             if toFloat:
-                mean = np.mean(trn[1],axis=0)
-                std  = np.sqrt(np.mean((trn[1]-mean[np.newaxis,:])**2,axis=0))
-                trn[1] = ((trn[1]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
-                val[1] = ((val[1]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
-                tst[1] = ((tst[1]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                mean = np.mean(trn[1], axis=0)
+                std = np.sqrt(
+                    np.mean((trn[1] - mean[np.newaxis, :])**2, axis=0))
+                trn[1] = ((trn[1] - mean[np.newaxis, :]) /
+                          std[np.newaxis, :]).astype(np.float32)
+                val[1] = ((val[1] - mean[np.newaxis, :]) /
+                          std[np.newaxis, :]).astype(np.float32)
+                tst[1] = ((tst[1] - mean[np.newaxis, :]) /
+                          std[np.newaxis, :]).astype(np.float32)
 
                 """
-                mean = np.mean(trn[3],axis=0)
-                std  = np.sqrt(np.mean((trn[3]-mean[np.newaxis,:])**2,axis=0))
-                trn[3] = ((trn[3]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
-                val[3] = ((val[3]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
-                tst[3] = ((tst[3]-mean[np.newaxis,:])/std[np.newaxis,:]).astype(np.float32)
+                mean = np.mean(trn[3], axis=0)
+                std = np.sqrt(
+                    np.mean((trn[3] - mean[np.newaxis, :])**2, axis=0))
+                trn[3] = ((trn[3] - mean[np.newaxis, :]) /
+                          std[np.newaxis, :]).astype(np.float32)
+                val[3] = ((val[3] - mean[np.newaxis, :]) /
+                          std[np.newaxis, :]).astype(np.float32)
+                tst[3] = ((tst[3] - mean[np.newaxis, :]) /
+                          std[np.newaxis, :]).astype(np.float32)
                 """
-
             return trn, val, tst
 
         else:
-            model_path = datapath+"flickr/image/unlabelled/unlabelled_trn.pkl"
+            model_path = datapath + \
+                "flickr/image/unlabelled/unlabelled_trn.pkl"
             unlabel_trn = pickle.load(open(model_path))
 
-            model_path = datapath+"flickr/image/unlabelled/unlabelled_tst.pkl"
+            model_path = datapath + \
+                "flickr/image/unlabelled/unlabelled_tst.pkl"
             unlabel_tst = pickle.load(open(model_path))
 
             return unlabel_trn, unlabel_tst
