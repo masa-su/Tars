@@ -3,6 +3,7 @@ import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
+from lasagne.updates import total_norm_constraint
 
 from ..utils import (
     gauss_unitgauss_kl,
@@ -55,7 +56,8 @@ class VAE(object):
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        updates = self.optimizer(loss, params)
+        grads = T.grad(loss, params)
+        updates = self.optimizer(grads, params)
         self.lowerbound_train = theano.function(
             inputs=x+[annealing_beta],
             outputs=lowerbound,
@@ -68,38 +70,31 @@ class VAE(object):
         q_samples = self.q.sample_given_x(
             rep_x, self.srng, deterministic=False)
         log_iw = self.log_importance_weight(q_samples)
-
         log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
-        log_iw_minus_max = log_iw_matrix - \
-            T.max(log_iw_matrix, axis=1, keepdims=True)
-        iw = T.exp(log_iw_minus_max)
-        iw = iw**(1 - alpha)
-        # (x[0].shape[0],k)
-        iw_normalized = iw / T.sum(iw, axis=1, keepdims=True)
 
-        lowerbound = T.mean(log_iw)
+        if alpha == 1:
+            log_likelihood = T.mean(
+                log_iw_matrix, axis=1)
+            
+        elif alpha == -np.inf:
+            log_likelihood = T.max(
+                log_iw_matrix, axis=1)
+
+        else:
+            log_iw_matrix = log_iw_matrix * (1 - alpha)
+            log_likelihood = log_mean_exp(
+                log_iw_matrix, axis=1, keepdims=True) / (1 - alpha)
+
+        log_likelihood = T.mean(log_likelihood)
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        if alpha == -np.inf:
-            gparams = [T.grad(-T.sum(T.max(log_iw_matrix, axis=1)), param)
-                       for param in params]
-
-        else:
-            iw_normalized_vector = T.reshape(
-                iw_normalized, log_iw.shape)  # (x[0].shape[0]*num_samples)
-            dummy_vec = T.vector(dtype=theano.config.floatX)
-            gparams = [
-                theano.clone(
-                    T.grad(-T.dot(log_iw, dummy_vec), param),
-                    replace={dummy_vec: iw_normalized_vector})
-                for param in params]
-
-        updates = self.optimizer(gparams, params)
+        grads = T.grad(-log_likelihood, params)
+        updates = self.optimizer(grads, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=lowerbound,
+            inputs=x, outputs=log_likelihood,
             updates=updates,
             on_unused_input='ignore')
 
@@ -118,10 +113,12 @@ class VAE(object):
                 train_L = self.lowerbound_train(*batch_x+[annealing_beta])
             else:
                 train_L = self.lowerbound_train(*batch_x)
+                if train_L == np.inf:
+                    sys.exit()
 
             lowerbound_train.append(np.array(train_L))
-        lowerbound_train = np.mean(lowerbound_train, axis=0)
 
+        lowerbound_train = np.mean(lowerbound_train, axis=0)
         return lowerbound_train
 
     def log_likelihood_test(self, test_set, l=1, k=1, mode='iw'):
