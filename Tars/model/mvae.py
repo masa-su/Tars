@@ -59,12 +59,12 @@ class MVAE(VAE):
 
         params = q_params + p0_params + p1_params + pq0_params + pq1_params
         lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1]
-        loss = annealing_beta*kl-np.sum(
-            lowerbound[1:3])+self.gamma*np.sum(lowerbound[3:])
+        loss = annealing_beta * kl - np.sum(
+            lowerbound[1:3]) + self.gamma * np.sum(lowerbound[3:])
 
         updates = self.optimizer(loss, params)
         self.lowerbound_train = theano.function(
-            inputs=x+[annealing_beta],
+            inputs=x + [annealing_beta],
             outputs=lowerbound,
             updates=updates,
             on_unused_input='ignore')
@@ -79,7 +79,7 @@ class MVAE(VAE):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x+[annealing_beta])
+            train_L = self.lowerbound_train(*batch_x + [annealing_beta])
 
             lowerbound_train.append(np.array(train_L))
         lowerbound_train = np.mean(lowerbound_train, axis=0)
@@ -229,11 +229,12 @@ class MVAE(VAE):
         # samples : [std_z,x1] TODO: multiple latent variable
         z = inverse_samples1[0][0]
         x1 = inverse_samples1[-1]
-        std_z = self.prior.sample(z.shape, self.srng) # single sampling
+        # single sampling
+        std_z = self.prior.sample(z.shape, self.srng)
         p1_mg_log_likelihood = self.p[1].log_likelihood_given_x([[std_z], x1])
 
-        log_iw = p0_log_likelihood + p1_log_likelihood\
-                 - q_log_likelihood - p1_mg_log_likelihood
+        log_iw = p0_log_likelihood + p1_log_likelihood \
+            - q_log_likelihood - p1_mg_log_likelihood
 
         log_iw += self.prior.log_likelihood(samples[-1])
 
@@ -285,8 +286,9 @@ class MVAE(VAE):
         """
 
         # log q(z1,z2,...,zn|x0,x1)
-        # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.pq[1].log_likelihood_given_x(self.single_input(samples,1))
+        # samples_x1 : [[x1],z1,z2,...,zn]
+        samples_x1 = self.single_input(samples, 1)
+        q_log_likelihood = self.pq[1].log_likelihood_given_x(samples_x1)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
@@ -302,11 +304,12 @@ class MVAE(VAE):
         # samples : [std_z,x1] TODO: multiple latent variable
         z = inverse_samples1[0][0]
         x1 = inverse_samples1[-1]
-        std_z = self.prior.sample(z.shape, self.srng) # single sampling
+        # single sampling
+        std_z = self.prior.sample(z.shape, self.srng)
         p1_mg_log_likelihood = self.p[1].log_likelihood_given_x([[std_z], x1])
 
-        log_iw = p0_log_likelihood + p1_log_likelihood\
-                 - q_log_likelihood - p1_mg_log_likelihood
+        log_iw = p0_log_likelihood + p1_log_likelihood - \
+            q_log_likelihood - p1_mg_log_likelihood
 
         log_iw += self.prior.log_likelihood(samples[-1])
 
