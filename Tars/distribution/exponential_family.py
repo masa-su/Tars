@@ -349,7 +349,7 @@ class UnitGaussian(Distribution):
 
         loglike = gaussian_like(samples,
                                 T.zeros_like(samples), T.ones_like(samples))
-        return T.mean(self.mean_sum_samples(loglike))
+        return self.mean_sum_samples(loglike)
 
 
 class Laplace(Gaussian):

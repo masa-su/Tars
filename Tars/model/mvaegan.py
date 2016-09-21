@@ -21,7 +21,7 @@ class MVAEGAN(MVAE, GAN):
         self.d = d
         self.gan_gamma = gan_gamma
         super(MVAEGAN, self).__init__(q, p, pq, n_batch, optimizer,
-                                      l, k, random)
+                                      l, k, random, gamma)
 
     def loss(self, gz, x, deterministic=False):
         # TODO: more sophisticated
