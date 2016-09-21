@@ -166,39 +166,6 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_conditional_importance_weight(self, samples):
-        """
-        Paramaters
-        ----------
-        samples : list
-           [[x0,x1],z1,z2,...,zn]
-
-        Returns
-        -------
-        log_iw : array, shape (n_samples*k)
-           Estimated log likelihood.
-           log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
-               /q(z1,z2,...,zn|x0,x1)
-        """
-
-        # log q(z1,z2,...,zn|x0,x1)
-        # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
-
-        # log q(z1,z2,...,zn|x1)
-        # samples1 : [x1,z1,z2,...,zn]
-        samples1 = self.single_input(samples, 1)
-        q1_log_likelihood = self.pq[1].log_likelihood_given_x(samples1)
-
-        # log p(x0|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x0]
-        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
-
-        log_iw = p0_log_likelihood + q1_log_likelihood - q_log_likelihood
-
-        return log_iw
-
     def log_mg_importance_weight(self, samples):
         """
         Paramaters
@@ -225,6 +192,49 @@ class MVAE(VAE):
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
         log_iw += p0_log_likelihood - q_log_likelihood
+        log_iw += self.prior.log_likelihood(samples[-1])
+
+        return log_iw
+
+    def log_conditional_importance_weight(self, samples):
+        """
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0,x1,z1,z2,...,zn)
+               /q(z1,z2,...,zn|x0,x1)p(x1)
+        """
+
+        # log q(z1,z2,...,zn|x0,x1)
+        # samples : [[x0,x1],z1,z2,...,zn]
+        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+
+        # log p(x1|z1,z2,...,zn)
+        # inverse_samples1 : [zn,zn-1,...,x1]
+        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
+
+        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
+        # samples : [std_z,x1] TODO: multiple latent variable
+        z = inverse_samples1[0][0]
+        x1 = inverse_samples1[-1]
+        std_z = self.prior.sample(z.shape, self.srng) # single sampling
+        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x([[std_z], x1])
+
+        log_iw = p0_log_likelihood + p1_log_likelihood\
+                 - q_log_likelihood - p1_mg_log_likelihood
+
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
@@ -270,18 +280,35 @@ class MVAE(VAE):
         -------
         log_iw : array, shape (n_samples*k)
            Estimated log likelihood.
-           log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
-               /q(z1,z2,...,zn|x1)
+           log p(x0,x1,z1,z2,...,zn)
+               /q(z1,z2,...,zn|x0,x1)p(x1)
         """
 
-        log_iw = 0
+        # log q(z1,z2,...,zn|x0,x1)
+        # samples : [[x0,x1],z1,z2,...,zn]
+        q_log_likelihood = self.pq[1].log_likelihood_given_x(self.single_input(samples,1))
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
         p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
 
-        log_iw += p0_log_likelihood
+        # log p(x1|z1,z2,...,zn)
+        # inverse_samples1 : [zn,zn-1,...,x1]
+        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
+
+        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
+        # samples : [std_z,x1] TODO: multiple latent variable
+        z = inverse_samples1[0][0]
+        x1 = inverse_samples1[-1]
+        std_z = self.prior.sample(z.shape, self.srng) # single sampling
+        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x([[std_z], x1])
+
+        log_iw = p0_log_likelihood + p1_log_likelihood\
+                 - q_log_likelihood - p1_mg_log_likelihood
+
+        log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
 
