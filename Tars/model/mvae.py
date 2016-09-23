@@ -31,14 +31,16 @@ class MVAE(VAE):
 
         mean, var = self.q.fprop(x, deterministic=False)
         kl = gauss_unitgauss_kl(mean, var).mean()
-        rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
+        z = self.q.sample_given_x(
+            x, self.srng, repeat=self.l, deterministic=False)
 
         inverse_z = self.inverse_samples(self.single_input(z, 0))
-        loglike0 = self.p[0].log_likelihood_given_x(inverse_z).mean()
+        loglike0 = self.p[0].log_likelihood_given_x(
+            inverse_z, deterministic=False).mean()
 
         inverse_z = self.inverse_samples(self.single_input(z, 1))
-        loglike1 = self.p[1].log_likelihood_given_x(inverse_z).mean()
+        loglike1 = self.p[1].log_likelihood_given_x(
+            inverse_z, deterministic=False).mean()
 
         # ---penalty
         mean, var = self.q.fprop(x, deterministic=False)
@@ -131,7 +133,7 @@ class MVAE(VAE):
         self.pq1_sample_meanvar_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
-    def log_importance_weight(self, samples):
+    def log_importance_weight(self, samples, deterministic=False):
         """
         Paramaters
         ----------
@@ -149,24 +151,27 @@ class MVAE(VAE):
 
         # log q(z1,z2,...,zn|x0,x1)
         # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+        q_log_likelihood = self.q.log_likelihood_given_x(
+            samples, deterministic=deterministic)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(
+            inverse_samples0, deterministic=deterministic)
 
         # log p(x1|z1,z2,...,zn)
         # inverse_samples1 : [zn,zn-1,...,x1]
         inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
-        p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(
+            inverse_samples1, deterministic=deterministic)
 
         log_iw += p0_log_likelihood + p1_log_likelihood - q_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
 
-    def log_mg_importance_weight(self, samples):
+    def log_mg_importance_weight(self, samples, deterministic=False):
         """
         Paramaters
         ----------
@@ -184,19 +189,21 @@ class MVAE(VAE):
 
         # log q(z1,z2,...,zn|x0,x1)
         # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+        q_log_likelihood = self.q.log_likelihood_given_x(
+            samples, deterministic=deterministic)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(
+            inverse_samples0, deterministic=deterministic)
 
         log_iw += p0_log_likelihood - q_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
 
-    def log_conditional_importance_weight(self, samples):
+    def log_conditional_importance_weight(self, samples, deterministic=False):
         """
         Paramaters
         ----------
@@ -218,12 +225,14 @@ class MVAE(VAE):
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(
+            inverse_samples0, deterministic=deterministic)
 
         # log p(x1|z1,z2,...,zn)
         # inverse_samples1 : [zn,zn-1,...,x1]
         inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
-        p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(
+            inverse_samples1, deterministic=deterministic)
 
         # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
         # samples : [std_z,x1] TODO: multiple latent variable
@@ -231,7 +240,8 @@ class MVAE(VAE):
         x1 = inverse_samples1[-1]
         # single sampling
         std_z = self.prior.sample(z.shape, self.srng)
-        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x([[std_z], x1])
+        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
+            [[std_z], x1], deterministic=deterministic)
 
         log_iw = p0_log_likelihood + p1_log_likelihood \
             - q_log_likelihood - p1_mg_log_likelihood
@@ -240,7 +250,7 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_pseudo_mg_importance_weight(self, samples):
+    def log_pseudo_mg_importance_weight(self, samples, deterministic=False):
         """
         Paramaters
         ----------
@@ -258,19 +268,22 @@ class MVAE(VAE):
 
         # log q(z1,z2,...,zn|x0)
         # samples : [[x0],z1,z2,...,zn]
-        q0_log_likelihood = self.pq[0].log_likelihood_given_x(samples)
+        q0_log_likelihood = self.pq[0].log_likelihood_given_x(
+            samples, deterministic=deterministic)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(
+            inverse_samples0, deterministic=deterministic)
 
         log_iw += p0_log_likelihood - q0_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
 
-    def log_pseudo_conditional_importance_weight(self, samples):
+    def log_pseudo_conditional_importance_weight(self, samples,
+                                                 deterministic=False):
         """
         Paramaters
         ----------
@@ -288,17 +301,20 @@ class MVAE(VAE):
         # log q(z1,z2,...,zn|x0,x1)
         # samples_x1 : [[x1],z1,z2,...,zn]
         samples_x1 = self.single_input(samples, 1)
-        q_log_likelihood = self.pq[1].log_likelihood_given_x(samples_x1)
+        q_log_likelihood = self.pq[1].log_likelihood_given_x(
+            samples_x1, deterministic=deterministic)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
         inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(inverse_samples0)
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(
+            inverse_samples0, deterministic=deterministic)
 
         # log p(x1|z1,z2,...,zn)
         # inverse_samples1 : [zn,zn-1,...,x1]
         inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
-        p1_log_likelihood = self.p[1].log_likelihood_given_x(inverse_samples1)
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(
+            inverse_samples1, deterministic=deterministic)
 
         # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
         # samples : [std_z,x1] TODO: multiple latent variable
@@ -306,7 +322,8 @@ class MVAE(VAE):
         x1 = inverse_samples1[-1]
         # single sampling
         std_z = self.prior.sample(z.shape, self.srng)
-        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x([[std_z], x1])
+        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
+            [[std_z], x1], deterministic=deterministic)
 
         log_iw = p0_log_likelihood + p1_log_likelihood - \
             q_log_likelihood - p1_mg_log_likelihood
@@ -336,20 +353,28 @@ class MVAE(VAE):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
         if type_p == "pseudo_marginal":
-            samples = self.pq[0].sample_given_x(rep_x, self.srng)
-            log_iw = self.log_pseudo_mg_importance_weight(samples)
+            samples = self.pq[0].sample_given_x(
+                rep_x, self.srng, deterministic=True)
+            log_iw = self.log_pseudo_mg_importance_weight(
+                samples, deterministic=True)
         elif type_p == "pseudo_conditional":
-            samples = self.pq[1].sample_given_x(tolist(rep_x[1]), self.srng)
+            samples = self.pq[1].sample_given_x(
+                tolist(rep_x[1]), self.srng, deterministic=True)
             samples[0] = rep_x
-            log_iw = self.log_pseudo_conditional_importance_weight(samples)
+            log_iw = self.log_pseudo_conditional_importance_weight(
+                samples, deterministic=True)
         else:
-            samples = self.q.sample_given_x(rep_x, self.srng)
+            samples = self.q.sample_given_x(
+                rep_x, self.srng, deterministic=True)
             if type_p == "joint":
-                log_iw = self.log_importance_weight(samples)
+                log_iw = self.log_importance_weight(
+                    samples, deterministic=True)
             elif type_p == "marginal":
-                log_iw = self.log_mg_importance_weight(samples)
+                log_iw = self.log_mg_importance_weight(
+                    samples, deterministic=True)
             elif type_p == "conditional":
-                log_iw = self.log_conditional_importance_weight(samples)
+                log_iw = self.log_conditional_importance_weight(
+                    samples, deterministic=True)
 
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
