@@ -185,7 +185,7 @@ class Bernoulli(Distribution):
            i.e. sample ~ p(x|mean)
         """
 
-        return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
+        return srng.binomial(size=mean.shape, p=mean, dtype=mean.dtype)
 
     def log_likelihood(self, sample, mean):
         """
@@ -208,7 +208,7 @@ class Bernoulli(Distribution):
 
         # for numerical stability
         mean = T.clip(mean, epsilon(), 1.0-epsilon())
-        loglike = sample * T.log(mean) + (1 - sample) * T.log(1 - mean)
+        loglike = -T.nnet.binary_crossentropy(mean, sample)
         return self.mean_sum_samples(loglike)
 
 
@@ -280,7 +280,7 @@ class Gaussian(Distribution):
         var : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.normal(mean.shape)
+        eps = srng.normal(mean.shape, dtype=mean.dtype)
         return mean + T.sqrt(var) * eps
 
     def log_likelihood(self, samples, mean, var):
@@ -371,7 +371,7 @@ class Laplace(Gaussian):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.uniform(mean.shape, low=-0.5, high=0.5)
+        eps = srng.uniform(mean.shape, low=-0.5, high=0.5, dtype=mean.dtype)
         return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
 
     def log_likelihood(self, samples, mean, b):
