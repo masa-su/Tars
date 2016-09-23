@@ -47,7 +47,7 @@ class VAE(object):
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         inverse_z = self.inverse_samples(z)
-        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
+        loglike = self.p.log_likelihood_given_x(inverse_z, deterministic=False).mean()
 
         lowerbound = [-kl, loglike]
         loss = -(loglike-annealing_beta*kl)
@@ -69,7 +69,7 @@ class VAE(object):
         rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         q_samples = self.q.sample_given_x(
             rep_x, self.srng, deterministic=False)
-        log_iw = self.log_importance_weight(q_samples)
+        log_iw = self.log_importance_weight(q_samples, deterministic=False)
         log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
 
         if alpha == 1:
@@ -182,10 +182,10 @@ class VAE(object):
         mean, var = self.q.fprop(x, self.srng, deterministic=True)
         kl = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
-        samples = self.q.sample_given_x(rep_x, self.srng)
+        samples = self.q.sample_given_x(rep_x, self.srng, deterministic=True)
 
         inverse_samples = self.inverse_samples(samples)
-        log_iw = self.p.log_likelihood_given_x(inverse_samples)
+        log_iw = self.p.log_likelihood_given_x(inverse_samples, deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
         log_marginal_estimate = kl + T.mean(log_iw_matrix, axis=1)
 
@@ -194,16 +194,16 @@ class VAE(object):
     def log_marginal_likelihood_iwae(self, x, k):
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples = self.q.sample_given_x(rep_x, self.srng)
+        samples = self.q.sample_given_x(rep_x, self.srng, deterministic=True)
 
-        log_iw = self.log_importance_weight(samples)
+        log_iw = self.log_importance_weight(samples, deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate
 
-    def log_importance_weight(self, samples):
+    def log_importance_weight(self, samples, deterministic=False):
         """
         inputs : [[x,y,...],z1,z2,...,zn]
         outputs : log p(x,z1,z2,...,zn|y,...)/q(z1,z2,...,zn|x,y,...)
@@ -214,14 +214,14 @@ class VAE(object):
         log q(z1,z2,...,zn|x,y,...)
         samples : [[x,y,...],z1,z2,...,zn]
         """
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+        q_log_likelihood = self.q.log_likelihood_given_x(samples, deterministic)
 
         """
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
-        inverse_samples = self.inverse_samples(samples)
-        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples)
+        inverse_samples = self.inverse_samples(samples, deterministic)
+        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples, deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])
