@@ -259,11 +259,12 @@ class Gaussian(Distribution):
     def get_params(self):
         params = super(Gaussian, self).get_params()
         params += self.var_network.get_params(trainable=True)
-        # TODO: fix duplicated paramaters
+        # delete duplicated paramaters
+        params = sorted(set(params), key=params.index)
         return params
 
     def fprop(self, x, srng=None, deterministic=False):
-        mean = super(Gaussian, self).fprop(x, deterministic)
+        mean = super(Gaussian, self).fprop(x, deterministic=deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
             self.var_network, inputs, deterministic=deterministic)
