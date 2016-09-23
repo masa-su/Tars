@@ -208,7 +208,8 @@ class Bernoulli(Distribution):
 
         # For numerical stability
         # (When we use T.clip, calculation time becomes very slow.)
-        loglike = x * T.log(x_mu + epsilon()) + (1 - x) * T.log(1 - x_mu + epsilon())
+        loglike = sample * T.log(mean + epsilon()) +\
+                  (1 - sample) * T.log(1 - mean + epsilon())
         return self.mean_sum_samples(loglike)
 
 

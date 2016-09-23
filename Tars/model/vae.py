@@ -3,7 +3,6 @@ import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
-from lasagne.updates import total_norm_constraint
 
 from ..utils import (
     gauss_unitgauss_kl,
@@ -47,10 +46,11 @@ class VAE(object):
         z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
         inverse_z = self.inverse_samples(z)
-        loglike = self.p.log_likelihood_given_x(inverse_z, deterministic=False).mean()
+        loglike = self.p.log_likelihood_given_x(inverse_z,
+                                                deterministic=False).mean()
 
         lowerbound = [-kl, loglike]
-        loss = -(loglike-annealing_beta*kl)
+        loss = -(loglike - annealing_beta * kl)
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
@@ -59,7 +59,7 @@ class VAE(object):
         grads = T.grad(loss, params)
         updates = self.optimizer(grads, params)
         self.lowerbound_train = theano.function(
-            inputs=x+[annealing_beta],
+            inputs=x + [annealing_beta],
             outputs=lowerbound,
             updates=updates,
             on_unused_input='ignore')
@@ -75,7 +75,7 @@ class VAE(object):
         if alpha == 1:
             log_likelihood = T.mean(
                 log_iw_matrix, axis=1)
-            
+
         elif alpha == -np.inf:
             log_likelihood = T.max(
                 log_iw_matrix, axis=1)
@@ -110,11 +110,9 @@ class VAE(object):
             batch_x = [_x[start:end] for _x in train_set]
 
             if self.alpha is None:
-                train_L = self.lowerbound_train(*batch_x+[annealing_beta])
+                train_L = self.lowerbound_train(*batch_x + [annealing_beta])
             else:
                 train_L = self.lowerbound_train(*batch_x)
-                if train_L == np.inf:
-                    sys.exit()
 
             lowerbound_train.append(np.array(train_L))
 
@@ -185,7 +183,8 @@ class VAE(object):
         samples = self.q.sample_given_x(rep_x, self.srng, deterministic=True)
 
         inverse_samples = self.inverse_samples(samples)
-        log_iw = self.p.log_likelihood_given_x(inverse_samples, deterministic=True)
+        log_iw = self.p.log_likelihood_given_x(inverse_samples,
+                                               deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
         log_marginal_estimate = kl + T.mean(log_iw_matrix, axis=1)
 
@@ -214,14 +213,18 @@ class VAE(object):
         log q(z1,z2,...,zn|x,y,...)
         samples : [[x,y,...],z1,z2,...,zn]
         """
-        q_log_likelihood = self.q.log_likelihood_given_x(samples, deterministic=deterministic)
+        q_log_likelihood =\
+            self.q.log_likelihood_given_x(samples,
+                                          deterministic=deterministic)
 
         """
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
         inverse_samples = self.inverse_samples(samples)
-        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples, deterministic=deterministic)
+        p_log_likelihood =\
+            self.p.log_likelihood_given_x(inverse_samples,
+                                          deterministic=deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])
