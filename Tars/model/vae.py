@@ -214,14 +214,14 @@ class VAE(object):
         log q(z1,z2,...,zn|x,y,...)
         samples : [[x,y,...],z1,z2,...,zn]
         """
-        q_log_likelihood = self.q.log_likelihood_given_x(samples, deterministic)
+        q_log_likelihood = self.q.log_likelihood_given_x(samples, deterministic=deterministic)
 
         """
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
-        inverse_samples = self.inverse_samples(samples, deterministic)
-        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples, deterministic)
+        inverse_samples = self.inverse_samples(samples, deterministic=deterministic)
+        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples, deterministic=deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])
