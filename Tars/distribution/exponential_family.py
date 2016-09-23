@@ -94,10 +94,10 @@ class Distribution(object):
         list
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
-
-        rep_x = [t_repeat(_x, repeat, axis=0) for _x in x]
-        mean = self.fprop(rep_x, **kwargs)
-        return [rep_x, self.sample(*tolist(mean) + [srng])]
+        if repeat != 1:
+            x = [t_repeat(_x, repeat, axis=0) for _x in x]
+        mean = self.fprop(x, **kwargs)
+        return [x, self.sample(*tolist(mean) + [srng])]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
