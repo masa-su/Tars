@@ -6,8 +6,7 @@ from progressbar import ProgressBar
 
 from ..utils import (
     gauss_unitgauss_kl,
-    t_repeat,
-    log_mean_exp,
+    log_mean_exp
 )
 from ..distribution import UnitGaussian
 
