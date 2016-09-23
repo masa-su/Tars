@@ -220,7 +220,7 @@ class VAE(object):
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
-        inverse_samples = self.inverse_samples(samples, deterministic=deterministic)
+        inverse_samples = self.inverse_samples(samples)
         p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples, deterministic=deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood

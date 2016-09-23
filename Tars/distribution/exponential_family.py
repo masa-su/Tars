@@ -206,9 +206,9 @@ class Bernoulli(Distribution):
             binary cross-entropy error.
         """
 
-        # for numerical stability
-        mean = T.clip(mean, epsilon(), 1.0-epsilon())
-        loglike = -T.nnet.binary_crossentropy(mean, sample)
+        # For numerical stability
+        # (When we use T.clip, calculation time becomes very slow.)
+        loglike = x * T.log(x_mu + epsilon()) + (1 - x) * T.log(1 - x_mu + epsilon())
         return self.mean_sum_samples(loglike)
 
 
@@ -240,9 +240,8 @@ class Categorical(Bernoulli):
             categorical cross-entropy error.
         """
 
-        # for numerical stability
-        mean = T.clip(mean, epsilon(), 1.0-epsilon())
-        loglike = samples * T.log(mean)
+        # For numerical stability
+        loglike = samples * T.log(mean + epsilon())
         return self.mean_sum_samples(loglike)
 
 
