@@ -1,4 +1,5 @@
 import theano.tensor as T
+import theano
 import lasagne
 from abc import ABCMeta, abstractmethod
 
@@ -387,4 +388,42 @@ class Laplace(Gaussian):
         # for numerical stability
         b += epsilon()
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
+        return self.mean_sum_samples(loglike)
+
+
+class Kumaraswamy(Gaussian):
+    """
+    Kumaraswamy distribution
+    p(x) = a*b*x^(a-1)(1-x^a)^(b-1)
+    """
+
+    def __init__(self, a_network, b_network, given):
+        super(Kumaraswamy, self).__init__(a_network, b_network, given)
+
+    def sample(self, a, b, srng):
+        """
+        Paramaters
+        --------
+        a : Theano variable, the output of a fully connected layer (Softplus)
+
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
+        eps = srng.uniform(a.shape, low=epsilon(), high=1-epsilon(),
+                           dtype=theano.config.floatX)
+        return (1 - eps**(1./b))**(1./a)
+
+    def log_likelihood(self, samples, a, b):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        a : Theano variable, the output of a fully connected layer (Softplus)
+
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
+        loglike = T.log(a*b + epsilon()) + (a - 1)*T.log(samples + epsilon())\
+            + (b - 1)*T.log(1 - samples**a + epsilon())
         return self.mean_sum_samples(loglike)

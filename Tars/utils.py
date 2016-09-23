@@ -32,6 +32,10 @@ def gaussian_like(x, mean, var):
     return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
 
 
+def beta(a, b):
+    return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
+
+
 def gauss_unitgauss_kl(mean, var):
     return -0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
