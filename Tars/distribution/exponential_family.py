@@ -1,8 +1,9 @@
 import theano.tensor as T
+import numpy as np
 import lasagne
 from abc import ABCMeta, abstractmethod
 
-from ..utils import gaussian_like, epsilon, tolist
+from ..utils import gaussian_like, epsilon, tolist, t_repeat
 
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
@@ -65,10 +66,13 @@ class Distribution(object):
 
         return lasagne.layers.get_output_shape(self.mean_network)
 
-    def mean_sum_samples(self, samples):
+    def mean_sum_samples(self, samples, repeat_dim=True):
         n_dim = samples.ndim
+        if repeat_dim:
+            n_dim -= 1
+
         if n_dim == 4:
-            return T.mean(T.sum(T.sum(samples, axis=2), axis=2), axis=1)
+            return T.mean(T.sum(T.sum(samples, axis=-1), axis=-1), axis=-1)
         elif n_dim == 3:
             return T.sum(T.sum(samples, axis=-1), axis=-1)
         elif n_dim == 2:
@@ -77,7 +81,7 @@ class Distribution(object):
             raise ValueError("The dim of samples must be any of 2, 3, or 4,"
                              "got dim %s." % n_dim)
 
-    def sample_given_x(self, x, srng, **kwargs):
+    def sample_given_x(self, x, srng, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -87,6 +91,13 @@ class Distribution(object):
 
         srng : theano.sandbox.MRG_RandomStreams
 
+        repeat : int or T.scalar
+           This means the number of samples (e.g. Monte Carlo sampling)
+
+        repeat_dim : boolean
+           Whether you add new dimention for sampling. If this sets false, then
+           the number of samples is forced to one.
+
         Returns
         --------
         list
@@ -94,7 +105,8 @@ class Distribution(object):
         """
 
         mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean)+[srng])]
+
+        return [x, self.sample(*tolist(mean)+[srng, repeat])]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -113,7 +125,7 @@ class Distribution(object):
         mean = self.fprop(x, **kwargs)
         return [x, tolist(mean)[0]]
 
-    def log_likelihood_given_x(self, samples, **kwargs):
+    def log_likelihood_given_x(self, samples, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -127,8 +139,14 @@ class Distribution(object):
         """
 
         x, sample = samples
-        mean = self.fprop(x, **kwargs)
-        return self.log_likelihood(sample, *tolist(mean))
+        n_batch, n_dim = x[0].shape
+
+        mean = self.fprop([x[0]], **kwargs)
+        mean = [_mean.reshape((sample.shape[0],repeat,_mean.shape[1])) for _mean in tolist(mean)]
+
+        sample = sample.dimshuffle([0, 'x'] + range(1, sample.ndim))
+
+        return self.log_likelihood(sample, *mean)
 
     @abstractmethod
     def sample(self):
@@ -171,7 +189,7 @@ class Bernoulli(Distribution):
     def __init__(self, mean_network, given):
         super(Bernoulli, self).__init__(mean_network, given)
 
-    def sample(self, mean, srng):
+    def sample(self, mean, srng, repeat=1):
         """
         Paramaters
         --------
@@ -185,7 +203,14 @@ class Bernoulli(Distribution):
            i.e. sample ~ p(x|mean)
         """
 
-        return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
+        n_batch, n_dim = mean.shape
+        # (n_batch, repeat, n_dim)
+        mean_repeat = mean.dimshuffle([0, 'x', 1])
+        sample_shape = (n_batch, repeat, n_dim)
+
+        sample_output = T.cast(T.le(srng.uniform(sample_shape), mean_repeat), mean.dtype)
+
+        return sample_output.reshape((-1, n_dim))
 
     def log_likelihood(self, sample, mean):
         """
@@ -205,7 +230,7 @@ class Bernoulli(Distribution):
             A log-likelihood, which is the same meaning as a negative
             binary cross-entropy error.
         """
-
+        
         # for numerical stability
         mean = T.clip(mean, epsilon(), 1.0-epsilon())
         loglike = sample * T.log(mean) + (1 - sample) * T.log(1 - mean)
@@ -220,6 +245,9 @@ class Categorical(Bernoulli):
 
     def __init__(self, mean_network, given):
         super(Categorical, self).__init__(mean_network, given)
+
+    def sample(self, mean, srng):
+        raise NotImplementedError
 
     def log_likelihood(self, samples, mean):
         """
@@ -269,7 +297,7 @@ class Gaussian(Distribution):
             self.var_network, inputs, deterministic=deterministic)
         return mean, var
 
-    def sample(self, mean, var, srng):
+    def sample(self, mean, var, srng, repeat=1):
         """
         Paramaters
         ----------
@@ -279,8 +307,16 @@ class Gaussian(Distribution):
         var : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.normal(mean.shape)
-        return mean + T.sqrt(var) * eps
+        n_batch, n_dim = mean.shape
+        # (n_batch, repeat, n_dim)
+        mean_repeat = mean.dimshuffle([0, 'x', 1])
+        var_repeat = var.dimshuffle([0, 'x', 1])
+        sample_shape = (n_batch, repeat, n_dim)
+
+        eps = srng.normal(sample_shape)
+        sample_output = mean_repeat + T.sqrt(var_repeat) * eps
+
+        return sample_output.reshape((-1, n_dim))
 
     def log_likelihood(self, samples, mean, var):
         """
@@ -330,15 +366,15 @@ class UnitGaussian(Distribution):
     def __init__(self):
         pass
 
-    def sample(self, shape, srng):
+    def sample(self, srng, sample_shape):
         """
         Paramaters
         --------
-        shape : tuple
+        sample_shape : tuple
            sets a shape of the output sample
         """
 
-        return srng.normal(shape)
+        return srng.normal(sample_shape)
 
     def log_likelihood(self, samples):
         """
@@ -349,7 +385,7 @@ class UnitGaussian(Distribution):
 
         loglike = gaussian_like(samples,
                                 T.zeros_like(samples), T.ones_like(samples))
-        return self.mean_sum_samples(loglike)
+        return self.mean_sum_samples(loglike,False)
 
 
 class Laplace(Gaussian):
@@ -361,7 +397,7 @@ class Laplace(Gaussian):
     def __init__(self, mean_network, var_network, given):
         super(Laplace, self).__init__(mean_network, var_network, given)
 
-    def sample(self, mean, b, srng):
+    def sample(self, mean, b, srng, repeat=1):
         """
         Paramaters
         --------
@@ -370,8 +406,16 @@ class Laplace(Gaussian):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.uniform(mean.shape, low=-0.5, high=0.5)
-        return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
+        n_batch, n_dim = mean.shape
+        # (n_batch, repeat, n_dim)
+        mean_repeat = mean.dimshuffle([0, 'x', 1])
+        b_repeat = b.dimshuffle([0, 'x', 1])
+        sample_shape = (n_batch, repeat, n_dim)
+
+        eps = srng.uniform(sample_shape, low=-0.5, high=0.5)
+        sample_output = mean_repeat - b_repeat * T.sgn(eps) * T.log(1 - 2 * abs(eps))
+
+        return sample_output.reshape((-1, n_dim))
 
     def log_likelihood(self, samples, mean, b):
         """
