@@ -42,9 +42,8 @@ class VAE(object):
 
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
         kl = gauss_unitgauss_kl(mean, var).mean()
-        rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
+        z = self.q.sample_given_x(x, self.srng, repeat=self.l, deterministic=False)
         inverse_z = self.inverse_samples(z)
         loglike = self.p.log_likelihood_given_x(inverse_z,
                                                 deterministic=False).mean()
@@ -66,9 +65,8 @@ class VAE(object):
 
     def lowerbound_renyi(self, alpha):
         x = self.q.inputs
-        rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         q_samples = self.q.sample_given_x(
-            rep_x, self.srng, deterministic=False)
+            x, self.srng, repeat=self.k, deterministic=False)
         log_iw = self.log_importance_weight(q_samples, deterministic=False)
         log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
 
@@ -175,12 +173,11 @@ class VAE(object):
 
     def log_marginal_likelihood(self, x, l):
         n_x = x[0].shape[0]
-        rep_x = [t_repeat(_x, l, axis=0) for _x in x]
 
         mean, var = self.q.fprop(x, self.srng, deterministic=True)
         kl = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
-        samples = self.q.sample_given_x(rep_x, self.srng, deterministic=True)
+        samples = self.q.sample_given_x(x, self.srng, repeat=l, deterministic=True)
 
         inverse_samples = self.inverse_samples(samples)
         log_iw = self.p.log_likelihood_given_x(inverse_samples,
@@ -192,8 +189,7 @@ class VAE(object):
 
     def log_marginal_likelihood_iwae(self, x, k):
         n_x = x[0].shape[0]
-        rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples = self.q.sample_given_x(rep_x, self.srng, deterministic=True)
+        samples = self.q.sample_given_x(x, self.srng, repeat=k, deterministic=True)
 
         log_iw = self.log_importance_weight(samples, deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))

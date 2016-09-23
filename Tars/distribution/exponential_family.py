@@ -2,7 +2,7 @@ import theano.tensor as T
 import lasagne
 from abc import ABCMeta, abstractmethod
 
-from ..utils import gaussian_like, epsilon, tolist
+from ..utils import gaussian_like, epsilon, tolist, t_repeat
 
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
@@ -77,7 +77,7 @@ class Distribution(object):
             raise ValueError("The dim of samples must be any of 2, 3, or 4,"
                              "got dim %s." % n_dim)
 
-    def sample_given_x(self, x, srng, **kwargs):
+    def sample_given_x(self, x, srng, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -87,14 +87,17 @@ class Distribution(object):
 
         srng : theano.sandbox.MRG_RandomStreams
 
+        repeat : int or thenao variable
+
         Returns
         --------
         list
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
 
-        mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean)+[srng])]
+        rep_x = [t_repeat(_x, repeat, axis=0) for _x in x]
+        mean = self.fprop(rep_x, **kwargs)
+        return [rep_x, self.sample(*tolist(mean)+[srng])]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
