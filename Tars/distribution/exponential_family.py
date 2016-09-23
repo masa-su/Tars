@@ -97,7 +97,7 @@ class Distribution(object):
 
         rep_x = [t_repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(rep_x, **kwargs)
-        return [rep_x, self.sample(*tolist(mean)+[srng])]
+        return [rep_x, self.sample(*tolist(mean) + [srng])]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -212,7 +212,7 @@ class Bernoulli(Distribution):
         # For numerical stability
         # (When we use T.clip, calculation time becomes very slow.)
         loglike = sample * T.log(mean + epsilon()) +\
-                  (1 - sample) * T.log(1 - mean + epsilon())
+            (1 - sample) * T.log(1 - mean + epsilon())
         return self.mean_sum_samples(loglike)
 
 
@@ -321,7 +321,7 @@ class GaussianConstantVar(Deterministic):
         """
 
         loglike = gaussian_like(
-            samples, mean, T.ones_like(mean)*self.constant_var)
+            samples, mean, T.ones_like(mean) * self.constant_var)
         return self.mean_sum_samples(loglike)
 
 
