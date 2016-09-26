@@ -280,11 +280,16 @@ class MVAE_OLD(VAE):
         -------
         log_iw : array, shape (n_samples*k)
            Estimated log likelihood.
-           log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
-               /q(z1,z2,...,zn|x1)
+           log p(x0,x1,z1,z2,...,zn)
+               /q(z1,z2,...,zn|x1)p(x1)
         """
 
-        log_iw = 0
+        # log q(z1,z2,...,zn|0,x1)
+        # samples_x1 : [[0,x1],z1,z2,...,zn]
+        samples_x1 = copy(samples)
+        samples_x1[0][0] = T.zeros_like(samples_x1[0][0])
+        q_log_likelihood = self.q.log_likelihood_given_x(
+            samples_x1, deterministic=deterministic)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
@@ -292,7 +297,25 @@ class MVAE_OLD(VAE):
         p0_log_likelihood = self.p[0].log_likelihood_given_x(
             inverse_samples0, deterministic=deterministic)
 
-        log_iw += p0_log_likelihood
+        # log p(x1|z1,z2,...,zn)
+        # inverse_samples1 : [zn,zn-1,...,x1]
+        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(
+            inverse_samples1, deterministic=deterministic)
+
+        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
+        # samples : [std_z,x1] TODO: multiple latent variable
+        z = inverse_samples1[0][0]
+        x1 = inverse_samples1[-1]
+        # single sampling
+        std_z = self.prior.sample(z.shape, self.srng)
+        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
+            [[std_z], x1], deterministic=deterministic)
+
+        log_iw = p0_log_likelihood + p1_log_likelihood - \
+            q_log_likelihood - p1_mg_log_likelihood
+
+        log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
 
