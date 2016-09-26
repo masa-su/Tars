@@ -119,7 +119,7 @@ class MVAE_OLD(VAE):
         self.pq1_sample_meanvar_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
-    def log_importance_weight(self, samples, deterministic=False):
+    def log_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -157,44 +157,7 @@ class MVAE_OLD(VAE):
 
         return log_iw
 
-    def log_conditional_importance_weight(self, samples, deterministic=False):
-        """
-        Paramaters
-        ----------
-        samples : list
-           [[x0,x1],z1,z2,...,zn]
-
-        Returns
-        -------
-        log_iw : array, shape (n_samples*k)
-           Estimated log likelihood.
-           log p(x0|z1,z2,...,zn)q(z1,z2,...,zn|x1)
-               /q(z1,z2,...,zn|x0,x1)
-        """
-
-        # log q(z1,z2,...,zn|x0,x1)
-        # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(
-            samples, deterministic=deterministic)
-
-        # log q(z1,z2,...,zn|0,x1)
-        # samples1 : [[0,x1],z1,z2,...,zn]
-        samples1 = copy(samples)
-        samples1[0][0] = T.zeros_like(samples1[0][0])
-        q1_log_likelihood = self.q.log_likelihood_given_x(
-            samples1, deterministic=deterministic)
-
-        # log p(x0|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x0]
-        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(
-            inverse_samples0, deterministic=deterministic)
-
-        log_iw = p0_log_likelihood + q1_log_likelihood - q_log_likelihood
-
-        return log_iw
-
-    def log_mg_importance_weight(self, samples, deterministic=False):
+    def log_mg_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -226,7 +189,54 @@ class MVAE_OLD(VAE):
 
         return log_iw
 
-    def log_pseudo_mg_importance_weight(self, samples, deterministic=False):
+    def log_conditional_importance_weight(self, samples, deterministic=True):
+        """
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0,x1,z1,z2,...,zn)
+               /q(z1,z2,...,zn|x0,x1)p(x1)
+        """
+
+        # log q(z1,z2,...,zn|x0,x1)
+        # samples : [[x0,x1],z1,z2,...,zn]
+        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+
+        # log p(x0|z1,z2,...,zn)
+        # inverse_samples0 : [zn,zn-1,...,x0]
+        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
+        p0_log_likelihood = self.p[0].log_likelihood_given_x(
+            inverse_samples0, deterministic=deterministic)
+
+        # log p(x1|z1,z2,...,zn)
+        # inverse_samples1 : [zn,zn-1,...,x1]
+        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
+        p1_log_likelihood = self.p[1].log_likelihood_given_x(
+            inverse_samples1, deterministic=deterministic)
+
+        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
+        # samples : [std_z,x1] TODO: multiple latent variable
+        z = inverse_samples1[0][0]
+        x1 = inverse_samples1[-1]
+        # single sampling
+        std_z = self.prior.sample(z.shape, self.srng)
+        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
+            [[std_z], x1], deterministic=deterministic)
+
+        log_iw = p0_log_likelihood + p1_log_likelihood \
+            - q_log_likelihood - p1_mg_log_likelihood
+
+        log_iw += self.prior.log_likelihood(samples[-1])
+
+        return log_iw
+
+    def log_pseudo_mg_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -259,7 +269,7 @@ class MVAE_OLD(VAE):
         return log_iw
 
     def log_pseudo_conditional_importance_weight(self, samples,
-                                                 deterministic=False):
+                                                 deterministic=True):
         """
         Paramaters
         ----------
@@ -313,22 +323,22 @@ class MVAE_OLD(VAE):
                 _rep_x, self.srng, deterministic=True)
             samples[0] = rep_x
             log_iw = self.log_pseudo_conditional_importance_weight(
-                samples, deterministic=True)
+                samples)
         else:
             samples = self.q.sample_given_x(
                 rep_x, self.srng, deterministic=True)
             if type_p == "joint":
                 log_iw = self.log_importance_weight(
-                    samples, deterministic=True)
+                    samples)
             elif type_p == "marginal":
                 log_iw = self.log_mg_importance_weight(
-                    samples, deterministic=True)
+                    samples)
             elif type_p == "conditional":
                 log_iw = self.log_conditional_importance_weight(
-                    samples, deterministic=True)
+                    samples)
             elif type_p == "pseudo_marginal":
                 log_iw = self.log_pseudo_mg_importance_weight(
-                    samples, deterministic=True)
+                    samples)
 
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
@@ -337,7 +347,7 @@ class MVAE_OLD(VAE):
         return log_marginal_estimate
 
     def log_likelihood_test(self, test_set, l=1, k=1,
-                            mode='iw', type_p="joint"):
+                            mode='iw', type_p="joint", n_batch=None):
         """
         Paramaters
         ----------
@@ -361,6 +371,8 @@ class MVAE_OLD(VAE):
            Estimated log likelihood.
 
         """
+        if n_batch is None:
+            n_batch = self.n_batch
 
         if mode not in ['iw', 'lower_bound']:
             raise ValueError("mode must be whether 'iw' or 'lower_bound',"
@@ -388,8 +400,8 @@ class MVAE_OLD(VAE):
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
         for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
+            start = i * n_batch
+            end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
             log_likelihood = get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]

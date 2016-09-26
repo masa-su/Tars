@@ -133,7 +133,7 @@ class MVAE(VAE):
         self.pq1_sample_meanvar_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
-    def log_importance_weight(self, samples, deterministic=False):
+    def log_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -171,7 +171,7 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_mg_importance_weight(self, samples, deterministic=False):
+    def log_mg_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -203,7 +203,7 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_conditional_importance_weight(self, samples, deterministic=False):
+    def log_conditional_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -250,7 +250,7 @@ class MVAE(VAE):
 
         return log_iw
 
-    def log_pseudo_mg_importance_weight(self, samples, deterministic=False):
+    def log_pseudo_mg_importance_weight(self, samples, deterministic=True):
         """
         Paramaters
         ----------
@@ -283,7 +283,7 @@ class MVAE(VAE):
         return log_iw
 
     def log_pseudo_conditional_importance_weight(self, samples,
-                                                 deterministic=False):
+                                                 deterministic=True):
         """
         Paramaters
         ----------
@@ -356,25 +356,25 @@ class MVAE(VAE):
             samples = self.pq[0].sample_given_x(
                 rep_x, self.srng, deterministic=True)
             log_iw = self.log_pseudo_mg_importance_weight(
-                samples, deterministic=True)
+                samples)
         elif type_p == "pseudo_conditional":
             samples = self.pq[1].sample_given_x(
                 tolist(rep_x[1]), self.srng, deterministic=True)
             samples[0] = rep_x
             log_iw = self.log_pseudo_conditional_importance_weight(
-                samples, deterministic=True)
+                samples)
         else:
             samples = self.q.sample_given_x(
                 rep_x, self.srng, deterministic=True)
             if type_p == "joint":
                 log_iw = self.log_importance_weight(
-                    samples, deterministic=True)
+                    samples)
             elif type_p == "marginal":
                 log_iw = self.log_mg_importance_weight(
-                    samples, deterministic=True)
+                    samples)
             elif type_p == "conditional":
                 log_iw = self.log_conditional_importance_weight(
-                    samples, deterministic=True)
+                    samples)
 
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
@@ -383,7 +383,7 @@ class MVAE(VAE):
         return log_marginal_estimate
 
     def log_likelihood_test(self, test_set, l=1, k=1,
-                            mode='iw', type_p="joint"):
+                            mode='iw', type_p="joint", n_batch=None):
         """
         Paramaters
         ----------
@@ -407,6 +407,8 @@ class MVAE(VAE):
            Estimated log likelihood.
 
         """
+        if n_batch is None:
+            n_batch = self.n_batch
 
         if mode not in ['iw', 'lower_bound']:
             raise ValueError("mode must be whether 'iw' or 'lower_bound',"
@@ -434,8 +436,8 @@ class MVAE(VAE):
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
         for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
+            start = i * n_batch
+            end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
             log_likelihood = get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]

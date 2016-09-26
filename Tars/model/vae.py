@@ -117,7 +117,10 @@ class VAE(object):
         lowerbound_train = np.mean(lowerbound_train, axis=0)
         return lowerbound_train
 
-    def log_likelihood_test(self, test_set, l=1, k=1, mode='iw'):
+    def log_likelihood_test(self, test_set, l=1, k=1, mode='iw', n_batch=None):
+        if n_batch is None:
+            n_batch = self.n_batch
+
         x = self.q.inputs
         if mode == 'iw':
             log_likelihood = self.log_marginal_likelihood_iwae(x, k)
@@ -129,13 +132,13 @@ class VAE(object):
         print "start sampling"
 
         n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
+        nbatches = n_x // n_batch
 
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
         for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
+            start = i * n_batch
+            end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
             log_likelihood = get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
