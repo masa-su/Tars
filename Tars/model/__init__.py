@@ -3,6 +3,7 @@ from .ae import AE
 from .vae import VAE
 from .gan import GAN
 
+from .mvae_old import MVAE_OLD
 from .mvae import MVAE
 
 from .vaegan import VAEGAN
@@ -22,6 +23,7 @@ __all__ = [
     'VAE',
     'GAN',
     'MVAE',
+    'MVAE_OLD',
     'VAEGAN',
     'MVAEGAN',
     'VAE_semi',
