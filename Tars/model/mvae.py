@@ -5,7 +5,7 @@ import theano
 import theano.tensor as T
 from progressbar import ProgressBar
 
-from . import VAE
+from . import MVAE_OLD
 from ..utils import (
     gauss_gauss_kl,
     gauss_unitgauss_kl,
@@ -15,15 +15,14 @@ from ..utils import (
 )
 
 
-class MVAE(VAE):
+class MVAE(MVAE_OLD):
 
     def __init__(self, q, p, pq, n_batch, optimizer,
                  l=1, k=1, random=1234, gamma=1):
         self.gamma = gamma
         self.pq = pq
         super(MVAE, self).__init__(q, p, n_batch, optimizer,
-                                   l, k, None, random)
-        self.pq_sample_mean_given_x()
+                                   l, k, random)
 
     def lowerbound(self):
         x = self.q.inputs
@@ -71,41 +70,6 @@ class MVAE(VAE):
             updates=updates,
             on_unused_input='ignore')
 
-    def train(self, train_set, annealing_beta=1):
-        n_x = train_set[0].shape[0]
-        nbatches = n_x // self.n_batch
-        lowerbound_train = []
-
-        for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
-
-            batch_x = [_x[start:end] for _x in train_set]
-            train_L = self.lowerbound_train(*batch_x + [annealing_beta])
-
-            lowerbound_train.append(np.array(train_L))
-        lowerbound_train = np.mean(lowerbound_train, axis=0)
-        return lowerbound_train
-
-    def p_sample_mean_given_x(self):
-        x = self.p[0].inputs
-        samples = self.p[0].sample_mean_given_x(x, deterministic=True)
-        self.p0_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        samples = self.p[0].sample_given_x(x, self.srng, deterministic=True)
-        self.p0_sample_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        x = self.p[1].inputs
-        samples = self.p[1].sample_mean_given_x(x, deterministic=True)
-        self.p1_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        samples = self.p[1].sample_given_x(x, self.srng, deterministic=True)
-        self.p1_sample_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
     def pq_sample_mean_given_x(self):
         x = self.pq[0].inputs
         samples = self.pq[0].sample_mean_given_x(x, deterministic=True)
@@ -132,123 +96,6 @@ class MVAE(VAE):
         samples = self.pq[1].fprop(x, self.srng, deterministic=True)
         self.pq1_sample_meanvar_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
-
-    def log_importance_weight(self, samples, deterministic=True):
-        """
-        Paramaters
-        ----------
-        samples : list
-           [[x0,x1],z1,z2,...,zn]
-
-        Returns
-        -------
-        log_iw : array, shape (n_samples)
-           Estimated log likelihood.
-           log p(x0,x1,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
-        """
-
-        log_iw = 0
-
-        # log q(z1,z2,...,zn|x0,x1)
-        # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(
-            samples, deterministic=deterministic)
-
-        # log p(x0|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x0]
-        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(
-            inverse_samples0, deterministic=deterministic)
-
-        # log p(x1|z1,z2,...,zn)
-        # inverse_samples1 : [zn,zn-1,...,x1]
-        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
-        p1_log_likelihood = self.p[1].log_likelihood_given_x(
-            inverse_samples1, deterministic=deterministic)
-
-        log_iw += p0_log_likelihood + p1_log_likelihood - q_log_likelihood
-        log_iw += self.prior.log_likelihood(samples[-1])
-
-        return log_iw
-
-    def log_mg_importance_weight(self, samples, deterministic=True):
-        """
-        Paramaters
-        ----------
-        samples : list
-           [[x0,x1],z1,z2,...,zn]
-
-        Returns
-        -------
-        log_iw : array, shape (n_samples*k)
-           Estimated log likelihood.
-           log p(x0,z1,z2,...,zn)/q(z1,z2,...,zn|x0,x1)
-        """
-
-        log_iw = 0
-
-        # log q(z1,z2,...,zn|x0,x1)
-        # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(
-            samples, deterministic=deterministic)
-
-        # log p(x0|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x0]
-        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(
-            inverse_samples0, deterministic=deterministic)
-
-        log_iw += p0_log_likelihood - q_log_likelihood
-        log_iw += self.prior.log_likelihood(samples[-1])
-
-        return log_iw
-
-    def log_conditional_importance_weight(self, samples, deterministic=True):
-        """
-        Paramaters
-        ----------
-        samples : list
-           [[x0,x1],z1,z2,...,zn]
-
-        Returns
-        -------
-        log_iw : array, shape (n_samples*k)
-           Estimated log likelihood.
-           log p(x0,x1,z1,z2,...,zn)
-               /q(z1,z2,...,zn|x0,x1)p(x1)
-        """
-
-        # log q(z1,z2,...,zn|x0,x1)
-        # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
-
-        # log p(x0|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x0]
-        inverse_samples0 = self.inverse_samples(self.single_input(samples, 0))
-        p0_log_likelihood = self.p[0].log_likelihood_given_x(
-            inverse_samples0, deterministic=deterministic)
-
-        # log p(x1|z1,z2,...,zn)
-        # inverse_samples1 : [zn,zn-1,...,x1]
-        inverse_samples1 = self.inverse_samples(self.single_input(samples, 1))
-        p1_log_likelihood = self.p[1].log_likelihood_given_x(
-            inverse_samples1, deterministic=deterministic)
-
-        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
-        # samples : [std_z,x1] TODO: multiple latent variable
-        z = inverse_samples1[0][0]
-        x1 = inverse_samples1[-1]
-        # single sampling
-        std_z = self.prior.sample(z.shape, self.srng)
-        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
-            [[std_z], x1], deterministic=deterministic)
-
-        log_iw = p0_log_likelihood + p1_log_likelihood \
-            - q_log_likelihood - p1_mg_log_likelihood
-
-        log_iw += self.prior.log_likelihood(samples[-1])
-
-        return log_iw
 
     def log_pseudo_mg_importance_weight(self, samples, deterministic=True):
         """
@@ -444,30 +291,3 @@ class MVAE(VAE):
             pbar.update(i)
 
         return all_log_likelihood
-
-    def single_input(self, samples, i=0, inputs=None):
-        """
-        Paramaters
-        ----------
-        samples : list
-           [[x,y,...],z1,z2,....]
-
-        i : int
-           Selects an input from [x,y...].
-
-        inputs : list
-           The inputs which you want to replace from [x,y,...].
-
-        Returns
-        ----------
-        _samples : list
-           if i=0, then _samples = [[x],z1,z2,....]
-           if i=1, then _samples = [[y],z1,z2,....]
-        """
-
-        _samples = copy(samples)
-        if inputs:
-            _samples[0] = tolist(inputs)
-        else:
-            _samples[0] = [_samples[0][i]]
-        return _samples
