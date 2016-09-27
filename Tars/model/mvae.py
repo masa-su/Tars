@@ -142,7 +142,7 @@ class MVAE(MVAE_OLD):
         log_iw : array, shape (n_samples*k)
            Estimated log likelihood.
            log p(x0,x1,z1,z2,...,zn)
-               /q(z1,z2,...,zn|x0,x1)p(x1)
+               /q(z1,z2,...,zn|x1)p(x1)
         """
 
         # log q(z1,z2,...,zn|x0,x1)
