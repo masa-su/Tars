@@ -419,7 +419,7 @@ class MVAE_OLD(VAE):
 
         n_x = test_set[0].shape[0]
         nbatches = n_x // n_batch
-        
+
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
         for i in range(nbatches):

@@ -7,10 +7,7 @@ from . import (
     VAE,
     GAN,
 )
-from ..utils import (
-    gauss_unitgauss_kl,
-    t_repeat,
-)
+from ..utils import gauss_unitgauss_kl
 
 
 class VAEGAN(VAE, GAN):
