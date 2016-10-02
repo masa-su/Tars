@@ -27,8 +27,7 @@ class VAEGAN(VAE, GAN):
         p_loss, d_loss = super(VAEGAN, self).loss(gz, x, deterministic)
 
         z = self.q.sample_given_x(
-            x,
-            self.srng,
+            x, self.srng,
             deterministic=deterministic)[-1]
         rec_x = self.p.sample_mean_given_x(
             [z] + x[1:],
@@ -54,16 +53,17 @@ class VAEGAN(VAE, GAN):
 
         mean, var = self.q.fprop(x, deterministic=False)
         kl = gauss_unitgauss_kl(mean, var).mean()
-        rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
+        z = self.q.sample_given_x(x, self.srng,
+                                  repeat=self.l, deterministic=False)
 
         inverse_z = self.inverse_samples(z)
-        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
+        loglike = self.p.log_likelihood_given_x(inverse_z,
+                                                deterministic=False).mean()
         # TODO: feature-wise errors
 
         # ---GAN---
         gz = self.p.inputs
-        p_loss, d_loss = self.loss(gz, x, False)
+        p_loss, d_loss = self.loss(gz, x, deterministic=False)
 
         lowerbound = [-kl, loglike, p_loss, d_loss]
 
@@ -71,12 +71,12 @@ class VAEGAN(VAE, GAN):
         p_params = self.p.get_params()
         d_params = self.d.get_params()
         q_updates = self.optimizer(
-            annealing_beta*kl - loglike,
+            annealing_beta * kl - loglike,
             q_params,
             learning_rate=1e-4,
             beta1=0.5)
         p_updates = self.optimizer(
-            -self.gamma*loglike + p_loss,
+            -self.gamma * loglike + p_loss,
             p_params,
             learning_rate=1e-4,
             beta1=0.5)
@@ -84,23 +84,23 @@ class VAEGAN(VAE, GAN):
             d_loss, d_params, learning_rate=1e-4, beta1=0.5)
 
         self.q_lowerbound_train = theano.function(
-            inputs=gz[:1]+x+[annealing_beta],
+            inputs=gz[:1] + x + [annealing_beta],
             outputs=lowerbound,
             updates=q_updates,
             on_unused_input='ignore')
         self.p_lowerbound_train = theano.function(
-            inputs=gz[:1]+x,
+            inputs=gz[:1] + x,
             outputs=lowerbound,
             updates=p_updates, on_unused_input='ignore')
         self.d_lowerbound_train = theano.function(
-            inputs=gz[:1]+x,
+            inputs=gz[:1] + x,
             outputs=lowerbound,
             updates=d_updates,
             on_unused_input='ignore')
 
         p_loss, d_loss = self.loss(gz, x, True)
         self.test = theano.function(
-            inputs=gz[:1]+x,
+            inputs=gz[:1] + x,
             outputs=[p_loss, d_loss],
             on_unused_input='ignore')
 
@@ -115,13 +115,12 @@ class VAEGAN(VAE, GAN):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = rng.uniform(-1.,
-                                  1.,
+            batch_z = rng.uniform(-1., 1.,
                                   size=(len(batch_x[0]), z_dim)
                                   ).astype(np.float32)
-            batch_zx = [batch_z]+batch_x
+            batch_zx = [batch_z] + batch_x
 
-            train_L = self.q_lowerbound_train(*batch_zx+[annealing_beta])
+            train_L = self.q_lowerbound_train(*batch_zx + [annealing_beta])
             train_L = self.p_lowerbound_train(*batch_zx)
             train_L = self.d_lowerbound_train(*batch_zx)
 
