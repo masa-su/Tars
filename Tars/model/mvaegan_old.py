@@ -7,10 +7,7 @@ from . import (
     MVAE_OLD,
     GAN,
 )
-from ..utils import (
-    gauss_gauss_kl,
-    gauss_unitgauss_kl,
-)
+from ..utils import gauss_unitgauss_kl
 
 
 class MVAEGAN_OLD(MVAE_OLD, GAN):
@@ -26,7 +23,8 @@ class MVAEGAN_OLD(MVAE_OLD, GAN):
         # TODO: more sophisticated
         _p = self.p
         self.p = self.p[0]
-        p_loss, d_loss = super(MVAEGAN_OLD, self).loss(gz, x[:1], deterministic)
+        p_loss, d_loss = super(MVAEGAN_OLD, self).loss(
+            gz, x[:1], deterministic)
         self.p = _p
 
         z = self.q.sample_given_x(
