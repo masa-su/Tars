@@ -8,6 +8,7 @@ from .mvae import MVAE
 
 from .vaegan import VAEGAN
 from .mvaegan import MVAEGAN
+from .mvaegan_old import MVAEGAN_OLD
 
 from .vae_semi import VAE_semi
 from .vaegan_semi import VAEGAN_semi
@@ -26,6 +27,7 @@ __all__ = [
     'MVAE_OLD',
     'VAEGAN',
     'MVAEGAN',
+    'MVAEGAN_OLD',
     'VAE_semi',
     'VAEGAN_semi',
     'VRNN',
