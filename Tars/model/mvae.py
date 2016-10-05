@@ -197,6 +197,7 @@ class MVAE(MVAE_OLD):
 
         n_x = x[0].shape[0]
         rep_x = [t_repeat(_x, k, axis=0) for _x in x]
+
         if type_p == "pseudo_marginal":
             samples = self.pq[0].sample_given_x(
                 rep_x, self.srng, deterministic=True)
@@ -252,6 +253,7 @@ class MVAE(MVAE_OLD):
            Estimated log likelihood.
 
         """
+
         if n_batch is None:
             n_batch = self.n_batch
 
