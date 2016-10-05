@@ -206,7 +206,7 @@ class MVAE_OLD(VAE):
 
         # log q(z1,z2,...,zn|x0,x1)
         # samples : [[x0,x1],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+        q_log_likelihood = self.q.log_likelihood_given_x(samples, deterministic=deterministic)
 
         # log p(x0|z1,z2,...,zn)
         # inverse_samples0 : [zn,zn-1,...,x0]
