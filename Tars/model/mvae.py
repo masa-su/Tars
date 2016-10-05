@@ -276,7 +276,7 @@ class MVAE(MVAE_OLD):
         print "start sampling"
 
         n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
+        nbatches = n_x // n_batch
 
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
