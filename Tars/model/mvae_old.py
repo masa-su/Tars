@@ -3,6 +3,7 @@ from copy import copy
 import numpy as np
 import theano
 import theano.tensor as T
+from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
 from . import VAE
@@ -48,7 +49,14 @@ class MVAE_OLD(VAE):
         loss = annealing_beta * kl - np.sum(
             lowerbound[1:3])
 
-        updates = self.optimizer(loss, params)
+        grads = T.grad(loss, params)
+        clip_grad = 1
+        max_norm = 5
+        mgrads = total_norm_constraint(grads, max_norm=max_norm)
+        cgrads = [T.clip(g, -clip_grad, clip_grad) for g in mgrads]
+        updates = self.optimizer(cgrads, params,
+                                 beta1=0.9, beta2=0.999,
+                                 epsilon=1e-4, learning_rate=0.001)
         self.lowerbound_train = theano.function(
             inputs=x + [annealing_beta],
             outputs=lowerbound,

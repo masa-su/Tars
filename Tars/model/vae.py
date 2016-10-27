@@ -2,6 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
 from ..utils import (
@@ -56,7 +57,14 @@ class VAE(object):
         params = q_params + p_params
 
         grads = T.grad(loss, params)
-        updates = self.optimizer(grads, params)
+        clip_grad = 1
+        max_norm = 5
+        mgrads = total_norm_constraint(grads, max_norm=max_norm)
+        cgrads = [T.clip(g, -clip_grad, clip_grad) for g in mgrads]
+        updates = self.optimizer(cgrads, params,
+                                 beta1=0.9, beta2=0.999,
+                                 epsilon=1e-4, learning_rate=0.001)
+
         self.lowerbound_train = theano.function(
             inputs=x + [annealing_beta],
             outputs=lowerbound,
