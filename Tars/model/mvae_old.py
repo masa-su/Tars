@@ -229,17 +229,8 @@ class MVAE_OLD(VAE):
         p1_log_likelihood = self.p[1].log_likelihood_given_x(
             inverse_samples1, deterministic=deterministic)
 
-        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
-        # samples : [std_z,x1] TODO: multiple latent variable
-        z = inverse_samples1[0][0]
-        x1 = inverse_samples1[-1]
-        # single sampling
-        std_z = self.prior.sample(z.shape, self.srng)
-        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
-            [[std_z], x1], deterministic=deterministic)
-
         log_iw = p0_log_likelihood + p1_log_likelihood \
-            - q_log_likelihood - p1_mg_log_likelihood
+            - q_log_likelihood
 
         log_iw += self.prior.log_likelihood(samples[-1])
 
@@ -312,23 +303,14 @@ class MVAE_OLD(VAE):
         p1_log_likelihood = self.p[1].log_likelihood_given_x(
             inverse_samples1, deterministic=deterministic)
 
-        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
-        # samples : [std_z,x1] TODO: multiple latent variable
-        z = inverse_samples1[0][0]
-        x1 = inverse_samples1[-1]
-        # single sampling
-        std_z = self.prior.sample(z.shape, self.srng)
-        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
-            [[std_z], x1], deterministic=deterministic)
-
         log_iw = p0_log_likelihood + p1_log_likelihood - \
-            q_log_likelihood - p1_mg_log_likelihood
+            q_log_likelihood
 
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
 
-    def log_likelihood_iwae(self, x, k, type_p="joint"):
+    def log_likelihood_iwae(self, x, k, type_p="joint", sampling_n=1):
         """
         Paramaters
         ----------
@@ -377,9 +359,27 @@ class MVAE_OLD(VAE):
         log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
+        if type_p == "conditional" or type_p == "pseudo_conditional":    
+            # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
+            # samples : [std_z,x1] TODO: multiple latent variable
+            rep_x = [t_repeat(_x, sampling_n, axis=0) for _x in x]
+            z = self.q.sample_given_x(
+                rep_x, self.srng, deterministic=True)[-1]
+
+            # single sampling
+            std_z = self.prior.sample(z.shape, self.srng)
+            p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
+                    [[std_z], rep_x[1]], deterministic=True)
+
+            p1_mg_log_likelihood = T.reshape(p1_mg_log_likelihood,
+                                             (n_x, sampling_n))
+            p1_mg_log_likelihood = log_mean_exp(
+                p1_mg_log_likelihood, axis=1, keepdims=True)
+            log_marginal_estimate -= p1_mg_log_likelihood
+
         return log_marginal_estimate
 
-    def log_likelihood_test(self, test_set, l=1, k=1,
+    def log_likelihood_test(self, test_set, l=1, k=1, sampling_n=1,
                             mode='iw', type_p="joint", n_batch=None):
         """
         Paramaters
@@ -422,7 +422,8 @@ class MVAE_OLD(VAE):
         if type_p == "pseudo_marginal":
             x[1] = T.zeros_like(x[1])
 
-        log_likelihood = self.log_likelihood_iwae(x, k, type_p=type_p)
+        log_likelihood = self.log_likelihood_iwae(x, k, type_p=type_p,
+                                                  sampling_n=sampling_n)
         get_log_likelihood = theano.function(
             inputs=x, outputs=log_likelihood, on_unused_input='ignore')
 
