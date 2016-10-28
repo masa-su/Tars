@@ -169,15 +169,6 @@ class MVAE(MVAE_OLD):
         p1_log_likelihood = self.p[1].log_likelihood_given_x(
             inverse_samples1, deterministic=deterministic)
 
-        # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
-        # samples : [std_z,x1] TODO: multiple latent variable
-        z = inverse_samples1[0][0]
-        x1 = inverse_samples1[-1]
-        # single sampling
-        std_z = self.prior.sample(z.shape, self.srng)
-        p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
-            [[std_z], x1], deterministic=deterministic)
-
         log_iw = p0_log_likelihood + p1_log_likelihood - \
             q_log_likelihood
 
