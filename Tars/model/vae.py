@@ -2,12 +2,12 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
 from ..utils import (
     gauss_unitgauss_kl,
-    t_repeat,
-    log_mean_exp,
+    log_mean_exp
 )
 from ..distribution import UnitGaussian
 
@@ -42,64 +42,65 @@ class VAE(object):
 
         mean, var = self.q.fprop(x, self.srng, deterministic=False)
         kl = gauss_unitgauss_kl(mean, var).mean()
-        rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
-        z = self.q.sample_given_x(rep_x, self.srng, deterministic=False)
 
+        z = self.q.sample_given_x(
+            x, self.srng, repeat=self.l, deterministic=False)
         inverse_z = self.inverse_samples(z)
-        loglike = self.p.log_likelihood_given_x(inverse_z).mean()
+        loglike = self.p.log_likelihood_given_x(inverse_z,
+                                                deterministic=False).mean()
 
         lowerbound = [-kl, loglike]
-        loss = -(loglike-annealing_beta*kl)
+        loss = -(loglike - annealing_beta * kl)
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        updates = self.optimizer(loss, params)
+        grads = T.grad(loss, params)
+        clip_grad = 1
+        max_norm = 5
+        mgrads = total_norm_constraint(grads, max_norm=max_norm)
+        cgrads = [T.clip(g, -clip_grad, clip_grad) for g in mgrads]
+        updates = self.optimizer(cgrads, params,
+                                 beta1=0.9, beta2=0.999,
+                                 epsilon=1e-4, learning_rate=0.001)
+
         self.lowerbound_train = theano.function(
-            inputs=x+[annealing_beta],
+            inputs=x + [annealing_beta],
             outputs=lowerbound,
             updates=updates,
             on_unused_input='ignore')
 
     def lowerbound_renyi(self, alpha):
         x = self.q.inputs
-        rep_x = [t_repeat(_x, self.l, axis=0) for _x in x]
         q_samples = self.q.sample_given_x(
-            rep_x, self.srng, deterministic=False)
-        log_iw = self.log_importance_weight(q_samples)
-
+            x, self.srng, repeat=self.k, deterministic=False)
+        log_iw = self.log_importance_weight(q_samples, deterministic=False)
         log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
-        log_iw_minus_max = log_iw_matrix - \
-            T.max(log_iw_matrix, axis=1, keepdims=True)
-        iw = T.exp(log_iw_minus_max)
-        iw = iw**(1 - alpha)
-        # (x[0].shape[0],k)
-        iw_normalized = iw / T.sum(iw, axis=1, keepdims=True)
 
-        lowerbound = T.mean(log_iw)
+        if alpha == 1:
+            log_likelihood = T.mean(
+                log_iw_matrix, axis=1)
+
+        elif alpha == -np.inf:
+            log_likelihood = T.max(
+                log_iw_matrix, axis=1)
+
+        else:
+            log_iw_matrix = log_iw_matrix * (1 - alpha)
+            log_likelihood = log_mean_exp(
+                log_iw_matrix, axis=1, keepdims=True) / (1 - alpha)
+
+        log_likelihood = T.mean(log_likelihood)
 
         q_params = self.q.get_params()
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        if alpha == -np.inf:
-            gparams = [T.grad(-T.sum(T.max(log_iw_matrix, axis=1)), param)
-                       for param in params]
-
-        else:
-            iw_normalized_vector = T.reshape(
-                iw_normalized, log_iw.shape)  # (x[0].shape[0]*num_samples)
-            dummy_vec = T.vector(dtype=theano.config.floatX)
-            gparams = [
-                theano.clone(
-                    T.grad(-T.dot(log_iw, dummy_vec), param),
-                    replace={dummy_vec: iw_normalized_vector})
-                for param in params]
-
-        updates = self.optimizer(gparams, params)
+        grads = T.grad(-log_likelihood, params)
+        updates = self.optimizer(grads, params)
         self.lowerbound_train = theano.function(
-            inputs=x, outputs=lowerbound,
+            inputs=x, outputs=log_likelihood,
             updates=updates,
             on_unused_input='ignore')
 
@@ -115,16 +116,19 @@ class VAE(object):
             batch_x = [_x[start:end] for _x in train_set]
 
             if self.alpha is None:
-                train_L = self.lowerbound_train(*batch_x+[annealing_beta])
+                train_L = self.lowerbound_train(*batch_x + [annealing_beta])
             else:
                 train_L = self.lowerbound_train(*batch_x)
 
             lowerbound_train.append(np.array(train_L))
-        lowerbound_train = np.mean(lowerbound_train, axis=0)
 
+        lowerbound_train = np.mean(lowerbound_train, axis=0)
         return lowerbound_train
 
-    def log_likelihood_test(self, test_set, l=1, k=1, mode='iw'):
+    def log_likelihood_test(self, test_set, l=1, k=1, mode='iw', n_batch=None):
+        if n_batch is None:
+            n_batch = self.n_batch
+
         x = self.q.inputs
         if mode == 'iw':
             log_likelihood = self.log_marginal_likelihood_iwae(x, k)
@@ -136,13 +140,13 @@ class VAE(object):
         print "start sampling"
 
         n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
+        nbatches = n_x // n_batch
 
         pbar = ProgressBar(maxval=nbatches).start()
         all_log_likelihood = []
         for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
+            start = i * n_batch
+            end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
             log_likelihood = get_log_likelihood(*batch_x)
             all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
@@ -180,15 +184,16 @@ class VAE(object):
 
     def log_marginal_likelihood(self, x, l):
         n_x = x[0].shape[0]
-        rep_x = [t_repeat(_x, l, axis=0) for _x in x]
 
         mean, var = self.q.fprop(x, self.srng, deterministic=True)
         kl = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
 
-        samples = self.q.sample_given_x(rep_x, self.srng)
+        samples = self.q.sample_given_x(
+            x, self.srng, repeat=l, deterministic=True)
 
         inverse_samples = self.inverse_samples(samples)
-        log_iw = self.p.log_likelihood_given_x(inverse_samples)
+        log_iw = self.p.log_likelihood_given_x(inverse_samples,
+                                               deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
         log_marginal_estimate = kl + T.mean(log_iw_matrix, axis=1)
 
@@ -196,17 +201,17 @@ class VAE(object):
 
     def log_marginal_likelihood_iwae(self, x, k):
         n_x = x[0].shape[0]
-        rep_x = [t_repeat(_x, k, axis=0) for _x in x]
-        samples = self.q.sample_given_x(rep_x, self.srng)
+        samples = self.q.sample_given_x(
+            x, self.srng, repeat=k, deterministic=True)
 
-        log_iw = self.log_importance_weight(samples)
+        log_iw = self.log_importance_weight(samples, deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))
         log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
         return log_marginal_estimate
 
-    def log_importance_weight(self, samples):
+    def log_importance_weight(self, samples, deterministic=False):
         """
         inputs : [[x,y,...],z1,z2,...,zn]
         outputs : log p(x,z1,z2,...,zn|y,...)/q(z1,z2,...,zn|x,y,...)
@@ -217,14 +222,18 @@ class VAE(object):
         log q(z1,z2,...,zn|x,y,...)
         samples : [[x,y,...],z1,z2,...,zn]
         """
-        q_log_likelihood = self.q.log_likelihood_given_x(samples)
+        q_log_likelihood =\
+            self.q.log_likelihood_given_x(samples,
+                                          deterministic=deterministic)
 
         """
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
         inverse_samples = self.inverse_samples(samples)
-        p_log_likelihood = self.p.log_likelihood_given_x(inverse_samples)
+        p_log_likelihood =\
+            self.p.log_likelihood_given_x(inverse_samples,
+                                          deterministic=deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood
         log_iw += self.prior.log_likelihood(samples[-1])

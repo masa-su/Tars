@@ -4,7 +4,7 @@ import theano.tensor as T
 
 from progressbar import ProgressBar
 from . import (
-    MVAE,
+    CMMA,
     GAN,
 )
 from ..utils import (
@@ -13,29 +13,31 @@ from ..utils import (
 )
 
 
-class MVAEGAN(MVAE, GAN):
+class CMMAGAN(CMMA, GAN):
 
-    def __init__(self, q, p, pq, d, n_batch, optimizer,
-                 l=1, k=1, random=1234, gan_gamma=1, gamma=1):
+    def __init__(self, q, p, d, n_batch, optimizer,
+                 l=1, k=1, random=1234, gan_gamma=1):
         self.d = d
         self.gan_gamma = gan_gamma
-        super(MVAEGAN, self).__init__(q, p, pq, n_batch, optimizer,
-                                      l, k, random, gamma)
+        super(CMMAGAN, self).__init__(q, p, n_batch, optimizer,
+                                      l, k, random)
 
     def loss(self, gz, x, deterministic=False):
-        # TODO: more sophisticated
         _p = self.p
-        self.p = self.p[0]
-        p_loss, d_loss = super(MVAEGAN, self).loss(gz, x[:1], deterministic)
+        self.p = self.p[1]
+        p_loss, d_loss = super(CMMAGAN, self).loss(gz, x, deterministic)
         self.p = _p
 
         z = self.q.sample_given_x(
-            x, self.srng, deterministic=deterministic)[-1]
-        rec_x = self.p[0].sample_mean_given_x(
-            [z], deterministic=deterministic)[-1]
+            x, self.srng,
+            deterministic=deterministic)[-1]
+        rec_x = self.p[1].sample_mean_given_x(
+            [z],
+            deterministic=deterministic)[-1]
         # rec_t~d(rec_t|rec_x,y,...)
         rec_t = self.d.sample_mean_given_x(
-            [rec_x], deterministic=deterministic)[-1]
+            [rec_x] + x[1:],
+            deterministic=deterministic)[-1]
         # -log(1-rec_t)
         rec_d_g_loss = -self.d.log_likelihood(
             T.zeros_like(rec_t), rec_t).mean()
@@ -52,45 +54,34 @@ class MVAEGAN(MVAE, GAN):
 
         mean, var = self.q.fprop(x, deterministic=False)
         kl = gauss_unitgauss_kl(mean, var).mean()
-        z = self.q.sample_given_x(x, self.srng,
-                                  repeat=self.l, deterministic=False)
+        z = self.q.sample_given_x(
+            x, self.srng, repeat=self.l, deterministic=False)
 
         inverse_z = self.inverse_samples(self.single_input(z, 0))
-        loglike0 = self.p[0].log_likelihood_given_x(inverse_z).mean()
+        loglike = self.p[1].log_likelihood_given_x(
+            inverse_z, deterministic=False).mean()
 
-        inverse_z = self.inverse_samples(self.single_input(z, 1))
-        loglike1 = self.p[1].log_likelihood_given_x(inverse_z).mean()
-
-        # ---penalty
-        mean, var = self.q.fprop(x, deterministic=False)
-        # z ~ q(x0)
-        mean0, var0 = self.pq[0].fprop([x[0]], self.srng, deterministic=False)
-        mean1, var1 = self.pq[1].fprop([x[1]], self.srng, deterministic=False)
-
-        # kl[q(x0,0)||q(x0,x1)]
-        kl_0 = gauss_gauss_kl(mean, var, mean0, var0).mean()
-        kl_1 = gauss_gauss_kl(mean, var, mean1, var1).mean()
+        mean1, var1 = self.p[0].fprop([x[1]], self.srng, deterministic=False)
+        kl_qp = gauss_gauss_kl(mean, var, mean1, var1).mean()
 
         # ---GAN---
-        gz = self.p[0].inputs
+        gz = self.p[1].inputs
         p_loss, d_loss = self.loss(gz, x, False)
 
         q_params = self.q.get_params()
         p0_params = self.p[0].get_params()
         p1_params = self.p[1].get_params()
-        pq0_params = self.pq[0].get_params()
-        pq1_params = self.pq[1].get_params()
         d_params = self.d.get_params()
 
-        lowerbound = [-kl, loglike0, loglike1, kl_0, kl_1, p_loss, d_loss]
+        lowerbound = [-kl, loglike, -kl_qp, p_loss, d_loss]
 
         q_updates = self.optimizer(
-            annealing_beta * kl - loglike0 -
-            loglike1 + self.gamma * (kl_0 + kl_1),
-            q_params + p1_params + pq0_params + pq1_params,
+            annealing_beta * kl - loglike + kl_qp,
+            q_params + p0_params,
             learning_rate=1e-4, beta1=0.5)
         p_updates = self.optimizer(
-            -self.gan_gamma * loglike0 + p_loss, p0_params,
+            -self.gan_gamma * loglike + p_loss,
+            p1_params,
             learning_rate=1e-4, beta1=0.5)
         d_updates = self.optimizer(
             d_loss, d_params,

@@ -2,7 +2,7 @@ import theano.tensor as T
 import lasagne
 from abc import ABCMeta, abstractmethod
 
-from ..utils import gaussian_like, epsilon, tolist
+from ..utils import gaussian_like, epsilon, tolist, t_repeat
 
 
 # TODO: https://github.com/jych/cle/blob/master/cle/cost/__init__.py
@@ -77,7 +77,7 @@ class Distribution(object):
             raise ValueError("The dim of samples must be any of 2, 3, or 4,"
                              "got dim %s." % n_dim)
 
-    def sample_given_x(self, x, srng, **kwargs):
+    def sample_given_x(self, x, srng, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -87,14 +87,17 @@ class Distribution(object):
 
         srng : theano.sandbox.MRG_RandomStreams
 
+        repeat : int or thenao variable
+
         Returns
         --------
         list
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
-
+        if repeat != 1:
+            x = [t_repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean)+[srng])]
+        return [x, self.sample(*tolist(mean) + [srng])]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -185,7 +188,7 @@ class Bernoulli(Distribution):
            i.e. sample ~ p(x|mean)
         """
 
-        return T.cast(T.le(srng.uniform(mean.shape), mean), mean.dtype)
+        return srng.binomial(size=mean.shape, p=mean, dtype=mean.dtype)
 
     def log_likelihood(self, sample, mean):
         """
@@ -206,9 +209,10 @@ class Bernoulli(Distribution):
             binary cross-entropy error.
         """
 
-        # for numerical stability
-        mean = T.clip(mean, epsilon(), 1.0-epsilon())
-        loglike = sample * T.log(mean) + (1 - sample) * T.log(1 - mean)
+        # For numerical stability
+        # (When we use T.clip, calculation time becomes very slow.)
+        loglike = sample * T.log(mean + epsilon()) +\
+            (1 - sample) * T.log(1 - mean + epsilon())
         return self.mean_sum_samples(loglike)
 
 
@@ -240,9 +244,8 @@ class Categorical(Bernoulli):
             categorical cross-entropy error.
         """
 
-        # for numerical stability
-        mean = T.clip(mean, epsilon(), 1.0-epsilon())
-        loglike = samples * T.log(mean)
+        # For numerical stability
+        loglike = samples * T.log(mean + epsilon())
         return self.mean_sum_samples(loglike)
 
 
@@ -259,11 +262,12 @@ class Gaussian(Distribution):
     def get_params(self):
         params = super(Gaussian, self).get_params()
         params += self.var_network.get_params(trainable=True)
-        # TODO: fix duplicated paramaters
+        # delete duplicated paramaters
+        params = sorted(set(params), key=params.index)
         return params
 
     def fprop(self, x, srng=None, deterministic=False):
-        mean = super(Gaussian, self).fprop(x, deterministic)
+        mean = super(Gaussian, self).fprop(x, deterministic=deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
             self.var_network, inputs, deterministic=deterministic)
@@ -279,7 +283,7 @@ class Gaussian(Distribution):
         var : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.normal(mean.shape)
+        eps = srng.normal(mean.shape, dtype=mean.dtype)
         return mean + T.sqrt(var) * eps
 
     def log_likelihood(self, samples, mean, var):
@@ -317,7 +321,7 @@ class GaussianConstantVar(Deterministic):
         """
 
         loglike = gaussian_like(
-            samples, mean, T.ones_like(mean)*self.constant_var)
+            samples, mean, T.ones_like(mean) * self.constant_var)
         return self.mean_sum_samples(loglike)
 
 
@@ -370,7 +374,7 @@ class Laplace(Gaussian):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.uniform(mean.shape, low=-0.5, high=0.5)
+        eps = srng.uniform(mean.shape, low=-0.5, high=0.5, dtype=mean.dtype)
         return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
 
     def log_likelihood(self, samples, mean, b):
