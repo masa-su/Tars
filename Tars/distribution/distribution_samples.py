@@ -41,8 +41,7 @@ class Bernoulli_sample(object):
     """
 
     def __init__(self, temp=0.1):
-        self.temp = temp
-        self.gambel = Gumbel_sample()
+        self.concrete = Concrete_sample(temp)
 
     def sample(self, mean, srng):
         """
@@ -59,21 +58,9 @@ class Bernoulli_sample(object):
         """
 
         if self.temp != 0:
-            return self._gumbel_softmax(mean, srng)
+            return self.concrete.sample(mean, srng)
         else:
             return srng.binomial(size=mean.shape, p=mean, dtype=mean.dtype)
-
-    def _gumbel_softmax(self, mean, srng):
-        """
-        Gumbel-Softmax or Concrete distribution
-        https://arxiv.org/abs/1611.01144
-        https://arxiv.org/abs/1611.00712
-        """
-
-        output = self.gambel.sample(T.zeros_like(mean), T.ones_like(mean),
-                                    srng)
-        output += mean
-        return T.nnet.softmax(output / self.temp)
 
     def log_likelihood(self, sample, mean):
         """
@@ -271,6 +258,26 @@ class Gumbel_sample(object):
         z = (samples - mu) / beta
         loglike = -T.log(beta) - (z + T.exp(-z))
         return mean_sum_samples(loglike)
+
+
+class Concrete_sample(Gumbel_sample):
+    """
+    Concrete distribution
+        https://arxiv.org/abs/1611.01144
+        https://arxiv.org/abs/1611.00712    
+    """
+
+    def __init__(self, temp):
+        self.temp = temp
+
+    def sample(self, mean):
+        output = super(Concrete_sample, self).sample(T.zeros_like(mean),
+                                                     T.ones_like(mean), srng)
+        output += mean
+        return T.nnet.softmax(output / self.temp)
+
+    def log_likelihood(self):
+        raise NotImplementedError        
 
 
 def mean_sum_samples(samples):
