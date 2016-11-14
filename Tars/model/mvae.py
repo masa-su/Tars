@@ -239,7 +239,7 @@ class MVAE(MVAE_OLD):
             # single sampling
             std_z = self.prior.sample(z.shape, self.srng)
             p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
-                    [[std_z], rep_x[1]], deterministic=True)
+                [[std_z], rep_x[1]], deterministic=True)
 
             p1_mg_log_likelihood = T.reshape(p1_mg_log_likelihood,
                                              (n_x, sampling_n))
