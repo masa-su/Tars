@@ -167,14 +167,14 @@ class GaussianConstantVar_sample(Gaussian_sample):
         self.constant_var = var
 
     def sample(self, samples, mean):
-        super(GaussianConstantVar_sample,
-              self).sample(samples, mean,
-                           T.ones_like(samples) * self.constant_var)
+        return super(GaussianConstantVar_sample,
+                     self).sample(samples, mean,
+                                  T.ones_like(samples) * self.constant_var)
 
     def log_likelihood(self, samples, mean):
-        super(GaussianConstantVar_sample,
-              self).log_likelihood(samples, mean,
-                                   T.ones_like(samples) * self.constant_var)
+        return super(GaussianConstantVar_sample,
+                     self).log_likelihood(samples, mean,
+                                          T.ones_like(samples) * self.constant_var)
 
 
 class UnitGaussian_sample(Gaussian_sample):
@@ -194,9 +194,9 @@ class UnitGaussian_sample(Gaussian_sample):
         return srng.normal(shape)
 
     def log_likelihood(self, samples):
-        super(UnitGaussian_sample, self).log_likelihood(samples,
-                                                        T.zeros_like(samples),
-                                                        T.ones_like(samples))
+        return super(UnitGaussian_sample, self).log_likelihood(samples,
+                                                               T.zeros_like(samples),
+                                                               T.ones_like(samples))
 
 
 class Laplace_sample(object):
