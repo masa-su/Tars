@@ -42,6 +42,7 @@ class Bernoulli_sample(object):
     """
 
     def __init__(self, temp=0.1):
+        self.temp = temp
         self.concrete = Concrete_sample(temp)
 
     def sample(self, mean, srng):
