@@ -1,8 +1,6 @@
 import theano.tensor as T
-import lasagne
-from abc import ABCMeta, abstractmethod
 
-from ..utils import gaussian_like, epsilon, tolist, t_repeat
+from ..utils import gaussian_like, epsilon
 
 __all__ = [
     'Deterministic_sample',
@@ -14,6 +12,7 @@ __all__ = [
     'Laplace_sample',
     'Gumbel_sample',
 ]
+
 
 class Deterministic_sample(object):
     """
@@ -230,6 +229,32 @@ class Laplace_sample(object):
         # for numerical stability
         b += epsilon()
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
+        return mean_sum_samples(loglike)
+
+
+class Gumbel_sample(object):
+    """
+    Gumbel distribution
+    """
+
+    def sample(self, mu, beta, srng):
+        U = srng.uniform(mu.shape, low=0, high=1, dtype=mu.dtype)
+        return mu - beta * T.log(T.log(U + epsilon()))
+
+    def log_likelihood(self, samples, mu, beta):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        mu : Theano variable, the output of a fully connected layer (Linear)
+
+        beta : Theano variable, the output of a fully connected layer
+        (Softplus)
+        """
+
+        z = (samples - mu) / (beta + epsilon())
+        loglike = -T.log(beta) - (z + T.exp(-z))
         return mean_sum_samples(loglike)
 
 
