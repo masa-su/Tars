@@ -4,15 +4,42 @@ from abc import ABCMeta, abstractmethod
 
 from ..utils import gaussian_like, epsilon, tolist, t_repeat
 
+__all__ = [
+    'Deterministic_sample',
+    'Bernoulli_sample',
+    'Categorical_sample',
+    'Gaussian_sample',
+    'GaussianConstantVar_sample',
+    'UnitGaussian_sample',
+    'Laplace_sample',
+    'Gumbel_sample',
+]
+
+class Deterministic_sample(object):
+    """
+    Deterministic function
+    p(x) = f(x)
+    """
+
+    def sample(self, mean, *args):
+        """
+        Paramaters
+        ----------
+        mean : Theano variable, the output of a fully connected layer
+               (any activation function)
+        """
+
+        return mean
+
+    def loglikelihood(self, sample, mean):
+        raise NotImplementedError
+
 
 class Bernoulli_sample(object):
     """
     Bernoulli distribution
     p(x) = mean^x * (1-mean)^(1-x)
     """
-
-    def __init__(self):
-        pass
 
     def sample(self, mean, srng):
         """
@@ -53,7 +80,7 @@ class Bernoulli_sample(object):
         # (When we use T.clip, the calculation time becomes very slow.)
         loglike = sample * T.log(mean + epsilon()) +\
             (1 - sample) * T.log(1 - mean + epsilon())
-        return loglike
+        return mean_sum_samples(loglike)
 
 
 class Categorical_sample(Bernoulli_sample):
@@ -61,9 +88,6 @@ class Categorical_sample(Bernoulli_sample):
     Categorical distribution
     p(x) = \prod mean^x
     """
-
-    def __init__(self):
-        pass
 
     def log_likelihood(self, samples, mean):
         """
@@ -95,9 +119,6 @@ class Gaussian_sample(object):
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
 
-    def __init__(self):
-        pass
-
     def sample(self, mean, var, srng):
         """
         Paramaters
@@ -126,7 +147,7 @@ class Gaussian_sample(object):
         return mean_sum_samples(loglike)
 
 
-class GaussianConstantVar_sample(object):
+class GaussianConstantVar_sample(Deterministic_sample):
     """
     Gaussian distribution (with a constant variance)
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
@@ -154,9 +175,6 @@ class UnitGaussian_sample(object):
     Standard normal gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{x^2}{2}}
     """
-
-    def __init__(self):
-        pass
 
     def sample(self, shape, srng):
         """
@@ -186,9 +204,6 @@ class Laplace_sample(object):
     p(x) = \frac{1}{\sqrt{2*\phi}} * exp{-\frac{|x-mean|}{\phi}}
     """
 
-    def __init__(self):
-        pass
-
     def sample(self, mean, b, srng):
         """
         Paramaters
@@ -198,8 +213,8 @@ class Laplace_sample(object):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = srng.uniform(mean.shape, low=-0.5, high=0.5, dtype=mean.dtype)
-        return mean - b * T.sgn(eps) * T.log(1 - 2 * abs(eps))
+        U = srng.uniform(mean.shape, low=-0.5, high=0.5, dtype=mean.dtype)
+        return mean - b * T.sgn(U) * T.log(1 - 2 * abs(U))
 
     def log_likelihood(self, samples, mean, b):
         """
