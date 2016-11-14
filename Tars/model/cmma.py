@@ -21,7 +21,7 @@ class CMMA(VAE):
     def __init__(self, q, p, n_batch, optimizer,
                  l=1, k=1, random=1234):
         super(CMMA, self).__init__(q, p, n_batch, optimizer,
-                                       l, k, None, random)
+                                   l, k, None, random)
 
     def lowerbound(self):
         x = self.q.inputs

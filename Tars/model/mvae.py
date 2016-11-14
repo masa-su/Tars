@@ -229,7 +229,7 @@ class MVAE(MVAE_OLD):
         log_marginal_estimate = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
 
-        if type_p == "conditional" or type_p == "pseudo_conditional":    
+        if type_p == "conditional" or type_p == "pseudo_conditional":
             # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
             # samples : [std_z,x1] TODO: multiple latent variable
             rep_x = [t_repeat(_x, sampling_n, axis=0) for _x in x]
