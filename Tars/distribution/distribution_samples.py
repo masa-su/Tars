@@ -40,6 +40,10 @@ class Bernoulli_sample(object):
     p(x) = mean^x * (1-mean)^(1-x)
     """
 
+    def __init__(self, temp=0.1):
+        self.temp = temp
+        self.gambel = Gumbel_sample()
+
     def sample(self, mean, srng):
         """
         Paramaters
@@ -54,7 +58,22 @@ class Bernoulli_sample(object):
            i.e. sample ~ p(x|mean)
         """
 
-        return srng.binomial(size=mean.shape, p=mean, dtype=mean.dtype)
+        if self.temp != 0:
+            return _gumbel_softmax(mean, srng)
+        else:
+            return srng.binomial(size=mean.shape, p=mean, dtype=mean.dtype)
+
+    def _gumbel_softmax(self, mean, srng):
+        """
+        Gumbel-Softmax or Concrete distribution
+        https://arxiv.org/abs/1611.01144
+        https://arxiv.org/abs/1611.00712
+        """
+
+        output = self.gambel.sample(T.zeros_like(mean), T.ones_like(mean), srng)
+        output += mean
+        return T.nnet.softmax(output / self.temp)
+        
 
     def log_likelihood(self, sample, mean):
         """
@@ -146,7 +165,7 @@ class Gaussian_sample(object):
         return mean_sum_samples(loglike)
 
 
-class GaussianConstantVar_sample(Deterministic_sample):
+class GaussianConstantVar_sample(Gaussian_sample):
     """
     Gaussian distribution (with a constant variance)
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
@@ -155,21 +174,18 @@ class GaussianConstantVar_sample(Deterministic_sample):
     def __init__(self, var=1):
         self.constant_var = var
 
+    def sample(self, samples, mean):
+        super(GaussianConstantVar_sample,
+              self).sample(samples, mean,
+                           T.ones_like(samples) * self.constant_var)
+
     def log_likelihood(self, samples, mean):
-        """
-        Paramaters
-        --------
-        sample : Theano variable
-
-        mean : Theano variable, the output of a fully connected layer (Linear)
-        """
-
-        loglike = gaussian_like(
-            samples, mean, T.ones_like(mean) * self.constant_var)
-        return mean_sum_samples(loglike)
+        super(GaussianConstantVar_sample,
+              self).log_likelihood(samples, mean,
+                                   T.ones_like(samples) * self.constant_var)
 
 
-class UnitGaussian_sample(object):
+class UnitGaussian_sample(Gaussian_sample):
     """
     Standard normal gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{x^2}{2}}
@@ -186,15 +202,9 @@ class UnitGaussian_sample(object):
         return srng.normal(shape)
 
     def log_likelihood(self, samples):
-        """
-        Paramaters
-        --------
-        sample : Theano variable
-        """
-
-        loglike = gaussian_like(samples,
-                                T.zeros_like(samples), T.ones_like(samples))
-        return mean_sum_samples(loglike)
+        super(UnitGaussian_sample, self).log_likelihood(samples, 
+                                                        T.zeros_like(samples),
+                                                        T.ones_like(samples))
 
 
 class Laplace_sample(object):
