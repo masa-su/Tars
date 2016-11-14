@@ -6,6 +6,9 @@ from .gan import GAN
 from .mvae_old import MVAE_OLD
 from .mvae import MVAE
 
+from .cmma import CMMA
+from .cmmagan import CMMAGAN
+
 from .vaegan import VAEGAN
 from .mvaegan import MVAEGAN
 from .mvaegan_old import MVAEGAN_OLD
@@ -25,6 +28,8 @@ __all__ = [
     'GAN',
     'MVAE',
     'MVAE_OLD',
+    'CMMA',
+    'CMMAGAN',
     'VAEGAN',
     'MVAEGAN',
     'MVAEGAN_OLD',
