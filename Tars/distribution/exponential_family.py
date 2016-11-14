@@ -141,6 +141,26 @@ class Distribution(object):
     def log_likelihood(self):
         pass
 
+class Distribution_double(Distribution):
+
+    def __init__(self, mean_network, var_network, given):
+        super(Gaussian, self).__init__(mean_network, given)
+        self.var_network = var_network
+
+    def get_params(self):
+        params = super(Gaussian, self).get_params()
+        params += self.var_network.get_params(trainable=True)
+        # delete duplicated paramaters
+        params = sorted(set(params), key=params.index)
+        return params
+
+    def fprop(self, x, srng=None, deterministic=False):
+        mean = super(Gaussian, self).fprop(x, deterministic=deterministic)
+        inputs = dict(zip(self.given, x))
+        var = lasagne.layers.get_output(
+            self.var_network, inputs, deterministic=deterministic)
+        return mean, var
+
 
 class Deterministic(Distribution):
     """
@@ -210,7 +230,7 @@ class Bernoulli(Distribution):
         """
 
         # For numerical stability
-        # (When we use T.clip, calculation time becomes very slow.)
+        # (When we use T.clip, the calculation time becomes very slow.)
         loglike = sample * T.log(mean + epsilon()) +\
             (1 - sample) * T.log(1 - mean + epsilon())
         return self.mean_sum_samples(loglike)
@@ -249,7 +269,7 @@ class Categorical(Bernoulli):
         return self.mean_sum_samples(loglike)
 
 
-class Gaussian(Distribution):
+class Gaussian(Distribution_double):
     """
     Gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
@@ -258,20 +278,6 @@ class Gaussian(Distribution):
     def __init__(self, mean_network, var_network, given):
         super(Gaussian, self).__init__(mean_network, given)
         self.var_network = var_network
-
-    def get_params(self):
-        params = super(Gaussian, self).get_params()
-        params += self.var_network.get_params(trainable=True)
-        # delete duplicated paramaters
-        params = sorted(set(params), key=params.index)
-        return params
-
-    def fprop(self, x, srng=None, deterministic=False):
-        mean = super(Gaussian, self).fprop(x, deterministic=deterministic)
-        inputs = dict(zip(self.given, x))
-        var = lasagne.layers.get_output(
-            self.var_network, inputs, deterministic=deterministic)
-        return mean, var
 
     def sample(self, mean, var, srng):
         """
@@ -356,7 +362,7 @@ class UnitGaussian(Distribution):
         return self.mean_sum_samples(loglike)
 
 
-class Laplace(Gaussian):
+class Laplace(Distribution_double):
     """
     Laplace distribution
     p(x) = \frac{1}{\sqrt{2*\phi}} * exp{-\frac{|x-mean|}{\phi}}
