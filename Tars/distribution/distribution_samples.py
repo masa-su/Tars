@@ -253,7 +253,9 @@ class Gumbel_sample(object):
         (Softplus)
         """
 
-        z = (samples - mu) / (beta + epsilon())
+        # for numerical stability
+        beta += epsilon()
+        z = (samples - mu) / beta
         loglike = -T.log(beta) - (z + T.exp(-z))
         return mean_sum_samples(loglike)
 
