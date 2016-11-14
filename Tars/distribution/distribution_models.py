@@ -167,14 +167,16 @@ class Deterministic(Deterministic_sample, Distribution):
 
 class Bernoulli(Bernoulli_sample, Distribution):
 
-    def __init__(self, mean_network, given):
+    def __init__(self, mean_network, given, temp=0.1):
         Distribution.__init__(self, mean_network, given)
+        super(Bernoulli, self).__init__(temp)
 
 
 class Categorical(Categorical_sample, Distribution):
 
-    def __init__(self, mean_network, given):
+    def __init__(self, mean_network, given, temp=0.1):
         Distribution.__init__(self, mean_network, given)
+        super(Categorical, self).__init__(temp)
 
 
 class Gaussian(Gaussian_sample, Distribution_double):
