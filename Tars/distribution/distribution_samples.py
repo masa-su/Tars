@@ -107,6 +107,9 @@ class Categorical_sample(Bernoulli_sample):
     p(x) = \prod mean^x
     """
 
+    def __init__(self, temp=0.1):
+        super(Categorical_sample, self).__init__(temp=temp)
+
     def log_likelihood(self, samples, mean):
         """
         Paramaters
