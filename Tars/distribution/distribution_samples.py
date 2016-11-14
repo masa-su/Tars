@@ -11,6 +11,7 @@ __all__ = [
     'UnitGaussian_sample',
     'Laplace_sample',
     'Gumbel_sample',
+    'Concrete_sample',
 ]
 
 
@@ -264,20 +265,20 @@ class Concrete_sample(Gumbel_sample):
     """
     Concrete distribution
         https://arxiv.org/abs/1611.01144
-        https://arxiv.org/abs/1611.00712    
+        https://arxiv.org/abs/1611.00712
     """
 
-    def __init__(self, temp):
+    def __init__(self, temp=0.1):
         self.temp = temp
 
-    def sample(self, mean):
+    def sample(self, mean, srng):
         output = super(Concrete_sample, self).sample(T.zeros_like(mean),
                                                      T.ones_like(mean), srng)
         output += mean
         return T.nnet.softmax(output / self.temp)
 
     def log_likelihood(self):
-        raise NotImplementedError        
+        raise NotImplementedError
 
 
 def mean_sum_samples(samples):
