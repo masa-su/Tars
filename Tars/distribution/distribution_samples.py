@@ -59,7 +59,7 @@ class Bernoulli_sample(object):
         """
 
         if self.temp != 0:
-            return _gumbel_softmax(mean, srng)
+            return self._gumbel_softmax(mean, srng)
         else:
             return srng.binomial(size=mean.shape, p=mean, dtype=mean.dtype)
 
@@ -70,10 +70,10 @@ class Bernoulli_sample(object):
         https://arxiv.org/abs/1611.00712
         """
 
-        output = self.gambel.sample(T.zeros_like(mean), T.ones_like(mean), srng)
+        output = self.gambel.sample(T.zeros_like(mean), T.ones_like(mean),
+                                    srng)
         output += mean
         return T.nnet.softmax(output / self.temp)
-        
 
     def log_likelihood(self, sample, mean):
         """
@@ -205,7 +205,7 @@ class UnitGaussian_sample(Gaussian_sample):
         return srng.normal(shape)
 
     def log_likelihood(self, samples):
-        super(UnitGaussian_sample, self).log_likelihood(samples, 
+        super(UnitGaussian_sample, self).log_likelihood(samples,
                                                         T.zeros_like(samples),
                                                         T.ones_like(samples))
 
