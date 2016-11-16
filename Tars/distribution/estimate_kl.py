@@ -5,17 +5,26 @@ from ..utils import (
     gauss_gauss_kl,
     epsilon
 )
-
+from .distribution_samples import (
+    UnitGaussian_sample,
+)
 
 def kl_vs_prior(q, x, deterministic=False):
     q_class = q.__class__.__name__
     if q_class == "Gaussian":
         mean, var = q.fprop(x, deterministic=deterministic)
-        return gauss_unitgauss_kl(mean, var)
+        output = gauss_unitgauss_kl(mean, var)
+        return T.sum(output, axis=1)
 
     elif q_class == "Bernoulli":
         mean = q.fprop(x, deterministic=deterministic)
-        return mean * (T.log(mean + epsilon()) + T.log(2))
+        output = mean * (T.log(mean + epsilon()) + T.log(2))
+        return T.sum(output, axis=1)
+
+    elif q_class == "Categorical":
+        mean = q.fprop(x, deterministic=deterministic)
+        output = mean * (T.log(mean + epsilon()) + T.log(q.k))
+        return T.sum(output, axis=1)
 
     raise Exception("You cannot use this distribution as q")
 
@@ -29,3 +38,17 @@ def kl_vs_posterior(q1, q2, x1, x2, deterministic=False):
         return gauss_gauss_kl(mean1, var1, mean2, var2)
 
     raise Exception("You cannot use these distributions as q")
+
+def set_prior(q):
+    q_class = q.__class__.__name__
+    if q_class == "Gaussian":
+        return UnitGaussian_sample()
+
+    elif q_class == "Bernoulli":
+        return UnitGaussian_sample()
+
+    elif q_class == "Categorical":
+        return UnitGaussian_sample()
+
+    raise Exception("You cannot use this distribution as q")
+
