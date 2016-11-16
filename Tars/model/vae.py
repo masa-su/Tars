@@ -5,11 +5,8 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
-from ..utils import (
-    gauss_unitgauss_kl,
-    log_mean_exp
-)
-from ..distribution import UnitGaussian
+from ..utils import log_mean_exp
+from ..distribution.estimate_kl import kl_vs_prior, set_prior
 
 
 class VAE(object):
@@ -29,7 +26,7 @@ class VAE(object):
 
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
-        self.prior = UnitGaussian()
+        self.prior = set_prior(self.q)
 
         if alpha is None:
             self.lowerbound()
@@ -40,9 +37,7 @@ class VAE(object):
         x = self.q.inputs
         annealing_beta = T.fscalar("beta")
 
-        mean, var = self.q.fprop(x, self.srng, deterministic=False)
-        kl = gauss_unitgauss_kl(mean, var).mean()
-
+        kl = kl_vs_prior(self.q, x, deterministic=False).mean()
         z = self.q.sample_given_x(
             x, self.srng, repeat=self.l, deterministic=False)
         inverse_z = self.inverse_samples(z)
@@ -119,7 +114,6 @@ class VAE(object):
                 train_L = self.lowerbound_train(*batch_x + [annealing_beta])
             else:
                 train_L = self.lowerbound_train(*batch_x)
-
             lowerbound_train.append(np.array(train_L))
 
         lowerbound_train = np.mean(lowerbound_train, axis=0)
@@ -185,9 +179,7 @@ class VAE(object):
     def log_marginal_likelihood(self, x, l):
         n_x = x[0].shape[0]
 
-        mean, var = self.q.fprop(x, self.srng, deterministic=True)
-        kl = 0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
-
+        kl = kl_vs_prior(self.q, x, deterministic=True).mean()
         samples = self.q.sample_given_x(
             x, self.srng, repeat=l, deterministic=True)
 
