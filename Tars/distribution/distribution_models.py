@@ -8,7 +8,6 @@ from .distribution_samples import (
     Categorical_sample,
     Gaussian_sample,
     GaussianConstantVar_sample,
-    UnitGaussian_sample,
     Laplace_sample,
 )
 
@@ -174,10 +173,16 @@ class Bernoulli(Bernoulli_sample, Distribution):
 
 class Categorical(Categorical_sample, Distribution):
 
-    def __init__(self, mean_network, given, temp=0.1):
+    def __init__(self, mean_network, given, temp=0.1, n_dim=1):
         Distribution.__init__(self, mean_network, given)
-        super(Categorical, self).__init__(temp)
+        super(Categorical, self).__init__(temp, n_dim)
+        self.k = None
 
+    def fprop(self, x, *args, **kwargs):
+        mean = Distribution.fprop(self, x, *args, **kwargs)
+        self.k = mean.shape[-1]
+        mean = mean.reshape((-1, self.n_dim*self.k))
+        return mean
 
 class Gaussian(Gaussian_sample, Distribution_double):
 
@@ -190,12 +195,6 @@ class GaussianConstantVar(GaussianConstantVar_sample, Deterministic):
     def __init__(self, mean_network, given, var=1):
         Deterministic.__init__(self, mean_network, given)
         super(GaussianConstantVar, self).__init__(var)
-
-
-class UnitGaussian(UnitGaussian_sample):
-
-    def __init__(self):
-        pass
 
 
 class Laplace(Laplace_sample, Distribution_double):
