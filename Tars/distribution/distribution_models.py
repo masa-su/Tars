@@ -1,3 +1,5 @@
+import numpy as np
+import theano.tensor as T
 import lasagne
 from abc import ABCMeta, abstractmethod
 
@@ -222,5 +224,34 @@ class Laplace(Laplace_sample, Distribution_double):
 
 class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
 
-    def __init__(self, a_network, b_network, given):
+    def __init__(self, a_network, b_network, given, stick_breaking=True):
         Distribution_double.__init__(self, a_network, b_network, given)
+        self.stick_breaking = stick_breaking
+
+    def sample_given_x(self, x, srng, repeat=1, **kwargs):
+        [x, v] = super(Kumaraswamy, self).sample_given_x(x, srng,
+                                                         repeat=repeat,
+                                                         **kwargs)
+        if self.stick_breaking:
+            v = self._stick_breaking_process(v)
+        return [x, v]
+
+    def _stick_breaking_process(self, v):
+        (n_batch, n_dim) = v.shape
+
+        def segment(v, stick_segment, remaining_stick):
+            stick_segment = v * remaining_stick
+            remaining_stick *= (1 - v)
+            return stick_segment, remaining_stick
+
+        stick_segment = T.zeros((n_batch,))
+        remaining_stick = T.ones((n_batch,))
+
+        (stick_segments, remaining_sticks), updates\
+            = theano.scan(fn=segment,
+                          sequences=v.T[:-1],
+                          outputs_info=[stick_segment, remaining_stick])
+
+        return T.concatenate([stick_segments.T,
+                              remaining_sticks[-1, :][:, np.newaxis]],
+                             axis=1)
