@@ -187,7 +187,7 @@ class VAE(object):
         log_iw = self.p.log_likelihood_given_x(inverse_samples,
                                                deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, l))
-        log_marginal_estimate = kl + T.mean(log_iw_matrix, axis=1)
+        log_marginal_estimate = -kl + T.mean(log_iw_matrix, axis=1)
 
         return log_marginal_estimate
 
