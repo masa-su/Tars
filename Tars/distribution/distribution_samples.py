@@ -204,6 +204,27 @@ class UnitBernoulli_sample(Bernoulli_sample):
                                           T.ones_like(samples)*0.5)
 
 
+class UnitCategorical_sample(Categorical_sample):
+    """
+    Unit Categorical distribution
+    """
+    
+    def __init__(self, k):
+        self.k = k
+
+    def sample(self, shape, srng):
+        if self.k == shape[-1]:
+            return super(UnitCategorical_sample,
+                         self).sample(T.ones(shape)/self.k, srng)
+
+        raise ValueError("self.k and shape don't match.")
+
+    def log_likelihood(self, samples):
+        return super(UnitCategorical_sample,
+                     self).log_likelihood(samples,
+                                          T.ones_like(samples)/self.k)
+
+
 class Gaussian_sample(object):
     """
     Gaussian distribution
