@@ -31,6 +31,7 @@ class Distribution(object):
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
+        self.get_output_shape = lasagne.layers.get_output_shape(self.mean_network)
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
@@ -141,6 +142,8 @@ class Distribution_double(Distribution):
     def __init__(self, mean_network, var_network, given):
         super(Distribution_double, self).__init__(mean_network, given)
         self.var_network = var_network
+        if self.get_output_shape != lasagne.layers.get_output_shape(self.var_network):
+            raise ValueError('The output shapes of the two networks do not match.')            
 
     def get_params(self):
         params = super(Distribution_double, self).get_params()
@@ -177,7 +180,7 @@ class Categorical(Categorical_sample, Distribution):
         Distribution.__init__(self, mean_network, given)
         super(Categorical, self).__init__(temp)
         self.n_dim = n_dim
-        self.k = None
+        self.k = self.get_output_shape[-1]
 
     def sample_given_x(self, x, srng, repeat=1, **kwargs):
         if repeat != 1:
@@ -185,13 +188,11 @@ class Categorical(Categorical_sample, Distribution):
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
-        self.k = mean.shape[-1]
         output = self.sample(mean, srng).reshape((-1, self.n_dim*self.k))
         return [x, output]
 
     def fprop(self, x, *args, **kwargs):
         mean = Distribution.fprop(self, x, *args, **kwargs)
-        self.k = mean.shape[-1]
         mean = mean.reshape((-1, self.n_dim*self.k))
         return mean
 
