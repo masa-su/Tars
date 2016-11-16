@@ -66,9 +66,9 @@ class Bernoulli_sample(object):
             return output[:, 0]
         elif output.ndim == 3:
             return output[:, :, 0]
-        else:
-            raise ValueError('Input must be 1-d or 2-d tensor. Got %s' %
-                             mean.ndim)
+
+        raise ValueError('Input must be 1-d or 2-d tensor. Got %s' %
+                         mean.ndim)
 
     def log_likelihood(self, sample, mean):
         """
@@ -121,26 +121,39 @@ class Categorical_sample(object):
            i.e. sample ~ p(x|mean)
         """
 
-        if self.n_dim == 1 and (mean.ndim == 1 or mean.ndim == 2):
-            output = self.concrete.sample(mean, srng)
-            if not onehot:
-                output = T.argmax(output, axis=-1)
-            return output
+        if self.n_dim == 1:
+            if mean.ndim == 1 or mean.ndim == 2:
+                output = self.concrete.sample(mean, srng)
+                if not onehot:
+                    output = T.argmax(output, axis=-1)
+                return output
 
-        elif self.n_dim >= 1 and mean.ndim == 3:
-            if mean.shape[1].eval() == self.n_dim:
-                _shape = mean.shape
-                mean = mean.reshape((_shape[0]*_shape[1], _shape[2]))
-                output = self.concrete.sample(mean, srng).reshape(_shape)
+        elif self.n_dim > 1:
+            if mean.ndim == 2:
+                output = self.concrete.sample(mean,
+                                              srng).reshape((mean.shape[0],
+                                                             self.n_dim,
+                                                             -1))
                 if not onehot:
                     output = T.argmax(output, axis=-1)
                 if flatten:
-                    output = T.flatten(output)
+                    output = T.flatten(output, outdim=2)
                 return output
 
-            raise ValueError('mean.shape[1] is incongruous with n_dim,'
-                             'got mean.shape[1] = %s and n_dim = %s'
-                             % (mean.shape[1].eval(), mean.ndim))
+            elif mean.ndim == 3:
+                if mean.shape[1].eval() == self.n_dim:
+                    _shape = mean.shape
+                    mean = mean.reshape((_shape[0]*_shape[1], _shape[2]))
+                    output = self.concrete.sample(mean, srng).reshape(_shape)
+                    if not onehot:
+                        output = T.argmax(output, axis=-1)
+                    if flatten:
+                        output = T.flatten(output, outdim=2)
+                    return output
+
+                raise ValueError('mean.shape[1] is incongruous with n_dim,'
+                                 'got mean.shape[1] = %s and n_dim = %s'
+                                 % (mean.shape[1].eval(), mean.ndim))
 
         raise ValueError('Wrong input or n_dim.')
 
@@ -359,6 +372,5 @@ def mean_sum_samples(samples):
         return T.sum(T.sum(samples, axis=-1), axis=-1)
     elif n_dim == 2:
         return T.sum(samples, axis=-1)
-    else:
-        raise ValueError("The dim of samples must be any of 2, 3, or 4,"
-                         "got dim %s." % n_dim)
+    raise ValueError("The dim of samples must be any of 2, 3, or 4,"
+                     "got dim %s." % n_dim)
