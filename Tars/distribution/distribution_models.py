@@ -175,14 +175,26 @@ class Categorical(Categorical_sample, Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, n_dim=1):
         Distribution.__init__(self, mean_network, given)
-        super(Categorical, self).__init__(temp, n_dim)
+        super(Categorical, self).__init__(temp)
+        self.n_dim = n_dim
         self.k = None
+
+    def sample_given_x(self, x, srng, repeat=1, **kwargs):
+        if repeat != 1:
+            x = [t_repeat(_x, repeat, axis=0) for _x in x]
+
+        # use fprop of super class
+        mean = Distribution.fprop(self, x, **kwargs)
+        self.k = mean.shape[-1]
+        output = self.sample(mean, srng).reshape((-1, self.n_dim*self.k))
+        return [x, output]
 
     def fprop(self, x, *args, **kwargs):
         mean = Distribution.fprop(self, x, *args, **kwargs)
         self.k = mean.shape[-1]
         mean = mean.reshape((-1, self.n_dim*self.k))
         return mean
+
 
 class Gaussian(Gaussian_sample, Distribution_double):
 

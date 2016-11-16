@@ -129,11 +129,9 @@ class Categorical_sample(object):
     p(x) = \prod mean^x
     """
 
-    def __init__(self, temp=0.1, n_dim=1, k=1):
+    def __init__(self, temp=0.1):
         self.temp = temp
         self.concrete = Concrete_sample(temp)
-        self.n_dim = n_dim
-        self.k = k
 
     def sample(self, mean, srng, onehot=True, flatten=True):
         """
@@ -149,40 +147,23 @@ class Categorical_sample(object):
            i.e. sample ~ p(x|mean)
         """
 
-        if self.n_dim == 1:
-            if mean.ndim == 1 or mean.ndim == 2:
-                output = self.concrete.sample(mean, srng)
-                if not onehot:
-                    output = T.argmax(output, axis=-1)
-                return output
+        if mean.ndim == 1 or mean.ndim == 2:
+            output = self.concrete.sample(mean, srng)
+            if not onehot:
+                output = T.argmax(output, axis=-1)
+            return output
 
-        elif self.n_dim > 1:
-            if mean.ndim == 2:
-                output = self.concrete.sample(mean,
-                                              srng).reshape((mean.shape[0],
-                                                             self.n_dim, -1))
-                if not onehot:
-                    output = T.argmax(output, axis=-1)
-                if flatten:
-                    output = T.flatten(output, outdim=2)
-                return output
-
-            elif mean.ndim == 3:
-                if mean.shape[1].eval() == self.n_dim:
-                    _shape = mean.shape
-                    mean = mean.reshape((_shape[0]*_shape[1], _shape[2]))
-                    output = self.concrete.sample(mean, srng).reshape(_shape)
-                    if not onehot:
-                        output = T.argmax(output, axis=-1)
-                    if flatten:
-                        output = T.flatten(output, outdim=2)
-                    return output
-
-                raise ValueError('mean.shape[1] is incongruous with n_dim,'
-                                 'got mean.shape[1] = %s and n_dim = %s'
-                                 % (mean.shape[1].eval(), mean.ndim))
-
-        raise ValueError('Wrong input or n_dim.')
+        elif mean.ndim == 3:
+            _shape = mean.shape
+            mean = mean.reshape((_shape[0]*_shape[1], _shape[2]))
+            output = self.concrete.sample(mean, srng).reshape(_shape)
+            if not onehot:
+                output = T.argmax(output, axis=-1)
+            if flatten:
+                output = T.flatten(output, outdim=2)
+            return output
+        
+        raise ValueError('Wrong the dimention of input.')
 
     def log_likelihood(self, samples, mean):
         """
