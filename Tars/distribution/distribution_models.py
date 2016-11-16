@@ -9,6 +9,7 @@ from .distribution_samples import (
     Gaussian_sample,
     GaussianConstantVar_sample,
     Laplace_sample,
+    Kumaraswamy_sample,
 )
 
 
@@ -217,3 +218,9 @@ class Laplace(Laplace_sample, Distribution_double):
 
     def __init__(self, mean_network, var_network, given):
         Distribution_double.__init__(self, mean_network, var_network, given)
+
+
+class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
+
+    def __init__(self, a_network, b_network, given):
+        Distribution_double.__init__(self, a_network, b_network, given)

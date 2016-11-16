@@ -382,6 +382,38 @@ class Concrete_sample(Gumbel_sample):
         raise NotImplementedError
 
 
+class Kumaraswamy_sample(object):
+    """
+    Kumaraswamy distribution
+    p(x) = a*b*x^(a-1)(1-x^a)^(b-1)
+    """
+
+    def sample(self, a, b, srng):
+        """
+        Paramaters
+        --------
+        a : Theano variable, the output of a fully connected layer (Softplus)
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
+        eps = srng.uniform(a.shape, low=epsilon(), high=1 - epsilon(),
+                           dtype=a.dtype)
+        return (1 - eps**(1. / b))**(1. / a)
+
+    def log_likelihood(self, samples, a, b):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+        a : Theano variable, the output of a fully connected layer (Softplus)
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+
+        loglike = T.log(a * b + epsilon()) + (a - 1) * T.log(samples + epsilon())\
+            + (b - 1) * T.log(1 - samples**a + epsilon())
+        return self.mean_sum_samples(loglike)
+
+
 def mean_sum_samples(samples):
     n_dim = samples.ndim
     if n_dim == 4:
