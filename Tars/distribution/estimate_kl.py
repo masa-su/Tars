@@ -1,8 +1,10 @@
+import theano
 import theano.tensor as T
 
 from ..utils import (
     gauss_unitgauss_kl,
     gauss_gauss_kl,
+    beta,
     epsilon
 )
 from .distribution_samples import (

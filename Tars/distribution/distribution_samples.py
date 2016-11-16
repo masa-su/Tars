@@ -409,7 +409,8 @@ class Kumaraswamy_sample(object):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        loglike = T.log(a * b + epsilon()) + (a - 1) * T.log(samples + epsilon())\
+        loglike = T.log(a * b + epsilon())\
+            + (a - 1) * T.log(samples + epsilon())\
             + (b - 1) * T.log(1 - samples**a + epsilon())
         return self.mean_sum_samples(loglike)
 
