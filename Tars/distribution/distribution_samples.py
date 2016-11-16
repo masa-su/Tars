@@ -35,6 +35,34 @@ class Deterministic_sample(object):
         raise NotImplementedError
 
 
+class Gumbel_sample(object):
+    """
+    Gumbel distribution
+    """
+
+    def sample(self, mu, beta, srng):
+        U = srng.uniform(mu.shape, low=0, high=1, dtype=mu.dtype)
+        return mu - beta * T.log(-T.log(U + epsilon()) + epsilon())
+
+    def log_likelihood(self, samples, mu, beta):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        mu : Theano variable, the output of a fully connected layer (Linear)
+
+        beta : Theano variable, the output of a fully connected layer
+        (Softplus)
+        """
+
+        # for numerical stability
+        beta += epsilon()
+        z = (samples - mu) / beta
+        loglike = -T.log(beta) - (z + T.exp(-z))
+        return mean_sum_samples(loglike)
+
+
 class Bernoulli_sample(object):
     """
     Bernoulli distribution
@@ -43,7 +71,7 @@ class Bernoulli_sample(object):
 
     def __init__(self, temp=0.1):
         self.temp = temp
-        self.concrete = Concrete_sample(temp)
+        self.gumbel = Gumbel_sample()
 
     def sample(self, mean, srng):
         """
@@ -59,16 +87,15 @@ class Bernoulli_sample(object):
            i.e. sample ~ p(x|mean)
         """
 
-        mean = T.stack([mean, 1-mean], axis=-1)
-        output = self.concrete.sample(mean, srng)
+        if self.temp != 0:
+            z1 = self.gumbel.sample(T.zeros_like(mean), T.ones_like(mean), srng)
+            z0 = self.gumbel.sample(T.zeros_like(mean), T.ones_like(mean), srng)
+            z1 += T.log(mean + epsilon())
+            z0 += T.log(1-mean + epsilon())
 
-        if output.ndim == 2:
-            return output[:, 0]
-        elif output.ndim == 3:
-            return output[:, :, 0]
+            return T.nnet.sigmoid((z1-z0) / self.temp)
 
-        raise ValueError('Input must be 1-d or 2-d tensor. Got %s' %
-                         mean.ndim)
+        raise NotImplementedError
 
     def log_likelihood(self, sample, mean):
         """
@@ -102,10 +129,11 @@ class Categorical_sample(object):
     p(x) = \prod mean^x
     """
 
-    def __init__(self, temp=0.1, n_dim=1):
+    def __init__(self, temp=0.1, n_dim=1, k=1):
         self.temp = temp
         self.concrete = Concrete_sample(temp)
         self.n_dim = n_dim
+        self.k = k
 
     def sample(self, mean, srng, onehot=True, flatten=True):
         """
@@ -132,8 +160,7 @@ class Categorical_sample(object):
             if mean.ndim == 2:
                 output = self.concrete.sample(mean,
                                               srng).reshape((mean.shape[0],
-                                                             self.n_dim,
-                                                             -1))
+                                                             self.n_dim, -1))
                 if not onehot:
                     output = T.argmax(output, axis=-1)
                 if flatten:
@@ -292,35 +319,6 @@ class Laplace_sample(object):
         b += epsilon()
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return mean_sum_samples(loglike)
-
-
-class Gumbel_sample(object):
-    """
-    Gumbel distribution
-    """
-
-    def sample(self, mu, beta, srng):
-        U = srng.uniform(mu.shape, low=0, high=1, dtype=mu.dtype)
-        return mu - beta * T.log(-T.log(U + epsilon()) + epsilon())
-
-    def log_likelihood(self, samples, mu, beta):
-        """
-        Paramaters
-        --------
-        sample : Theano variable
-
-        mu : Theano variable, the output of a fully connected layer (Linear)
-
-        beta : Theano variable, the output of a fully connected layer
-        (Softplus)
-        """
-
-        # for numerical stability
-        beta += epsilon()
-        z = (samples - mu) / beta
-        loglike = -T.log(beta) - (z + T.exp(-z))
-        return mean_sum_samples(loglike)
-
 
 class Concrete_sample(Gumbel_sample):
     """
