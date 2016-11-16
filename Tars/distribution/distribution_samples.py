@@ -93,7 +93,7 @@ class Bernoulli_sample(object):
             z1 += T.log(mean + epsilon())
             z0 += T.log(1-mean + epsilon())
 
-            return T.nnet.sigmoid((z1-z0) / self.temp)
+            return T.nnet.sigmoid((z1 - z0) / self.temp)
 
         raise NotImplementedError
 
@@ -206,6 +206,21 @@ class Categorical_sample(object):
         # For numerical stability
         loglike = samples * T.log(mean + epsilon())
         return mean_sum_samples(loglike)
+
+
+class UnitBernoulli_sample(Bernoulli_sample):
+    """
+    Unit bernoulli distribution
+    """
+
+    def sample(self, shape, srng):
+        return super(UnitBernoulli_sample,
+                     self).sample(T.ones(shape)*0.5, srng)
+
+    def log_likelihood(self, samples):
+        return super(UnitBernoulli_sample,
+                     self).log_likelihood(samples,
+                                          T.ones_like(samples)*0.5)
 
 
 class Gaussian_sample(object):

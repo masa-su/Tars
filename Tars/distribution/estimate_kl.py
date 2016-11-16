@@ -7,6 +7,7 @@ from ..utils import (
 )
 from .distribution_samples import (
     UnitGaussian_sample,
+    UnitBernoulli_sample,
 )
 
 def kl_vs_prior(q, x, deterministic=False):
@@ -18,7 +19,8 @@ def kl_vs_prior(q, x, deterministic=False):
 
     elif q_class == "Bernoulli":
         mean = q.fprop(x, deterministic=deterministic)
-        output = mean * (T.log(mean + epsilon()) + T.log(2))
+        output = mean * (T.log(mean + epsilon()) + T.log(2)) +\
+                 (1- mean) * (T.log(1 - mean + epsilon()) + T.log(2))
         return T.sum(output, axis=1)
 
     elif q_class == "Categorical":
@@ -45,10 +47,9 @@ def set_prior(q):
         return UnitGaussian_sample()
 
     elif q_class == "Bernoulli":
-        return UnitGaussian_sample()
+        return UnitBernoulli_sample()
 
     elif q_class == "Categorical":
         return UnitGaussian_sample()
 
     raise Exception("You cannot use this distribution as q")
-
