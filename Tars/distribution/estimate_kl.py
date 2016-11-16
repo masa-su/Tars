@@ -30,6 +30,29 @@ def kl_vs_prior(q, x, deterministic=False):
         output = mean * (T.log(mean + epsilon()) + T.log(q.k))
         return T.sum(output, axis=1)
 
+    elif q_class == "Kumaraswamy":
+        # Kumaraswamy and beta
+        prior_alpha = 1.
+        prior_beta = 5.
+        m = 10
+        gamma = 0.57721
+
+        a, b = q.fprop(x, deterministic=deterministic)
+
+        def taylor(i, a, b):
+            return 1. / (i + a * b) * beta(1 / a, b)
+        kl, updates = theano.scan(fn=taylor,
+                                  sequences=T.arange(m),
+                                  non_sequences=[a, b])
+        kl *= (prior_beta - 1) * b
+
+        # Because T.psi haven't implemented yet.
+        psi = T.log(b) - 1. / (2 * b) - 1. / (12 * b**2)
+        kl += (a - prior_alpha) / a * (-gamma - psi - 1 / b)
+        kl += T.log(a * b) + T.log(beta(prior_alpha, prior_beta))
+        kl += -(b - 1) / b
+        return T.sum(kl, axis=1)
+
     raise Exception("You cannot use this distribution as q")
 
 
