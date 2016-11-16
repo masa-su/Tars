@@ -88,10 +88,12 @@ class Bernoulli_sample(object):
         """
 
         if self.temp != 0:
-            z1 = self.gumbel.sample(T.zeros_like(mean), T.ones_like(mean), srng)
-            z0 = self.gumbel.sample(T.zeros_like(mean), T.ones_like(mean), srng)
+            z1 = self.gumbel.sample(T.zeros_like(mean),
+                                    T.ones_like(mean), srng)
+            z0 = self.gumbel.sample(T.zeros_like(mean),
+                                    T.ones_like(mean), srng)
             z1 += T.log(mean + epsilon())
-            z0 += T.log(1-mean + epsilon())
+            z0 += T.log(1 - mean + epsilon())
 
             return T.nnet.sigmoid((z1 - z0) / self.temp)
 
@@ -155,14 +157,14 @@ class Categorical_sample(object):
 
         elif mean.ndim == 3:
             _shape = mean.shape
-            mean = mean.reshape((_shape[0]*_shape[1], _shape[2]))
+            mean = mean.reshape((_shape[0] * _shape[1], _shape[2]))
             output = self.concrete.sample(mean, srng).reshape(_shape)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             if flatten:
                 output = T.flatten(output, outdim=2)
             return output
-        
+
         raise ValueError('Wrong the dimention of input.')
 
     def log_likelihood(self, samples, mean):
@@ -196,33 +198,33 @@ class UnitBernoulli_sample(Bernoulli_sample):
 
     def sample(self, shape, srng):
         return super(UnitBernoulli_sample,
-                     self).sample(T.ones(shape)*0.5, srng)
+                     self).sample(T.ones(shape) * 0.5, srng)
 
     def log_likelihood(self, samples):
         return super(UnitBernoulli_sample,
                      self).log_likelihood(samples,
-                                          T.ones_like(samples)*0.5)
+                                          T.ones_like(samples) * 0.5)
 
 
 class UnitCategorical_sample(Categorical_sample):
     """
     Unit Categorical distribution
     """
-    
+
     def __init__(self, k):
         self.k = k
 
     def sample(self, shape, srng):
         if self.k == shape[-1]:
             return super(UnitCategorical_sample,
-                         self).sample(T.ones(shape)/self.k, srng)
+                         self).sample(T.ones(shape) / self.k, srng)
 
         raise ValueError("self.k and shape don't match.")
 
     def log_likelihood(self, samples):
         return super(UnitCategorical_sample,
                      self).log_likelihood(samples,
-                                          T.ones_like(samples)/self.k)
+                                          T.ones_like(samples) / self.k)
 
 
 class Gaussian_sample(object):
@@ -276,8 +278,8 @@ class GaussianConstantVar_sample(Gaussian_sample):
     def log_likelihood(self, samples, mean):
         return super(GaussianConstantVar_sample,
                      self).log_likelihood(samples, mean,
-                                          T.ones_like(samples)
-                                          * self.constant_var)
+                                          T.ones_like(samples) *
+                                          self.constant_var)
 
 
 class UnitGaussian_sample(Gaussian_sample):
@@ -337,6 +339,7 @@ class Laplace_sample(object):
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return mean_sum_samples(loglike)
 
+
 class Concrete_sample(Gumbel_sample):
     """
     Concrete distribution (Gumbel-softmax)
@@ -367,7 +370,7 @@ class Concrete_sample(Gumbel_sample):
                 return T.nnet.softmax(output / self.temp)
             elif output.ndim == 3:
                 _shape = output.shape
-                output = output.reshape((_shape[0]*_shape[1], _shape[2]))
+                output = output.reshape((_shape[0] * _shape[1], _shape[2]))
                 return T.nnet.softmax(output / self.temp).reshape(_shape)
 
             raise ValueError('Input must be 1-d, 2-d or 3-d tensor. Got %s' %
