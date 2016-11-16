@@ -94,7 +94,7 @@ class Concatenate(object):
         for d in enumerate(self.distributions):
             output_dim = d.get_output_shape()[-1]
             loglikes += d.log_likelihood_given_x(
-                [x, sample[:, start:start+output_dim]],
+                [x, sample[:, start:start + output_dim]],
                 **kwargs)
             start += output_dim
         return loglikes
