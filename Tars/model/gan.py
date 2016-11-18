@@ -32,18 +32,18 @@ class GAN(object):
             beta1=beta1)
 
         self.p_train = theano.function(
-            inputs=z[:1]+x,
+            inputs=z[:1] + x,
             outputs=[p_loss, d_loss],
             updates=p_updates,
             on_unused_input='ignore')
         self.d_train = theano.function(
-            inputs=z[:1]+x,
+            inputs=z[:1] + x,
             outputs=[p_loss, d_loss],
             updates=d_updates, on_unused_input='ignore')
 
         p_loss, d_loss = self.loss(z, x, True)
         self.test = theano.function(
-            inputs=z[:1]+x,
+            inputs=z[:1] + x,
             outputs=[p_loss, d_loss],
             on_unused_input='ignore')
 
@@ -56,7 +56,7 @@ class GAN(object):
             x, deterministic=deterministic)[-1]
         # gt~d(t|gx,y,...)
         gt = self.d.sample_mean_given_x(
-            [gx]+x[1:], deterministic=deterministic)[-1]
+            [gx] + x[1:], deterministic=deterministic)[-1]
         # -log(t)
         d_loss = -self.d.log_likelihood(T.ones_like(t), t).mean()
         # -log(1-gt)
@@ -83,7 +83,7 @@ class GAN(object):
                                   size=(len(batch_x[0]), n_z)
                                   ).astype(np.float32)
             batch_zx = [batch_z] + batch_x
-            if i % (freq+1) == 0:
+            if i % (freq + 1) == 0:
                 train_L = self.p_train(*batch_zx)
             else:
                 train_L = self.d_train(*batch_zx)
