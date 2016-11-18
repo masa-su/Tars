@@ -48,7 +48,7 @@ class GAN(object):
             on_unused_input='ignore')
 
     def loss(self, z, x, deterministic=False):
-        # x~p(x|z,y,...)
+        # gx~p(x|z,y,...)
         gx = self.p.sample_mean_given_x(
             z, deterministic=deterministic)[-1]
         # t~d(t|x,y,...)

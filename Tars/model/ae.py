@@ -1,6 +1,5 @@
 import numpy as np
 import theano
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from progressbar import ProgressBar
 
 
@@ -13,7 +12,7 @@ class AE(object):
         self.optimizer = optimizer
 
         np.random.seed(random)
-        self.srng = RandomStreams(seed=random)
+        self.seed = random
 
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
