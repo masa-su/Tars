@@ -434,15 +434,15 @@ class UnitBeta_sample(object):
         raise NotImplementedError
 
     def log_likelihood(self, samples):
-        output = -T.log(_beta(self.alpha, self.beta) + epsilon())
+        output = -T.log(self._beta(self.alpha, self.beta) + epsilon())
         output += (self.alpha - 1) * samples
         output += (self.beta - 1) * (1 - samples)
         return output
 
-    def _beta(a, b):
+    def _beta_func(a, b):
         return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
 
-        
+
 def mean_sum_samples(samples):
     n_dim = samples.ndim
     if n_dim == 4:
