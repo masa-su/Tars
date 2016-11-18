@@ -421,6 +421,28 @@ class Kumaraswamy_sample(object):
         return self.mean_sum_samples(loglike)
 
 
+class UnitBeta_sample(object):
+    """
+    Unit Beta distribution
+    """
+
+    def __init__(self, alpha=1., beta=5.):
+        self.alpha = alpha
+        self.beta = beta
+
+    def sample(self, shape, srng):
+        raise NotImplementedError
+
+    def log_likelihood(self, samples):
+        output = -T.log(_beta(self.alpha, self.beta) + epsilon())
+        output += (self.alpha - 1) * samples
+        output += (self.beta - 1) * (1 - samples)
+        return output
+
+    def _beta(a, b):
+        return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
+
+        
 def mean_sum_samples(samples):
     n_dim = samples.ndim
     if n_dim == 4:
