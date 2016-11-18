@@ -155,7 +155,8 @@ class VAE(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x, seed=self.seed, deterministic=True)
+        samples = self.p.sample_mean_given_x(x, seed=self.seed,
+                                             deterministic=True)
         self.p_sample_mean_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
@@ -169,7 +170,8 @@ class VAE(object):
 
     def q_sample_mean_given_x(self):
         x = self.q.inputs
-        samples = self.q.sample_mean_given_x(x, seed=self.seed, deterministic=True)
+        samples = self.q.sample_mean_given_x(x, seed=self.seed,
+                                             deterministic=True)
         self.q_sample_mean_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 

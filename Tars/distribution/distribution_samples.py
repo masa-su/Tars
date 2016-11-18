@@ -43,7 +43,8 @@ class Gumbel_sample(object):
     """
 
     def sample(self, mu, beta, seed=1):
-        U = RandomStreams(seed=seed).uniform(mu.shape, low=0, high=1, dtype=mu.dtype)
+        U = RandomStreams(seed=seed).uniform(mu.shape,
+                                             low=0, high=1, dtype=mu.dtype)
         return mu - beta * T.log(-T.log(U + epsilon()) + epsilon())
 
     def log_likelihood(self, samples, mu, beta):
@@ -327,7 +328,9 @@ class Laplace_sample(object):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        U = RandomStreams(seed=seed).uniform(mean.shape, low=-0.5, high=0.5, dtype=mean.dtype)
+        U = RandomStreams(seed=seed).uniform(mean.shape,
+                                             low=-0.5, high=0.5,
+                                             dtype=mean.dtype)
         return mean - b * T.sgn(U) * T.log(1 - 2 * abs(U))
 
     def log_likelihood(self, samples, mean, b):
@@ -403,7 +406,9 @@ class Kumaraswamy_sample(object):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = RandomStreams(seed=seed).uniform(a.shape, low=epsilon(), high=1 - epsilon(),
+        eps = RandomStreams(seed=seed).uniform(a.shape,
+                                               low=epsilon(),
+                                               high=1 - epsilon(),
                                                dtype=a.dtype)
         return (1 - eps**(1. / b))**(1. / a)
 
