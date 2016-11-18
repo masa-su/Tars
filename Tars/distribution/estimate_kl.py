@@ -14,25 +14,31 @@ from .distribution_samples import (
 )
 
 
-def kl_vs_prior(q, x, deterministic=False):
-    q_class = q.__class__.__name__
-    if q_class == "Gaussian":
+def analytical_kl(q1, q2, given=[x1, x2], deterministic=False):
+    q1_class = q1.__class__.__name__
+    q2_class = q2.__class__.__name__
+    if q1_class == "Gaussian" and q2_class == "UnitGaussian_sample":
         mean, var = q.fprop(x, deterministic=deterministic)
         output = gauss_unitgauss_kl(mean, var)
         return T.sum(output, axis=1)
 
-    elif q_class == "Bernoulli":
+    if q1_class == "Gaussian" and q2_class == "Gaussian":
+        mean1, var1 = q1.fprop(x1, deterministic=deterministic)
+        mean2, var2 = q2.fprop(x2, deterministic=deterministic)
+        return gauss_gauss_kl(mean1, var1, mean2, var2)
+
+    elif q1_class == "Bernoulli" and q2_class == "UnitBernoulli_sample"
         mean = q.fprop(x, deterministic=deterministic)
         output = mean * (T.log(mean + epsilon()) + T.log(2)) +\
             (1 - mean) * (T.log(1 - mean + epsilon()) + T.log(2))
         return T.sum(output, axis=1)
 
-    elif q_class == "Categorical":
+    elif q1_class == "Categorical" and q2_class == "UnitCategorical_sample"
         mean = q.fprop(x, deterministic=deterministic)
         output = mean * (T.log(mean + epsilon()) + T.log(q.k))
         return T.sum(output, axis=1)
 
-    elif q_class == "Kumaraswamy":
+    elif q_class == "Kumaraswamy" and "beta_sample":
         # Kumaraswamy and beta
         prior_alpha = 1.
         prior_beta = 5.
@@ -56,17 +62,6 @@ def kl_vs_prior(q, x, deterministic=False):
         return T.sum(kl, axis=1)
 
     raise Exception("You cannot use this distribution as q")
-
-
-def kl_vs_posterior(q1, q2, x1, x2, deterministic=False):
-    q1_class = q1.__class__.__name__
-    q2_class = q2.__class__.__name__
-    if q1_class == "Gaussian" and q2_class == "Gaussian":
-        mean1, var1 = q1.fprop(x1, deterministic=deterministic)
-        mean2, var2 = q2.fprop(x2, deterministic=deterministic)
-        return gauss_gauss_kl(mean1, var1, mean2, var2)
-
-    raise Exception("You cannot use these distributions as q")
 
 
 def set_prior(q):

@@ -2,19 +2,25 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+import lasagne
 from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
 from ..utils import log_mean_exp
-from ..distribution.estimate_kl import kl_vs_prior, set_prior
+from ..distribution.estimate_kl import analytical_kl, set_prior
 
 
 class VAE(object):
 
-    def __init__(self, q, p, n_batch, optimizer,
+    def __init__(self, q, p, prior=None,
+                 n_batch=100, optimizer=lasagne.updates.adam,
                  l=1, k=1, alpha=None, random=1234):
         self.q = q
         self.p = p
+        if prior:
+            self.prior = prior
+        else:
+            self.prior = set_prior(self.q)
         self.n_batch = n_batch
         self.optimizer = optimizer
         self.l = l
@@ -26,7 +32,6 @@ class VAE(object):
 
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
-        self.prior = set_prior(self.q)
 
         if alpha is None:
             self.lowerbound()
@@ -37,7 +42,8 @@ class VAE(object):
         x = self.q.inputs
         annealing_beta = T.fscalar("beta")
 
-        kl = kl_vs_prior(self.q, x, deterministic=False).mean()
+        kl = analytical_kl(self.q, self.prior,
+                           given=[x, None], deterministic=False).mean()
         z = self.q.sample_given_x(
             x, self.srng, repeat=self.l, deterministic=False)
         inverse_z = self.inverse_samples(z)
