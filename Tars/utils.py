@@ -43,6 +43,10 @@ def gauss_gauss_kl(mean1, var1, mean2, var2):
     return 0.5 * T.sum(_kl, axis=1)
 
 
+def beta(a, b):
+    return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
+
+
 # https://github.com/yburda/iwae/blob/master/utils.py
 def t_repeat(x, num_repeats, axis):
     """

@@ -64,6 +64,27 @@ def analytical_kl(q1, q2, given=[x1, x2], deterministic=False):
     raise Exception("You cannot use this distribution as q")
 
 
+def gaussian_like(x, mean, var):
+    c = - 0.5 * math.log(2 * math.pi)
+    _var = var + epsilon()  # avoid NaN
+    return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
+
+
+def gauss_unitgauss_kl(mean, var):
+    return -0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
+
+
+def gauss_gauss_kl(mean1, var1, mean2, var2):
+    _var2 = var2 + epsilon()  # avoid NaN
+    _kl = T.log(var2) - T.log(var1) \
+        + (var1 + (mean1 - mean2)**2) / _var2 - 1
+    return 0.5 * T.sum(_kl, axis=1)
+
+
+def beta(a, b):
+    return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
+
+
 def set_prior(q):
     q_class = q.__class__.__name__
     if q_class == "Gaussian":
