@@ -77,7 +77,7 @@ class Distribution(object):
 
         return lasagne.layers.get_output_shape(self.mean_network)
 
-    def sample_given_x(self, x, srng, repeat=1, **kwargs):
+    def sample_given_x(self, x, seed=1, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -85,7 +85,7 @@ class Distribution(object):
            This contains Theano variables, which must to correspond
            to 'given'.
 
-        srng : theano.sandbox.MRG_RandomStreams
+        seed : int or thenao variable
 
         repeat : int or thenao variable
 
@@ -97,7 +97,7 @@ class Distribution(object):
         if repeat != 1:
             x = [t_repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean) + [srng])]
+        return [x, self.sample(*tolist(mean) + [seed])]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -159,7 +159,7 @@ class Distribution_double(Distribution):
         params = sorted(set(params), key=params.index)
         return params
 
-    def fprop(self, x, srng=None, deterministic=False):
+    def fprop(self, x, seed=1, deterministic=False):
         mean = super(Distribution_double,
                      self).fprop(x, deterministic=deterministic)
         inputs = dict(zip(self.given, x))
@@ -189,13 +189,13 @@ class Categorical(Categorical_sample, Distribution):
         self.n_dim = n_dim
         self.k = self.get_output_shape[-1]
 
-    def sample_given_x(self, x, srng, repeat=1, **kwargs):
+    def sample_given_x(self, x, seed=1, repeat=1, **kwargs):
         if repeat != 1:
             x = [t_repeat(_x, repeat, axis=0) for _x in x]
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
-        output = self.sample(mean, srng).reshape((-1, self.n_dim * self.k))
+        output = self.sample(mean, seed).reshape((-1, self.n_dim * self.k))
         return [x, output]
 
     def fprop(self, x, *args, **kwargs):
@@ -229,8 +229,8 @@ class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
         Distribution_double.__init__(self, a_network, b_network, given)
         self.stick_breaking = stick_breaking
 
-    def sample_given_x(self, x, srng, repeat=1, **kwargs):
-        [x, v] = super(Kumaraswamy, self).sample_given_x(x, srng,
+    def sample_given_x(self, x, seed=1, repeat=1, **kwargs):
+        [x, v] = super(Kumaraswamy, self).sample_given_x(x, seed,
                                                          repeat=repeat,
                                                          **kwargs)
         if self.stick_breaking:
