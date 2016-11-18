@@ -22,8 +22,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
     q2_class = q2.__class__.__name__
     if q1_class == "Gaussian" and q2_class == "UnitGaussian_sample":
         mean, var = q1.fprop(x1, deterministic=deterministic)
-        output = gauss_unitgauss_kl(mean, var)
-        return T.sum(output, axis=1)
+        return gauss_unitgauss_kl(mean, var)
 
     if q1_class == "Gaussian" and q2_class == "Gaussian":
         mean1, var1 = q1.fprop(x1, deterministic=deterministic)

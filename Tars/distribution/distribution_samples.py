@@ -261,7 +261,7 @@ class Gaussian_sample(object):
         loglike = self._gaussian_like(samples, mean, var)
         return mean_sum_samples(loglike)
 
-    def _gaussian_like(x, mean, var):
+    def _gaussian_like(self, x, mean, var):
         c = - 0.5 * math.log(2 * math.pi)
         _var = var + epsilon()  # avoid NaN
         return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
@@ -439,7 +439,7 @@ class UnitBeta_sample(object):
         output += (self.beta - 1) * (1 - samples)
         return output
 
-    def _beta_func(a, b):
+    def _beta_func(self, a, b):
         return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
 
 
