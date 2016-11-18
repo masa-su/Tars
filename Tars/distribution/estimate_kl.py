@@ -1,12 +1,7 @@
 import theano
 import theano.tensor as T
 
-from ..utils import (
-    gauss_unitgauss_kl,
-    gauss_gauss_kl,
-    beta,
-    epsilon
-)
+from ..utils import  epsilon
 from .distribution_samples import (
     UnitGaussian_sample,
     UnitBernoulli_sample,

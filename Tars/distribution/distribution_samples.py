@@ -1,6 +1,7 @@
+import math
 import theano.tensor as T
 
-from ..utils import gaussian_like, epsilon
+from ..utils import epsilon
 
 __all__ = [
     'Deterministic_sample',
@@ -257,8 +258,13 @@ class Gaussian_sample(object):
         var : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        loglike = gaussian_like(samples, mean, var)
+        loglike = self._gaussian_like(samples, mean, var)
         return mean_sum_samples(loglike)
+
+    def _gaussian_like(x, mean, var):
+        c = - 0.5 * math.log(2 * math.pi)
+        _var = var + epsilon()  # avoid NaN
+        return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
 
 
 class GaussianConstantVar_sample(Gaussian_sample):
