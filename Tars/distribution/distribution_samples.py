@@ -16,8 +16,15 @@ __all__ = [
     'Concrete_sample',
 ]
 
+class Distribution_sample(object):
+    def __init__(self, seed=1, **kwargs):
+        self.srng = RandomStreams(seed)
+        
+    def set_seed(self, seed=1):
+        self.srng = RandomStreams(seed)
 
-class Deterministic_sample(object):
+
+class Deterministic_sample(Distribution_sample):
     """
     Deterministic function
     p(x) = f(x)
@@ -37,14 +44,14 @@ class Deterministic_sample(object):
         raise NotImplementedError
 
 
-class Gumbel_sample(object):
+class Gumbel_sample(Distribution_sample):
     """
     Gumbel distribution
     """
 
-    def sample(self, mu, beta, seed=1):
-        U = RandomStreams(seed=seed).uniform(mu.shape,
-                                             low=0, high=1, dtype=mu.dtype)
+    def sample(self, mu, beta):
+        U = self.srng.uniform(mu.shape,
+                              low=0, high=1, dtype=mu.dtype)
         return mu - beta * T.log(-T.log(U + epsilon()) + epsilon())
 
     def log_likelihood(self, samples, mu, beta):
@@ -66,17 +73,18 @@ class Gumbel_sample(object):
         return mean_sum_samples(loglike)
 
 
-class Bernoulli_sample(object):
+class Bernoulli_sample(Distribution_sample):
     """
     Bernoulli distribution
     p(x) = mean^x * (1-mean)^(1-x)
     """
 
-    def __init__(self, temp=0.1):
+    def __init__(self, temp=0.1, seed=1):
+        super(Bernoulli_sample, self).__init__(seed=seed)
         self.temp = temp
-        self.gumbel = Gumbel_sample()
+        self.gumbel = Gumbel_sample(seed=seed)
 
-    def sample(self, mean, seed=1):
+    def sample(self, mean):
         """
         Paramaters
         --------
@@ -92,9 +100,9 @@ class Bernoulli_sample(object):
 
         if self.temp != 0:
             z1 = self.gumbel.sample(T.zeros_like(mean),
-                                    T.ones_like(mean), seed=seed)
+                                    T.ones_like(mean))
             z0 = self.gumbel.sample(T.zeros_like(mean),
-                                    T.ones_like(mean), seed=seed)
+                                    T.ones_like(mean))
             z1 += T.log(mean + epsilon())
             z0 += T.log(1 - mean + epsilon())
 
@@ -128,17 +136,18 @@ class Bernoulli_sample(object):
         return mean_sum_samples(loglike)
 
 
-class Categorical_sample(object):
+class Categorical_sample(Distribution_sample):
     """
     Categorical distribution
     p(x) = \prod mean^x
     """
 
-    def __init__(self, temp=0.1):
+    def __init__(self, temp=0.1, seed=1):
+        super(Categorical_sample, self).__init__(seed=seed)
         self.temp = temp
         self.concrete = Concrete_sample(temp)
 
-    def sample(self, mean, seed=1, onehot=True, flatten=True):
+    def sample(self, mean, onehot=True, flatten=True):
         """
         Paramaters
         --------
@@ -153,7 +162,7 @@ class Categorical_sample(object):
         """
 
         if mean.ndim == 1 or mean.ndim == 2:
-            output = self.concrete.sample(mean, seed=seed)
+            output = self.concrete.sample(mean)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             return output
@@ -161,7 +170,7 @@ class Categorical_sample(object):
         elif mean.ndim == 3:
             _shape = mean.shape
             mean = mean.reshape((_shape[0] * _shape[1], _shape[2]))
-            output = self.concrete.sample(mean, seed=seed).reshape(_shape)
+            output = self.concrete.sample(mean).reshape(_shape)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             if flatten:
@@ -199,9 +208,9 @@ class UnitBernoulli_sample(Bernoulli_sample):
     Unit bernoulli distribution
     """
 
-    def sample(self, shape, seed=1):
+    def sample(self, shape):
         return super(UnitBernoulli_sample,
-                     self).sample(T.ones(shape) * 0.5, seed=seed)
+                     self).sample(T.ones(shape) * 0.5)
 
     def log_likelihood(self, samples):
         return super(UnitBernoulli_sample,
@@ -217,10 +226,10 @@ class UnitCategorical_sample(Categorical_sample):
     def __init__(self, k):
         self.k = k
 
-    def sample(self, shape, seed=1):
+    def sample(self, shape):
         if self.k == shape[-1]:
             return super(UnitCategorical_sample,
-                         self).sample(T.ones(shape) / self.k, seed=seed)
+                         self).sample(T.ones(shape) / self.k)
 
         raise ValueError("self.k and shape don't match.")
 
@@ -230,13 +239,13 @@ class UnitCategorical_sample(Categorical_sample):
                                           T.ones_like(samples) / self.k)
 
 
-class Gaussian_sample(object):
+class Gaussian_sample(Distribution_sample):
     """
     Gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
 
-    def sample(self, mean, var, seed=1):
+    def sample(self, mean, var):
         """
         Paramaters
         ----------
@@ -246,7 +255,7 @@ class Gaussian_sample(object):
         var : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = RandomStreams(seed=seed).normal(mean.shape, dtype=mean.dtype)
+        eps = self.srng.normal(mean.shape, dtype=mean.dtype)
         return mean + T.sqrt(var) * eps
 
     def log_likelihood(self, samples, mean, var):
@@ -275,7 +284,8 @@ class GaussianConstantVar_sample(Gaussian_sample):
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
 
-    def __init__(self, var=1):
+    def __init__(self, var=1, seed=1):
+        super(GaussianConstantVar_sample, self).__init__(seed=seed)
         self.constant_var = var
 
     def sample(self, samples, mean):
@@ -296,7 +306,7 @@ class UnitGaussian_sample(Gaussian_sample):
     p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{x^2}{2}}
     """
 
-    def sample(self, shape, seed=1):
+    def sample(self, shape):
         """
         Paramaters
         --------
@@ -304,7 +314,7 @@ class UnitGaussian_sample(Gaussian_sample):
            sets a shape of the output sample
         """
 
-        return RandomStreams(seed=seed).normal(shape)
+        return self.srng.normal(shape)
 
     def log_likelihood(self, samples):
         return super(UnitGaussian_sample,
@@ -313,13 +323,13 @@ class UnitGaussian_sample(Gaussian_sample):
                                           T.ones_like(samples))
 
 
-class Laplace_sample(object):
+class Laplace_sample(Distribution_sample):
     """
     Laplace distribution
     p(x) = \frac{1}{\sqrt{2*\phi}} * exp{-\frac{|x-mean|}{\phi}}
     """
 
-    def sample(self, mean, b, seed=1):
+    def sample(self, mean, b):
         """
         Paramaters
         --------
@@ -328,7 +338,7 @@ class Laplace_sample(object):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        U = RandomStreams(seed=seed).uniform(mean.shape,
+        U = self.srng.uniform(mean.shape,
                                              low=-0.5, high=0.5,
                                              dtype=mean.dtype)
         return mean - b * T.sgn(U) * T.log(1 - 2 * abs(U))
@@ -358,9 +368,10 @@ class Concrete_sample(Gumbel_sample):
     """
 
     def __init__(self, temp=0.1):
+        super(Concrete_sample, self).__init__(seed=seed)
         self.temp = temp
 
-    def sample(self, mean, seed=1):
+    def sample(self, mean):
         """
         Paramaters
         --------
@@ -392,13 +403,13 @@ class Concrete_sample(Gumbel_sample):
         raise NotImplementedError
 
 
-class Kumaraswamy_sample(object):
+class Kumaraswamy_sample(Distribution_sample):
     """
     Kumaraswamy distribution
     p(x) = a*b*x^(a-1)(1-x^a)^(b-1)
     """
 
-    def sample(self, a, b, seed=1):
+    def sample(self, a, b):
         """
         Paramaters
         --------
@@ -406,10 +417,10 @@ class Kumaraswamy_sample(object):
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
 
-        eps = RandomStreams(seed=seed).uniform(a.shape,
-                                               low=epsilon(),
-                                               high=1 - epsilon(),
-                                               dtype=a.dtype)
+        eps = self.srng.uniform(a.shape,
+                                low=epsilon(),
+                                high=1 - epsilon(),
+                                dtype=a.dtype)
         return (1 - eps**(1. / b))**(1. / a)
 
     def log_likelihood(self, samples, a, b):
@@ -427,16 +438,17 @@ class Kumaraswamy_sample(object):
         return self.mean_sum_samples(loglike)
 
 
-class UnitBeta_sample(object):
+class UnitBeta_sample(Distribution_sample):
     """
     Unit Beta distribution
     """
 
-    def __init__(self, alpha=1., beta=5.):
+    def __init__(self, alpha=1., beta=5., seed=1):
+        super(UnitBernoulli_sample, self).__init__(seed=seed)
         self.alpha = alpha
         self.beta = beta
 
-    def sample(self, shape, seed=1):
+    def sample(self, shape):
         raise NotImplementedError
 
     def log_likelihood(self, samples):
