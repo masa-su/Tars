@@ -1,5 +1,3 @@
-import math
-
 import lasagne.layers
 import numpy as np
 import theano.tensor as T
