@@ -185,7 +185,8 @@ class VAE(object):
     def log_marginal_likelihood(self, x, l):
         n_x = x[0].shape[0]
 
-        kl = kl_vs_prior(self.q, x, deterministic=True).mean()
+        kl = analytical_kl(self.q, self.prior,
+                           given=[x, None], deterministic=True).mean()
         samples = self.q.sample_given_x(
             x, self.srng, repeat=l, deterministic=True)
 
