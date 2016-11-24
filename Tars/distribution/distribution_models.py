@@ -10,7 +10,6 @@ from .distribution_samples import (
     Bernoulli_sample,
     Categorical_sample,
     Gaussian_sample,
-    GaussianConstantVar_sample,
     Laplace_sample,
     Kumaraswamy_sample,
 )
@@ -239,16 +238,28 @@ class Gaussian(Gaussian_sample, Distribution_double):
         self._set_theano_func()
 
 
-class GaussianConstantVar(GaussianConstantVar_sample, Deterministic):
+class GaussianConstantVar(Gaussian_sample, Deterministic):
 
     def __init__(self, mean_network, given, var=1, seed=1):
         Deterministic.__init__(self, mean_network, given)
-        super(GaussianConstantVar, self).__init__(var=var, seed=seed)
+        super(GaussianConstantVar, self).__init__(seed=seed)
+        self.constant_var = var
         self._set_theano_func()
 
     def set_seed(self, seed=1):
         super(GaussianConstantVar, self).set_seed(seed=seed)
         self._set_theano_func()
+
+    def sample(self, mean):
+        return super(GaussianConstantVar,
+                     self).sample(mean,
+                                  T.ones_like(mean) * self.constant_var)
+
+    def log_likelihood(self, samples, mean):
+        return super(GaussianConstant,
+                     self).log_likelihood(samples, mean,
+                                          T.ones_like(samples) *
+                                          self.constant_var)
 
 
 class Laplace(Laplace_sample, Distribution_double):

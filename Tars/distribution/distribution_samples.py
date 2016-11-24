@@ -11,7 +11,6 @@ __all__ = [
     'UnitBernoulli_sample',
     'UnitCategorical_sample',
     'Gaussian_sample',
-    'GaussianConstantVar_sample',
     'UnitGaussian_sample',
     'Laplace_sample',
     'Gumbel_sample',
@@ -323,28 +322,6 @@ class Gaussian_sample(Distribution_sample):
         c = - 0.5 * math.log(2 * math.pi)
         _var = var + epsilon()  # avoid NaN
         return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
-
-
-class GaussianConstantVar_sample(Gaussian_sample):
-    """
-    Gaussian distribution (with a constant variance)
-    p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
-    """
-
-    def __init__(self, var=1, seed=1):
-        super(GaussianConstantVar_sample, self).__init__(seed=seed)
-        self.constant_var = var
-
-    def sample(self, samples, mean):
-        return super(GaussianConstantVar_sample,
-                     self).sample(samples, mean,
-                                  T.ones_like(samples) * self.constant_var)
-
-    def log_likelihood(self, samples, mean):
-        return super(GaussianConstantVar_sample,
-                     self).log_likelihood(samples, mean,
-                                          T.ones_like(samples) *
-                                          self.constant_var)
 
 
 class UnitGaussian_sample(Gaussian_sample):
