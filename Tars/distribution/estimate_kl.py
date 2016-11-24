@@ -45,7 +45,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
         [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
         """
         m = 10
-        gamma = 0.57721
+        euler_gamma = 0.57721
 
         a, b = q1.fprop(x1, deterministic=deterministic)
 
@@ -58,7 +58,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         # Because T.psi haven't implemented yet.
         psi = T.log(b) - 1. / (2 * b) - 1. / (12 * b**2)
-        kl += (a - q2.alpha) / a * (-gamma - psi - 1 / b)
+        kl += (a - q2.alpha) / a * (-euler_gamma - psi - 1. / b)
         kl += T.log(a * b) + T.log(q2._beta_func(q2.alpha, q2.beta))
         kl += -(b - 1) / b
         return T.sum(kl, axis=1)
@@ -83,7 +83,7 @@ def gauss_gauss_kl(mean1, var1, mean2, var2):
     return 0.5 * T.sum(_kl, axis=1)
 
 
-def set_prior(q):
+def get_prior(q):
     q_class = q.__class__.__name__
     if q_class == "Gaussian":
         return UnitGaussian_sample()
@@ -94,7 +94,7 @@ def set_prior(q):
     elif q_class == "Categorical":
         return UnitCategorical_sample(q.k)
 
-    elif q_class == "UnitBeta_sample":
+    elif q_class == "Kumaraswamy":
         return UnitBeta_sample()
 
     raise Exception("You cannot use this distribution as q")

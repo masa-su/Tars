@@ -6,7 +6,7 @@ from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
 from ..utils import log_mean_exp
-from ..distribution.estimate_kl import analytical_kl, set_prior
+from ..distribution.estimate_kl import analytical_kl, get_prior
 
 
 class VAE(object):
@@ -19,7 +19,7 @@ class VAE(object):
         if prior:
             self.prior = prior
         else:
-            self.prior = set_prior(self.q)
+            self.prior = get_prior(self.q)
         self.n_batch = n_batch
         self.optimizer = optimizer
         self.l = l

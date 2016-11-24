@@ -425,7 +425,7 @@ class UnitBeta_sample(Distribution_sample):
     """
 
     def __init__(self, alpha=1., beta=5., seed=1):
-        super(UnitBernoulli_sample, self).__init__(seed=seed)
+        super(UnitBeta_sample, self).__init__(seed=seed)
         self.alpha = alpha
         self.beta = beta
 

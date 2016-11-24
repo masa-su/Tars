@@ -273,6 +273,7 @@ class Laplace(Laplace_sample, Distribution_double):
         super(Laplace, self).set_seed(seed=seed)
         self._set_theano_func()
 
+
 class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
 
     def __init__(self, a_network, b_network, given, stick_breaking=True, seed=1):
