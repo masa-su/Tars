@@ -13,7 +13,7 @@ class VAE(object):
 
     def __init__(self, q, p, prior=None,
                  n_batch=100, optimizer=lasagne.updates.adam,
-                 l=1, k=1, alpha=None, random=1234):
+                 l=1, k=1, alpha=None):
         self.q = q
         self.p = p
         if prior:
@@ -25,9 +25,6 @@ class VAE(object):
         self.l = l
         self.k = k
         self.alpha = alpha
-
-        np.random.seed(random)
-        self.seed = random
 
         self.p_sample_mean_given_x()
         self.q_sample_mean_given_x()
@@ -44,7 +41,7 @@ class VAE(object):
         kl = analytical_kl(self.q, self.prior,
                            given=[x, None], deterministic=False).mean()
         z = self.q.sample_given_x(
-            x, seed=self.seed, repeat=self.l, deterministic=False)
+            x, repeat=self.l, deterministic=False)
         inverse_z = self.inverse_samples(z)
         loglike = self.p.log_likelihood_given_x(inverse_z,
                                                 deterministic=False).mean()
@@ -74,7 +71,7 @@ class VAE(object):
     def lowerbound_renyi(self, alpha):
         x = self.q.inputs
         q_samples = self.q.sample_given_x(
-            x, seed=self.seed, repeat=self.k, deterministic=False)
+            x, repeat=self.k, deterministic=False)
         log_iw = self.log_importance_weight(q_samples, deterministic=False)
         log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
 
@@ -155,31 +152,31 @@ class VAE(object):
 
     def p_sample_mean_given_x(self):
         x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x, seed=self.seed,
+        samples = self.p.sample_mean_given_x(x,
                                              deterministic=True)
         self.p_sample_mean_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        samples = self.p.sample_given_x(x, seed=self.seed, deterministic=True)
+        samples = self.p.sample_given_x(x, deterministic=True)
         self.p_sample_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        samples = self.p.fprop(x, seed=self.seed, deterministic=True)
+        samples = self.p.fprop(x, deterministic=True)
         self.p_sample_meanvar_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
     def q_sample_mean_given_x(self):
         x = self.q.inputs
-        samples = self.q.sample_mean_given_x(x, seed=self.seed,
+        samples = self.q.sample_mean_given_x(x,
                                              deterministic=True)
         self.q_sample_mean_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        samples = self.q.sample_given_x(x, seed=self.seed, deterministic=True)
+        samples = self.q.sample_given_x(x, deterministic=True)
         self.q_sample_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        samples = self.q.fprop(x, seed=self.seed, deterministic=True)
+        samples = self.q.fprop(x, deterministic=True)
         self.q_sample_meanvar_x = theano.function(
             inputs=x, outputs=samples, on_unused_input='ignore')
 
@@ -189,7 +186,7 @@ class VAE(object):
         kl = analytical_kl(self.q, self.prior,
                            given=[x, None], deterministic=True).mean()
         samples = self.q.sample_given_x(
-            x, seed=self.seed, repeat=l, deterministic=True)
+            x, repeat=l, deterministic=True)
 
         inverse_samples = self.inverse_samples(samples)
         log_iw = self.p.log_likelihood_given_x(inverse_samples,
@@ -202,7 +199,7 @@ class VAE(object):
     def log_marginal_likelihood_iwae(self, x, k):
         n_x = x[0].shape[0]
         samples = self.q.sample_given_x(
-            x, seed=self.seed, repeat=k, deterministic=True)
+            x, repeat=k, deterministic=True)
 
         log_iw = self.log_importance_weight(samples, deterministic=True)
         log_iw_matrix = T.reshape(log_iw, (n_x, k))

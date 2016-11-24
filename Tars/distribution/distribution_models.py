@@ -77,15 +77,13 @@ class Distribution(object):
 
         return lasagne.layers.get_output_shape(self.mean_network)
 
-    def sample_given_x(self, x, seed=1, repeat=1, **kwargs):
+    def sample_given_x(self, x, repeat=1, **kwargs):
         """
         Paramaters
         --------
         x : list
            This contains Theano variables, which must to correspond
            to 'given'.
-
-        seed : int or thenao variable
 
         repeat : int or thenao variable
 
@@ -97,7 +95,7 @@ class Distribution(object):
         if repeat != 1:
             x = [t_repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean) + [seed])]
+        return [x, self.sample(*tolist(mean))]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -159,7 +157,7 @@ class Distribution_double(Distribution):
         params = sorted(set(params), key=params.index)
         return params
 
-    def fprop(self, x, seed=1, deterministic=False):
+    def fprop(self, x, deterministic=False):
         mean = super(Distribution_double,
                      self).fprop(x, deterministic=deterministic)
         inputs = dict(zip(self.given, x))
@@ -170,32 +168,33 @@ class Distribution_double(Distribution):
 
 class Deterministic(Deterministic_sample, Distribution):
 
-    def __init__(self, network, given):
+    def __init__(self, network, given, seed=1):
         Distribution.__init__(self, network, given)
+        super(Deterministic, self).__init__(seed=seed)
 
 
 class Bernoulli(Bernoulli_sample, Distribution):
 
-    def __init__(self, mean_network, given, temp=0.1):
+    def __init__(self, mean_network, given, temp=0.1, seed=1):
         Distribution.__init__(self, mean_network, given)
-        super(Bernoulli, self).__init__(temp)
+        super(Bernoulli, self).__init__(temp=temp, seed=seed)
 
 
 class Categorical(Categorical_sample, Distribution):
 
-    def __init__(self, mean_network, given, temp=0.1, n_dim=1):
+    def __init__(self, mean_network, given, temp=0.1, n_dim=1, seed=1):
         Distribution.__init__(self, mean_network, given)
-        super(Categorical, self).__init__(temp)
+        super(Categorical, self).__init__(temp=temp, seed=seed)
         self.n_dim = n_dim
         self.k = self.get_output_shape[-1]
 
-    def sample_given_x(self, x, seed=1, repeat=1, **kwargs):
+    def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
             x = [t_repeat(_x, repeat, axis=0) for _x in x]
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
-        output = self.sample(mean, seed).reshape((-1, self.n_dim * self.k))
+        output = self.sample(mean).reshape((-1, self.n_dim * self.k))
         return [x, output]
 
     def fprop(self, x, *args, **kwargs):
@@ -206,31 +205,33 @@ class Categorical(Categorical_sample, Distribution):
 
 class Gaussian(Gaussian_sample, Distribution_double):
 
-    def __init__(self, mean_network, var_network, given):
+    def __init__(self, mean_network, var_network, given, seed=1):
         Distribution_double.__init__(self, mean_network, var_network, given)
-
+        super(Gaussian, self).__init__(seed=seed)
 
 class GaussianConstantVar(GaussianConstantVar_sample, Deterministic):
 
-    def __init__(self, mean_network, given, var=1):
+    def __init__(self, mean_network, given, var=1, seed=1):
         Deterministic.__init__(self, mean_network, given)
-        super(GaussianConstantVar, self).__init__(var)
+        super(GaussianConstantVar, self).__init__(var=var, seed=seed)
 
 
 class Laplace(Laplace_sample, Distribution_double):
 
-    def __init__(self, mean_network, var_network, given):
+    def __init__(self, mean_network, var_network, given, seed=1):
         Distribution_double.__init__(self, mean_network, var_network, given)
+        super(Laplace, self).__init__(seed=seed)
 
 
 class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
 
-    def __init__(self, a_network, b_network, given, stick_breaking=True):
+    def __init__(self, a_network, b_network, given, stick_breaking=True, seed=1):
         Distribution_double.__init__(self, a_network, b_network, given)
+        super(Kumaraswamy, self).__init__(seed=seed)
         self.stick_breaking = stick_breaking
 
-    def sample_given_x(self, x, seed=1, repeat=1, **kwargs):
-        [x, v] = super(Kumaraswamy, self).sample_given_x(x, seed,
+    def sample_given_x(self, x, repeat=1, **kwargs):
+        [x, v] = super(Kumaraswamy, self).sample_given_x(x,
                                                          repeat=repeat,
                                                          **kwargs)
         if self.stick_breaking:

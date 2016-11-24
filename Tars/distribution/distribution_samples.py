@@ -8,12 +8,16 @@ __all__ = [
     'Deterministic_sample',
     'Bernoulli_sample',
     'Categorical_sample',
+    'UnitBernoulli_sample',
+    'UnitCategorical_sample',
     'Gaussian_sample',
     'GaussianConstantVar_sample',
     'UnitGaussian_sample',
     'Laplace_sample',
     'Gumbel_sample',
     'Concrete_sample',
+    'Kumaraswamy_sample',
+    'UnitBeta_sample',
 ]
 
 class Distribution_sample(object):
@@ -223,7 +227,8 @@ class UnitCategorical_sample(Categorical_sample):
     Unit Categorical distribution
     """
 
-    def __init__(self, k):
+    def __init__(self, k=1, seed=1):
+        super(UnitCategorical_sample, self).__init__(seed=seed)
         self.k = k
 
     def sample(self, shape):
@@ -367,7 +372,7 @@ class Concrete_sample(Gumbel_sample):
         https://arxiv.org/abs/1611.00712
     """
 
-    def __init__(self, temp=0.1):
+    def __init__(self, temp=0.1, seed=1):
         super(Concrete_sample, self).__init__(seed=seed)
         self.temp = temp
 
@@ -383,8 +388,7 @@ class Concrete_sample(Gumbel_sample):
 
         if self.temp != 0:
             output = super(Concrete_sample, self).sample(T.zeros_like(mean),
-                                                         T.ones_like(mean),
-                                                         seed=seed)
+                                                         T.ones_like(mean))
             output += T.log(mean + epsilon())
 
             if output.ndim == 1 or output.ndim == 2:
