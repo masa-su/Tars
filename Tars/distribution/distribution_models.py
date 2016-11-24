@@ -134,7 +134,8 @@ class Distribution(object):
         x = self.inputs
         samples = self.fprop(x, deterministic=True)
         self.np_fprop = theano.function(inputs=x,
-                                        outputs=samples, on_unused_input='ignore')
+                                        outputs=samples,
+                                        on_unused_input='ignore')
 
         samples = self.sample_mean_given_x(x, deterministic=True)
         self.np_sample_mean_given_x = theano.function(
@@ -256,7 +257,7 @@ class GaussianConstantVar(Gaussian_sample, Deterministic):
                                   T.ones_like(mean) * self.constant_var)
 
     def log_likelihood(self, samples, mean):
-        return super(GaussianConstant,
+        return super(GaussianConstantVar,
                      self).log_likelihood(samples, mean,
                                           T.ones_like(samples) *
                                           self.constant_var)
@@ -276,7 +277,8 @@ class Laplace(Laplace_sample, Distribution_double):
 
 class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
 
-    def __init__(self, a_network, b_network, given, stick_breaking=True, seed=1):
+    def __init__(self, a_network, b_network,
+                 given, stick_breaking=True, seed=1):
         Distribution_double.__init__(self, a_network, b_network, given)
         super(Kumaraswamy, self).__init__(seed=seed)
         self.stick_breaking = stick_breaking

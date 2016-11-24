@@ -19,10 +19,12 @@ __all__ = [
     'UnitBeta_sample',
 ]
 
+
 class Distribution_sample(object):
+
     def __init__(self, seed=1, **kwargs):
         self.srng = RandomStreams(seed)
-        
+
     def set_seed(self, seed=1):
         self.srng = RandomStreams(seed)
 
@@ -130,7 +132,7 @@ class Bernoulli_sample(Gumbel_sample):
     def __init__(self, temp=0.1, seed=1):
         super(Bernoulli_sample, self).__init__(seed=seed)
         self.temp = temp
-    
+
     def sample(self, mean):
         """
         Paramaters
@@ -215,7 +217,8 @@ class Categorical_sample(Concrete_sample):
         elif mean.ndim == 3:
             _shape = mean.shape
             mean = mean.reshape((_shape[0] * _shape[1], _shape[2]))
-            output = super(Categorical_sample, self).sample(mean).reshape(_shape)
+            output = super(Categorical_sample, self).sample(
+                mean).reshape(_shape)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             if flatten:
@@ -363,8 +366,8 @@ class Laplace_sample(Distribution_sample):
         """
 
         U = self.srng.uniform(mean.shape,
-                                             low=-0.5, high=0.5,
-                                             dtype=mean.dtype)
+                              low=-0.5, high=0.5,
+                              dtype=mean.dtype)
         return mean - b * T.sgn(U) * T.log(1 - 2 * abs(U))
 
     def log_likelihood(self, samples, mean, b):

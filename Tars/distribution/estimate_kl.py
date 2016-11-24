@@ -59,11 +59,11 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         # Because T.psi haven't implemented yet.
         psi = T.log(b + epsilon()) - 1. / (2 * b + epsilon()) -\
-              1. / (12 * b**2 + epsilon())
+            1. / (12 * b**2 + epsilon())
         kl += ((a - q2.alpha) / a + epsilon()) *\
               (-euler_gamma - psi - 1. / (b + epsilon()))
         kl += T.log(a * b + epsilon()) +\
-              T.log(q2._beta_func(q2.alpha, q2.beta) + epsilon())
+            T.log(q2._beta_func(q2.alpha, q2.beta) + epsilon())
         kl += -(b - 1) / (b + epsilon())
 
         return T.sum(kl, axis=1)
