@@ -28,11 +28,14 @@ class Distribution_sample(object):
         self.srng = RandomStreams(seed)
 
 
-class Deterministic_sample(Distribution_sample):
+class Deterministic_sample(object):
     """
     Deterministic function
     p(x) = f(x)
     """
+
+    def __init__(self, **kwargs):
+        pass
 
     def sample(self, mean, *args):
         """
