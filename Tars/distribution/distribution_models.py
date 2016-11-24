@@ -294,6 +294,9 @@ class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
             v = self._stick_breaking_process(v)
         return [x, v]
 
+    def log_likelihood_given_x(self, *args):
+        raise NotImplementedError
+
     def _stick_breaking_process(self, v):
         (n_batch, n_dim) = v.shape
 

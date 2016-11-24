@@ -44,26 +44,32 @@ def analytical_kl(q1, q2, given, deterministic=False):
         """
         [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
         """
-        m = 10
+        M = 10
         euler_gamma = 0.57721
 
         a, b = q1.fprop(x1, deterministic=deterministic)
 
-        def taylor(i, a, b):
-            return 1. / (i + a * b) * q2._beta_func(1 / a, b)
+        def taylor(m, a, b):
+            return 1. / (m + a * b) * q2._beta_func(m / a, b)
         kl, updates = theano.scan(fn=taylor,
-                                  sequences=T.arange(m),
+                                  sequences=T.arange(1, M + 1),
                                   non_sequences=[a, b])
+        kl = T.sum(kl, axis=0)
         kl *= (q2.beta - 1) * b
 
         # Because T.psi haven't implemented yet.
-        psi = T.log(b) - 1. / (2 * b) - 1. / (12 * b**2)
-        kl += (a - q2.alpha) / a * (-euler_gamma - psi - 1. / b)
-        kl += T.log(a * b) + T.log(q2._beta_func(q2.alpha, q2.beta))
-        kl += -(b - 1) / b
+        psi = T.log(b + epsilon()) - 1. / (2 * b + epsilon()) -\
+              1. / (12 * b**2 + epsilon())
+        kl += ((a - q2.alpha) / a + epsilon()) *\
+              (-euler_gamma - psi - 1. / (b + epsilon()))
+        kl += T.log(a * b + epsilon()) +\
+              T.log(q2._beta_func(q2.alpha, q2.beta) + epsilon())
+        kl += -(b - 1) / (b + epsilon())
+
         return T.sum(kl, axis=1)
 
-    raise Exception("You cannot use this distribution as q")
+    raise Exception("You cannot use this distribution as q or prior, "
+                    "got %s and %s." % (q1_class, q2_class))
 
 
 def gaussian_like(x, mean, var):
@@ -97,4 +103,5 @@ def get_prior(q):
     elif q_class == "Kumaraswamy":
         return UnitBeta_sample()
 
-    raise Exception("You cannot use this distribution as q")
+    raise Exception("You cannot use this distribution as q, "
+                    "got %s." % q_class)

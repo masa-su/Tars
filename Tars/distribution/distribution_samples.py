@@ -416,7 +416,7 @@ class Kumaraswamy_sample(Distribution_sample):
         loglike = T.log(a * b + epsilon())\
             + (a - 1) * T.log(samples + epsilon())\
             + (b - 1) * T.log(1 - samples**a + epsilon())
-        return self.mean_sum_samples(loglike)
+        return mean_sum_samples(loglike)
 
 
 class UnitBeta_sample(Distribution_sample):
@@ -433,7 +433,7 @@ class UnitBeta_sample(Distribution_sample):
         raise NotImplementedError
 
     def log_likelihood(self, samples):
-        output = -T.log(self._beta(self.alpha, self.beta) + epsilon())
+        output = -T.log(self._beta_func(self.alpha, self.beta) + epsilon())
         output += (self.alpha - 1) * samples
         output += (self.beta - 1) * (1 - samples)
         return output
