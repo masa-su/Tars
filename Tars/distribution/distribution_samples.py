@@ -77,7 +77,49 @@ class Gumbel_sample(Distribution_sample):
         return mean_sum_samples(loglike)
 
 
-class Bernoulli_sample(Distribution_sample):
+class Concrete_sample(Gumbel_sample):
+    """
+    Concrete distribution (Gumbel-softmax)
+        https://arxiv.org/abs/1611.01144
+        https://arxiv.org/abs/1611.00712
+    """
+
+    def __init__(self, temp=0.1, seed=1):
+        super(Concrete_sample, self).__init__(seed=seed)
+        self.temp = temp
+
+    def sample(self, mean):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        mean : Theano variable, the output of a fully connected layer
+        (sigmoid or softmax)
+        """
+
+        if self.temp != 0:
+            output = super(Concrete_sample, self).sample(T.zeros_like(mean),
+                                                         T.ones_like(mean))
+            output += T.log(mean + epsilon())
+
+            if output.ndim == 1 or output.ndim == 2:
+                return T.nnet.softmax(output / self.temp)
+            elif output.ndim == 3:
+                _shape = output.shape
+                output = output.reshape((_shape[0] * _shape[1], _shape[2]))
+                return T.nnet.softmax(output / self.temp).reshape(_shape)
+
+            raise ValueError('Input must be 1-d, 2-d or 3-d tensor. Got %s' %
+                             output.ndim)
+
+        raise NotImplementedError
+
+    def log_likelihood(self):
+        raise NotImplementedError
+
+
+class Bernoulli_sample(Gumbel_sample):
     """
     Bernoulli distribution
     p(x) = mean^x * (1-mean)^(1-x)
@@ -86,8 +128,7 @@ class Bernoulli_sample(Distribution_sample):
     def __init__(self, temp=0.1, seed=1):
         super(Bernoulli_sample, self).__init__(seed=seed)
         self.temp = temp
-        self.gumbel = Gumbel_sample(seed=seed)
-
+    
     def sample(self, mean):
         """
         Paramaters
@@ -103,10 +144,10 @@ class Bernoulli_sample(Distribution_sample):
         """
 
         if self.temp != 0:
-            z1 = self.gumbel.sample(T.zeros_like(mean),
-                                    T.ones_like(mean))
-            z0 = self.gumbel.sample(T.zeros_like(mean),
-                                    T.ones_like(mean))
+            z1 = super(Bernoulli_sample, self).sample(T.zeros_like(mean),
+                                                      T.ones_like(mean))
+            z0 = super(Bernoulli_sample, self).sample(T.zeros_like(mean),
+                                                      T.ones_like(mean))
             z1 += T.log(mean + epsilon())
             z0 += T.log(1 - mean + epsilon())
 
@@ -140,16 +181,14 @@ class Bernoulli_sample(Distribution_sample):
         return mean_sum_samples(loglike)
 
 
-class Categorical_sample(Distribution_sample):
+class Categorical_sample(Concrete_sample):
     """
     Categorical distribution
     p(x) = \prod mean^x
     """
 
     def __init__(self, temp=0.1, seed=1):
-        super(Categorical_sample, self).__init__(seed=seed)
-        self.temp = temp
-        self.concrete = Concrete_sample(temp)
+        super(Categorical_sample, self).__init__(temp=temp, seed=seed)
 
     def sample(self, mean, onehot=True, flatten=True):
         """
@@ -166,7 +205,7 @@ class Categorical_sample(Distribution_sample):
         """
 
         if mean.ndim == 1 or mean.ndim == 2:
-            output = self.concrete.sample(mean)
+            output = super(Categorical_sample, self).sample(mean)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             return output
@@ -174,7 +213,7 @@ class Categorical_sample(Distribution_sample):
         elif mean.ndim == 3:
             _shape = mean.shape
             mean = mean.reshape((_shape[0] * _shape[1], _shape[2]))
-            output = self.concrete.sample(mean).reshape(_shape)
+            output = super(Categorical_sample, self).sample(mean).reshape(_shape)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             if flatten:
@@ -363,48 +402,6 @@ class Laplace_sample(Distribution_sample):
         b += epsilon()
         loglike = -abs(samples - mean) / b - T.log(b) - T.log(2)
         return mean_sum_samples(loglike)
-
-
-class Concrete_sample(Gumbel_sample):
-    """
-    Concrete distribution (Gumbel-softmax)
-        https://arxiv.org/abs/1611.01144
-        https://arxiv.org/abs/1611.00712
-    """
-
-    def __init__(self, temp=0.1, seed=1):
-        super(Concrete_sample, self).__init__(seed=seed)
-        self.temp = temp
-
-    def sample(self, mean):
-        """
-        Paramaters
-        --------
-        sample : Theano variable
-
-        mean : Theano variable, the output of a fully connected layer
-        (sigmoid or softmax)
-        """
-
-        if self.temp != 0:
-            output = super(Concrete_sample, self).sample(T.zeros_like(mean),
-                                                         T.ones_like(mean))
-            output += T.log(mean + epsilon())
-
-            if output.ndim == 1 or output.ndim == 2:
-                return T.nnet.softmax(output / self.temp)
-            elif output.ndim == 3:
-                _shape = output.shape
-                output = output.reshape((_shape[0] * _shape[1], _shape[2]))
-                return T.nnet.softmax(output / self.temp).reshape(_shape)
-
-            raise ValueError('Input must be 1-d, 2-d or 3-d tensor. Got %s' %
-                             output.ndim)
-
-        raise NotImplementedError
-
-    def log_likelihood(self):
-        raise NotImplementedError
 
 
 class Kumaraswamy_sample(Distribution_sample):
