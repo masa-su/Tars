@@ -66,6 +66,16 @@ class Distribution(object):
             self.mean_network, inputs, deterministic=deterministic)
         return mean
 
+    def get_input_shape(self):
+        """
+        Returns
+        -------
+        tuple
+          This represents the shape of the inputs of this distribution.
+        """
+
+        return [x.shape for x in self.given]
+
     def get_output_shape(self):
         """
         Returns
