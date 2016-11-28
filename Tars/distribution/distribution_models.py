@@ -4,7 +4,7 @@ import theano.tensor as T
 import lasagne
 from abc import ABCMeta, abstractmethod
 
-from ..utils import tolist, t_repeat
+from ..utils import tolist
 from .distribution_samples import (
     Deterministic_sample,
     Bernoulli_sample,
@@ -92,7 +92,7 @@ class Distribution(object):
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
         if repeat != 1:
-            x = [t_repeat(_x, repeat, axis=0) for _x in x]
+            x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(x, **kwargs)
         return [x, self.sample(*tolist(mean))]
 
