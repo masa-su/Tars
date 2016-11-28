@@ -2,180 +2,183 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-from lasagne.updates import total_norm_constraint
 from progressbar import ProgressBar
 
 from ..utils import log_mean_exp
 from ..distribution.estimate_kl import analytical_kl, get_prior
+from ..model.model import Model
 
 
-class VAE(object):
+class VAE(Model):
 
     def __init__(self, q, p, prior=None,
                  n_batch=100, optimizer=lasagne.updates.adam,
-                 l=1, k=1, alpha=None):
+                 optimizer_params={},
+                 clip_grad=None, max_norm_constraint=None,
+                 train_iw=False, test_iw=True, iw_alpha=0,
+                 seed=1234):
+        super(VAE, self).__init__(n_batch=n_batch, seed=seed)
+
         self.q = q
         self.p = p
         if prior:
             self.prior = prior
         else:
             self.prior = get_prior(self.q)
-        self.n_batch = n_batch
-        self.optimizer = optimizer
-        self.l = l
-        self.k = k
-        self.alpha = alpha
+        self.train_iw = train_iw
+        self.test_iw = test_iw
 
-        if alpha is None:
-            self.lowerbound()
-        else:
-            self.lowerbound_renyi(alpha)
-
-    def lowerbound(self):
+        # set inputs
         x = self.q.inputs
+        l = T.iscalar("l")
+        k = T.iscalar("k")
         annealing_beta = T.fscalar("beta")
 
-        kl = analytical_kl(self.q, self.prior,
-                           given=[x, None], deterministic=False).mean()
-        z = self.q.sample_given_x(
-            x, repeat=self.l, deterministic=False)
-        inverse_z = self.inverse_samples(z)
-        loglike = self.p.log_likelihood_given_x(inverse_z,
-                                                deterministic=False).mean()
-
-        lowerbound = [-kl, loglike]
-        loss = -(loglike - annealing_beta * kl)
-
-        q_params = self.q.get_params()
-        p_params = self.p.get_params()
-        params = q_params + p_params
-
-        grads = T.grad(loss, params)
-        clip_grad = 1
-        max_norm = 5
-        mgrads = total_norm_constraint(grads, max_norm=max_norm)
-        cgrads = [T.clip(g, -clip_grad, clip_grad) for g in mgrads]
-        updates = self.optimizer(cgrads, params,
-                                 beta1=0.9, beta2=0.999,
-                                 epsilon=1e-4, learning_rate=0.001)
-
-        self.lowerbound_train = theano.function(
-            inputs=x + [annealing_beta],
-            outputs=lowerbound,
-            updates=updates,
-            on_unused_input='ignore')
-
-    def lowerbound_renyi(self, alpha):
-        x = self.q.inputs
-        q_samples = self.q.sample_given_x(
-            x, repeat=self.k, deterministic=False)
-        log_iw = self.log_importance_weight(q_samples, deterministic=False)
-        log_iw_matrix = log_iw.reshape((x[0].shape[0], self.k))
-
-        if alpha == 1:
-            log_likelihood = T.mean(
-                log_iw_matrix, axis=1)
-
-        elif alpha == -np.inf:
-            log_likelihood = T.max(
-                log_iw_matrix, axis=1)
-
+        # training
+        if self.train_iw:
+            inputs = x + [l, k]
+            lower_bound, loss, params = self._vr_bound(x, l, k, iw_alpha, False)
         else:
-            log_iw_matrix = log_iw_matrix * (1 - alpha)
-            log_likelihood = log_mean_exp(
-                log_iw_matrix, axis=1, keepdims=True) / (1 - alpha)
+            inputs = x + [l, annealing_beta]
+            lower_bound, loss, params = self._elbo(x, l, annealing_beta, False)
+        lower_bound = T.mean(lower_bound, axis=0)
+        updates = self._get_updates(loss, params, optimizer, optimizer_params,
+                                    clip_grad, max_norm_constraint)
 
-        log_likelihood = T.mean(log_likelihood)
+        self.lower_bound_train = theano.function(inputs=inputs,
+                                                 outputs=lower_bound,
+                                                 updates=updates,
+                                                 on_unused_input='ignore')
 
-        q_params = self.q.get_params()
-        p_params = self.p.get_params()
-        params = q_params + p_params
+        # test
+        if self.test_iw:
+            inputs = x + [l, k]
+            lower_bound, _, _ = self._vr_bound(x, l, k, 0, True)
+        else:
+            inputs = x + [l]
+            lower_bound, _, _ = self._elbo(x, l, 1, True)
+            lower_bound = T.sum(lower_bound, axis=1)
 
-        grads = T.grad(-log_likelihood, params)
-        updates = self.optimizer(grads, params)
-        self.lowerbound_train = theano.function(
-            inputs=x, outputs=log_likelihood,
-            updates=updates,
-            on_unused_input='ignore')
+        self.lower_bound_test = theano.function(inputs=inputs,
+                                                outputs=lower_bound,
+                                                on_unused_input='ignore')
 
-    def train(self, train_set, annealing_beta=1):
+    def train(self, train_set, l=1, k=1, annealing_beta=1, 
+              verbose=False):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
-        lowerbound_train = []
+        lower_bound_all = []
 
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
-
             batch_x = [_x[start:end] for _x in train_set]
 
-            if self.alpha is None:
-                train_L = self.lowerbound_train(*batch_x + [annealing_beta])
+            if self.train_iw:
+                _x = batch_x + [l, k]
+                lower_bound = self.lower_bound_train(*_x)
             else:
-                train_L = self.lowerbound_train(*batch_x)
-            lowerbound_train.append(np.array(train_L))
+                _x = batch_x + [l, annealing_beta]
+                lower_bound = self.lower_bound_train(*_x)
+            lower_bound_all.append(np.array(lower_bound))
 
-        lowerbound_train = np.mean(lowerbound_train, axis=0)
-        return lowerbound_train
+            if verbose:
+                pbar.update(i)
 
-    def log_likelihood_test(self, test_set, l=1, k=1, mode='iw', n_batch=None):
+        lower_bound_all = np.mean(lower_bound_all, axis=0)
+        return lower_bound_all
+
+    def test(self, test_set, l=1, k=1, n_batch=None, verbose=True):
         if n_batch is None:
             n_batch = self.n_batch
 
-        x = self.q.inputs
-        if mode == 'iw':
-            log_likelihood = self.log_marginal_likelihood_iwae(x, k)
-        else:
-            log_likelihood = self.log_marginal_likelihood(x, l)
-        get_log_likelihood = theano.function(
-            inputs=x, outputs=log_likelihood, on_unused_input='ignore')
-
-        print "start sampling"
-
         n_x = test_set[0].shape[0]
         nbatches = n_x // n_batch
+        lower_bound_all = []
 
-        pbar = ProgressBar(maxval=nbatches).start()
-        all_log_likelihood = []
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * n_batch
             end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
-            log_likelihood = get_log_likelihood(*batch_x)
-            all_log_likelihood = np.r_[all_log_likelihood, log_likelihood]
-            pbar.update(i)
 
-        return all_log_likelihood
+            if self.test_iw:
+                _x = batch_x + [l, k]
+                lower_bound = self.lower_bound_test(*_x)
+            else:
+                _x = batch_x + [l]
+                lower_bound = self.lower_bound_test(*_x)
+            lower_bound_all = np.r_[lower_bound_all, lower_bound]
 
-    def log_marginal_likelihood(self, x, l):
-        n_x = x[0].shape[0]
+            if verbose:
+                pbar.update(i)
 
-        kl = analytical_kl(self.q, self.prior,
-                           given=[x, None], deterministic=True).mean()
-        samples = self.q.sample_given_x(
-            x, repeat=l, deterministic=True)
+        lower_bound_all = np.mean(lower_bound_all, axis=0)
+        return lower_bound_all
 
-        inverse_samples = self.inverse_samples(samples)
-        log_iw = self.p.log_likelihood_given_x(inverse_samples,
-                                               deterministic=True)
-        log_iw_matrix = T.reshape(log_iw, (n_x, l))
-        log_marginal_estimate = -kl + T.mean(log_iw_matrix, axis=1)
+    def _elbo(self, x, l, annealing_beta, deterministic=False):
+        """
+        The evidence lower bound (original VAE)
+        [Kingma+ 2013] Auto-Encoding Variational Bayes
+        """
 
-        return log_marginal_estimate
+        kl_divergence = analytical_kl(self.q, self.prior,
+                                      given=[x, None],
+                                      deterministic=deterministic)
+        z = self.q.sample_given_x(x, repeat=l, deterministic=False)
+        inverse_z = self._inverse_samples(z)
+        log_likelihood =\
+            self.p.log_likelihood_given_x(inverse_z,
+                                          deterministic=deterministic)
 
-    def log_marginal_likelihood_iwae(self, x, k):
-        n_x = x[0].shape[0]
-        samples = self.q.sample_given_x(
-            x, repeat=k, deterministic=True)
+        lower_bound = T.stack([-kl_divergence, log_likelihood], axis=-1)
+        loss = -T.mean(log_likelihood - annealing_beta * kl_divergence)
 
-        log_iw = self.log_importance_weight(samples, deterministic=True)
-        log_iw_matrix = T.reshape(log_iw, (n_x, k))
-        log_marginal_estimate = log_mean_exp(
-            log_iw_matrix, axis=1, keepdims=True)
+        q_params = self.q.get_params()
+        p_params = self.p.get_params()
+        params = q_params + p_params
 
-        return log_marginal_estimate
+        return lower_bound, loss, params
 
-    def log_importance_weight(self, samples, deterministic=False):
+    def _vr_bound(self, x, l, k, iw_alpha=0, deterministic=False):
+        """
+        Variational Renyi bound
+        [Li+ 2016] Renyi Divergence Variational Inference
+        [Burda+ 2015] Importance Weighted Autoencoders
+        """
+        q_samples = self.q.sample_given_x(
+            x, repeat=l * k, deterministic=deterministic)
+        log_iw = self._log_importance_weight(q_samples,
+                                             deterministic=deterministic)
+        log_iw_matrix = log_iw.reshape((x[0].shape[0] * l, k))
+
+        if iw_alpha == 1:
+            log_likelihood = T.mean(
+                log_iw_matrix, axis=1)
+
+        elif iw_alpha == -np.inf:
+            log_likelihood = T.max(
+                log_iw_matrix, axis=1)
+
+        else:
+            log_iw_matrix = log_iw_matrix * (1 - iw_alpha)
+            log_likelihood = log_mean_exp(
+                log_iw_matrix, axis=1, keepdims=True) / (1 - iw_alpha)
+
+        log_likelihood = log_likelihood.reshape((x[0].shape[0], l))
+        log_likelihood = T.mean(log_likelihood, axis=1)
+        loss = -T.mean(log_likelihood)
+
+        q_params = self.q.get_params()
+        p_params = self.p.get_params()
+        params = q_params + p_params
+
+        return log_likelihood, loss, params
+
+    def _log_importance_weight(self, samples, deterministic=False):
         """
         inputs : [[x,y,...],z1,z2,...,zn]
         outputs : log p(x,z1,z2,...,zn|y,...)/q(z1,z2,...,zn|x,y,...)
@@ -194,7 +197,7 @@ class VAE(object):
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
-        inverse_samples = self.inverse_samples(samples)
+        inverse_samples = self._inverse_samples(samples)
         p_log_likelihood =\
             self.p.log_likelihood_given_x(inverse_samples,
                                           deterministic=deterministic)
@@ -203,13 +206,3 @@ class VAE(object):
         log_iw += self.prior.log_likelihood(samples[-1])
 
         return log_iw
-
-    def inverse_samples(self, samples):
-        """
-        inputs : [[x,y],z1,z2,...zn]
-        outputs : [[zn,y],zn-1,...x]
-        """
-        inverse_samples = samples[::-1]
-        inverse_samples[0] = [inverse_samples[0]] + inverse_samples[-1][1:]
-        inverse_samples[-1] = inverse_samples[-1][0]
-        return inverse_samples
