@@ -10,12 +10,15 @@ class GAN(object):
     def __init__(self, p, d, n_batch=100,
                  p_optimizer=lasagne.updates.adam,
                  d_optimizer=lasagne.updates.adam,
-                 learning_rate=1e-4, beta1=0.5):
+                 learning_rate=1e-4, beta1=0.5,
+                 seed=1234):
         self.p = p
         self.d = d
         self.n_batch = n_batch
         self.p_optimizer = p_optimizer
         self.d_optimizer = d_optimizer
+
+        self.set_seed(seed)
 
         z = self.p.inputs
         x = self.d.inputs
@@ -69,7 +72,7 @@ class GAN(object):
 
         return p_loss, d_loss
 
-    def train(self, train_set, n_z, rng, freq=1):
+    def train(self, train_set, n_z, freq=1):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
         train = []
@@ -80,9 +83,9 @@ class GAN(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = rng.uniform(-1., 1.,
-                                  size=(len(batch_x[0]), n_z)
-                                  ).astype(np.float32)
+            batch_z = self.rng.uniform(-1., 1.,
+                                       size=(len(batch_x[0]), n_z)
+                                       ).astype(np.float32)
             batch_zx = [batch_z] + batch_x
             if i % (freq + 1) == 0:
                 train_L = self.p_train(*batch_zx)
@@ -95,7 +98,7 @@ class GAN(object):
 
         return train
 
-    def gan_test(self, test_set, n_z, rng):
+    def gan_test(self, test_set, n_z):
         n_x = test_set[0].shape[0]
         nbatches = n_x // self.n_batch
         test = []
@@ -106,9 +109,9 @@ class GAN(object):
             end = start + self.n_batch
 
             batch_x = [_x[start:end] for _x in test_set]
-            batch_z = rng.uniform(-1., 1.,
-                                  size=(len(batch_x[0]), n_z)
-                                  ).astype(np.float32)
+            batch_z = self.rng.uniform(-1., 1.,
+                                       size=(len(batch_x[0]), n_z)
+                                       ).astype(np.float32)
             batch_zx = [batch_z] + batch_x
             test_L = self.test(*batch_zx)
             test.append(np.array(test_L))
@@ -117,3 +120,6 @@ class GAN(object):
         test = np.mean(test, axis=0)
 
         return test
+
+    def set_seed(self, seed=1234):
+        self.rng = np.random.RandomState(seed)
