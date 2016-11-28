@@ -1,20 +1,21 @@
 import numpy as np
 import theano
 import theano.tensor as T
+import lasagne
 from progressbar import ProgressBar
 
 
 class GAN(object):
 
-    def __init__(self, p, d, n_batch, p_optimizer, d_optimizer,
-                 learning_rate=1e-4, beta1=0.5, random=1234):
+    def __init__(self, p, d, n_batch=100,
+                 p_optimizer=lasagne.updates.adam,
+                 d_optimizer=lasagne.updates.adam,
+                 learning_rate=1e-4, beta1=0.5):
         self.p = p
         self.d = d
         self.n_batch = n_batch
         self.p_optimizer = p_optimizer
         self.d_optimizer = d_optimizer
-
-        self.p_sample_mean_given_x()
 
         z = self.p.inputs
         x = self.d.inputs
@@ -116,9 +117,3 @@ class GAN(object):
         test = np.mean(test, axis=0)
 
         return test
-
-    def p_sample_mean_given_x(self):
-        x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x, deterministic=True)
-        self.p_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')

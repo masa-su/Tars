@@ -26,9 +26,6 @@ class VAE(object):
         self.k = k
         self.alpha = alpha
 
-        self.p_sample_mean_given_x()
-        self.q_sample_mean_given_x()
-
         if alpha is None:
             self.lowerbound()
         else:
@@ -149,36 +146,6 @@ class VAE(object):
             pbar.update(i)
 
         return all_log_likelihood
-
-    def p_sample_mean_given_x(self):
-        x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x,
-                                             deterministic=True)
-        self.p_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        samples = self.p.sample_given_x(x, deterministic=True)
-        self.p_sample_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        samples = self.p.fprop(x, deterministic=True)
-        self.p_sample_meanvar_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
-
-    def q_sample_mean_given_x(self):
-        x = self.q.inputs
-        samples = self.q.sample_mean_given_x(x,
-                                             deterministic=True)
-        self.q_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        samples = self.q.sample_given_x(x, deterministic=True)
-        self.q_sample_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-        samples = self.q.fprop(x, deterministic=True)
-        self.q_sample_meanvar_x = theano.function(
-            inputs=x, outputs=samples, on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x, l):
         n_x = x[0].shape[0]

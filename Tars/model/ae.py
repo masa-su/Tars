@@ -1,25 +1,21 @@
 import numpy as np
 import theano
+import lasagne
 from progressbar import ProgressBar
 
 
 class AE(object):
 
-    def __init__(self, q, p, n_batch, optimizer, random=1234):
+    def __init__(self, q, p,
+                 n_batch=100, optimizer=lasagne.updates.adam):
         self.q = q
         self.p = p
         self.n_batch = n_batch
         self.optimizer = optimizer
 
-        np.random.seed(random)
-        self.seed = random
+        self.lowerbound()
 
-        self.p_sample_mean_given_x()
-        self.q_sample_mean_given_x()
-
-        self.lowerbound(random)
-
-    def lowerbound(self, random):
+    def lowerbound(self):
         x = self.q.inputs
         z = self.q.fprop(x, deterministic=False)
         inverse_z = self.inverse_samples([x, z])
@@ -72,18 +68,6 @@ class AE(object):
             pbar.update(i)
 
         return all_log_likelihood
-
-    def p_sample_mean_given_x(self):
-        x = self.p.inputs
-        samples = self.p.sample_mean_given_x(x, False)
-        self.p_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
-
-    def q_sample_mean_given_x(self):
-        x = self.q.inputs
-        samples = self.q.sample_mean_given_x(x, False)
-        self.q_sample_mean_x = theano.function(
-            inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
     def log_marginal_likelihood(self, x):
         z = self.q.fprop(x, deterministic=True)
