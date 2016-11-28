@@ -37,7 +37,8 @@ class VAE(Model):
         # training
         if self.train_iw:
             inputs = x + [l, k]
-            lower_bound, loss, params = self._vr_bound(x, l, k, iw_alpha, False)
+            lower_bound, loss, params = self._vr_bound(x, l, k,
+                                                       iw_alpha, False)
         else:
             inputs = x + [l, annealing_beta]
             lower_bound, loss, params = self._elbo(x, l, annealing_beta, False)
@@ -63,7 +64,7 @@ class VAE(Model):
                                                 outputs=lower_bound,
                                                 on_unused_input='ignore')
 
-    def train(self, train_set, l=1, k=1, annealing_beta=1, 
+    def train(self, train_set, l=1, k=1, annealing_beta=1,
               verbose=False):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
@@ -116,7 +117,6 @@ class VAE(Model):
             if verbose:
                 pbar.update(i)
 
-        lower_bound_all = np.mean(lower_bound_all, axis=0)
         return lower_bound_all
 
     def _elbo(self, x, l, annealing_beta, deterministic=False):
@@ -128,7 +128,8 @@ class VAE(Model):
         kl_divergence = analytical_kl(self.q, self.prior,
                                       given=[x, None],
                                       deterministic=deterministic)
-        z = self.q.sample_given_x(x, repeat=l, deterministic=False)
+        z = self.q.sample_given_x(x, repeat=l,
+                                  deterministic=deterministic)
         inverse_z = self._inverse_samples(z)
         log_likelihood =\
             self.p.log_likelihood_given_x(inverse_z,
