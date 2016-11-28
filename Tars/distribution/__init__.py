@@ -1,12 +1,12 @@
-from .exponential_family import (
+from .distribution_models import (
     Distribution,
     Deterministic,
     Bernoulli,
     Categorical,
     Gaussian,
     GaussianConstantVar,
-    UnitGaussian,
     Laplace,
+    Kumaraswamy,
 )
 from .multiple import (
     Concatenate,
@@ -21,8 +21,8 @@ __all__ = [
     'Categorical',
     'Gaussian',
     'GaussianConstantVar',
-    'UnitGaussian',
     'Laplace',
+    'Kumaraswamy',
     'Concatenate',
     'Multilayer',
 ]

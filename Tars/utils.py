@@ -1,5 +1,3 @@
-import math
-
 import lasagne.layers
 import numpy as np
 import theano.tensor as T
@@ -24,23 +22,6 @@ def load_weights(network, name):
     with np.load(name) as f:
         param_values = [f['arr_%d' % i] for i in range(len(f.files))]
     lasagne.layers.set_all_param_values(network, param_values)
-
-
-def gaussian_like(x, mean, var):
-    c = - 0.5 * math.log(2 * math.pi)
-    _var = var + epsilon()  # avoid NaN
-    return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
-
-
-def gauss_unitgauss_kl(mean, var):
-    return -0.5 * T.sum(1 + T.log(var) - mean**2 - var, axis=1)
-
-
-def gauss_gauss_kl(mean1, var1, mean2, var2):
-    _var2 = var2 + epsilon()  # avoid NaN
-    _kl = T.log(var2) - T.log(var1) \
-        + (var1 + (mean1 - mean2)**2) / _var2 - 1
-    return 0.5 * T.sum(_kl, axis=1)
 
 
 # https://github.com/yburda/iwae/blob/master/utils.py
