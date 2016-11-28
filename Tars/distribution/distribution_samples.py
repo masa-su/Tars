@@ -48,7 +48,7 @@ class Deterministic_sample(object):
 
         return mean
 
-    def loglikelihood(self, sample, mean):
+    def log_likelihood(self, sample, mean):
         raise NotImplementedError
 
 

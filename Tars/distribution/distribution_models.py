@@ -185,6 +185,11 @@ class Deterministic(Deterministic_sample, Distribution):
     def __init__(self, network, given, seed=1):
         Distribution.__init__(self, network, given)
         super(Deterministic, self).__init__(seed=seed)
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        super(Deterministic, self).set_seed(seed=seed)
+        self._set_theano_func()
 
 
 class Bernoulli(Bernoulli_sample, Distribution):
