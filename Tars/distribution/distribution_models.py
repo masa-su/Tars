@@ -229,7 +229,7 @@ class Categorical(Categorical_sample, Distribution):
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
-            x = [t_repeat(_x, repeat, axis=0) for _x in x]
+            x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)

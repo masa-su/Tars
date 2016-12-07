@@ -3,7 +3,6 @@ from unittest import TestCase
 import mock
 import numpy as np
 import theano.tensor as T
-import six
 
 
 class TestEpsilon(TestCase):
