@@ -12,7 +12,8 @@ class GAN(Model):
     def __init__(self, p, d, n_batch=100,
                  p_optimizer=lasagne.updates.adam,
                  d_optimizer=lasagne.updates.adam,
-                 optimizer_params={},
+                 p_optimizer_params={},
+                 d_optimizer_params={},
                  clip_grad=None, max_norm_constraint=None,
                  seed=1234):
         super(GAN, self).__init__(n_batch=n_batch, seed=seed)
@@ -30,10 +31,10 @@ class GAN(Model):
         loss, params = self._loss(z, x, False)
 
         p_updates = self._get_updates(loss[0], params[0],
-                                      p_optimizer, optimizer_params,
+                                      p_optimizer, p_optimizer_params,
                                       clip_grad, max_norm_constraint)
         d_updates = self._get_updates(loss[1], params[1],
-                                      d_optimizer, optimizer_params,
+                                      d_optimizer, d_optimizer_params,
                                       clip_grad, max_norm_constraint)
 
         self.p_train = theano.function(inputs=inputs, outputs=loss,
