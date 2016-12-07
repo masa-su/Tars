@@ -291,6 +291,9 @@ class Laplace(Laplace_sample, Distribution_double):
 
 
 class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
+    """
+    [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
+    """
 
     def __init__(self, a_network, b_network,
                  given, stick_breaking=True, seed=1):
