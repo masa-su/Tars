@@ -53,8 +53,8 @@ def analytical_kl(q1, q2, given, deterministic=False):
         def taylor(m, a, b):
             return 1. / (m + a * b) * q2._beta_func(m / a, b)
         kl, _ = theano.scan(fn=taylor,
-                                  sequences=T.arange(1, M + 1),
-                                  non_sequences=[a, b])
+                            sequences=T.arange(1, M + 1),
+                            non_sequences=[a, b])
         kl = T.sum(kl, axis=0)
         kl *= (q2.beta - 1) * b
 
