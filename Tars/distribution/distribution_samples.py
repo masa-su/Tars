@@ -500,6 +500,27 @@ class Gamma_sample(Distribution_sample):
         return output_z
 
 
+class UnitGamma_sample(Gamma_sample):
+
+    def sample(self, shape):
+        """
+        Paramaters
+        --------
+        shape : tuple
+           sets a shape of the output sample
+        """
+
+        return super(UnitGamma_sample,
+                     self).sample(T.ones(shape),
+                                  T.ones(shape)*0.01)
+
+    def log_likelihood(self, samples):
+        return super(UnitGamma_sample,
+                     self).log_likelihood(samples,
+                                          T.ones_like(samples),
+                                          T.ones_like(samples)*0.01)
+
+
 class UnitBeta_sample(Distribution_sample):
     """
     Unit Beta distribution

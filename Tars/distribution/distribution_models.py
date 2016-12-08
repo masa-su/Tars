@@ -12,6 +12,7 @@ from .distribution_samples import (
     Gaussian_sample,
     Laplace_sample,
     Kumaraswamy_sample,
+    Gamma_sample,
 )
 
 
@@ -336,3 +337,15 @@ class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
         return T.concatenate([stick_segments.T,
                               remaining_sticks[-1, :][:, np.newaxis]],
                              axis=1)
+
+
+class Gamma(Gamma_sample, Distribution_double):
+
+    def __init__(self, alpha_network, beta_network, given, seed=1):
+        Distribution_double.__init__(self, alpha_network, beta_network, given)
+        super(Gamma, self).__init__(seed=seed)
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        super(Gamma, self).set_seed(seed=seed)
+        self._set_theano_func()
