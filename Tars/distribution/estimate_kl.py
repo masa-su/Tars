@@ -8,6 +8,7 @@ from .distribution_samples import (
     UnitBernoulli_sample,
     UnitCategorical_sample,
     UnitBeta_sample,
+    UnitGamma_sample,
 )
 
 
@@ -58,16 +59,26 @@ def analytical_kl(q1, q2, given, deterministic=False):
         kl = T.sum(kl, axis=0)
         kl *= (q2.beta - 1) * b
 
-        # Because T.psi haven't implemented yet.
-        psi = T.log(b + epsilon()) - 1. / (2 * b + epsilon()) -\
-            1. / (12 * b**2 + epsilon())
         kl += ((a - q2.alpha) / a + epsilon()) *\
-              (-euler_gamma - psi - 1. / (b + epsilon()))
+              (-euler_gamma - psi(b) - 1. / (b + epsilon()))
         kl += T.log(a * b + epsilon()) +\
             T.log(q2._beta_func(q2.alpha, q2.beta) + epsilon())
         kl += -(b - 1) / (b + epsilon())
 
         return T.sum(kl, axis=1)
+
+    elif q1_class == "Gamma" and q2_class == "UnitGamma_sample":
+        alpha1, beta1 = q1.fprop(x1, deterministic=deterministic)
+        alpha2 = T.ones_like(alpha1)
+        beta2 = T.ones_like(beta1)*0.01
+
+        output = (alpha1 - alpha2) * psi(alpha1)
+        output += -T.gammaln(alpha1) + T.gammaln(alpha2)
+        output += alpha2 * (T.log(beta1 + epsilon()) -
+                            T.log(beta2 + epsilon()))
+        output += alpha1 * (beta2 - beta1) / (beta1 + epsilon())
+
+        return T.sum(output, axis=1)
 
     raise Exception("You cannot use this distribution as q or prior, "
                     "got %s and %s." % (q1_class, q2_class))
@@ -90,6 +101,13 @@ def gauss_gauss_kl(mean1, var1, mean2, var2):
     return 0.5 * T.sum(_kl, axis=1)
 
 
+def psi(b):
+    # Because T.psi haven't implemented yet.
+    output = T.log(b + epsilon()) - 1. / (2 * b + epsilon()) -\
+             1. / (12 * b**2 + epsilon())
+    return output
+
+
 def get_prior(q):
     q_class = q.__class__.__name__
     if q_class == "Gaussian":
@@ -103,6 +121,9 @@ def get_prior(q):
 
     elif q_class == "Kumaraswamy":
         return UnitBeta_sample()
+
+    elif q_class == "Gamma":
+        return UnitGamma_sample()
 
     raise Exception("You cannot use this distribution as q, "
                     "got %s." % q_class)
