@@ -4,54 +4,54 @@ import theano.tensor as T
 import lasagne
 from progressbar import ProgressBar
 
+from ..model.model import Model
 
-class GAN(object):
+
+class GAN(Model):
 
     def __init__(self, p, d, n_batch=100,
                  p_optimizer=lasagne.updates.adam,
                  d_optimizer=lasagne.updates.adam,
-                 learning_rate=1e-4, beta1=0.5,
+                 p_optimizer_params={},
+                 d_optimizer_params={},
+                 clip_grad=None, max_norm_constraint=None,
                  seed=1234):
+        super(GAN, self).__init__(n_batch=n_batch, seed=seed)
+
         self.p = p
         self.d = d
-        self.n_batch = n_batch
-        self.p_optimizer = p_optimizer
-        self.d_optimizer = d_optimizer
+        self.hidden_dim = self.p.get_input_shape()[0][-1]
 
-        self.set_seed(seed)
-
+        # set inputs
         z = self.p.inputs
         x = self.d.inputs
-        p_loss, d_loss = self.loss(z, x)
 
-        p_updates = self.p_optimizer(
-            p_loss,
-            self.p.get_params(),
-            learning_rate=learning_rate,
-            beta1=beta1)
-        d_updates = self.d_optimizer(
-            d_loss,
-            self.d.get_params(),
-            learning_rate=learning_rate,
-            beta1=beta1)
+        # training
+        inputs = z[:1] + x
+        loss, params = self._loss(z, x, False)
 
-        self.p_train = theano.function(
-            inputs=z[:1] + x,
-            outputs=[p_loss, d_loss],
-            updates=p_updates,
-            on_unused_input='ignore')
-        self.d_train = theano.function(
-            inputs=z[:1] + x,
-            outputs=[p_loss, d_loss],
-            updates=d_updates, on_unused_input='ignore')
+        p_updates = self._get_updates(loss[0], params[0],
+                                      p_optimizer, p_optimizer_params,
+                                      clip_grad, max_norm_constraint)
+        d_updates = self._get_updates(loss[1], params[1],
+                                      d_optimizer, d_optimizer_params,
+                                      clip_grad, max_norm_constraint)
 
-        p_loss, d_loss = self.loss(z, x, True)
-        self.test = theano.function(
-            inputs=z[:1] + x,
-            outputs=[p_loss, d_loss],
-            on_unused_input='ignore')
+        self.p_train = theano.function(inputs=inputs, outputs=loss,
+                                       updates=p_updates,
+                                       on_unused_input='ignore')
+        self.d_train = theano.function(inputs=inputs, outputs=loss,
+                                       updates=d_updates,
+                                       on_unused_input='ignore')
 
-    def loss(self, z, x, deterministic=False):
+        # test
+        inputs = z[:1] + x
+        loss, _ = self._loss(z, x, True)
+        self.test = theano.function(inputs=inputs, outputs=loss,
+                                    on_unused_input='ignore')
+
+    def _loss(self, z, x, deterministic=False):
+
         # gx~p(x|z,y,...)
         gx = self.p.sample_mean_given_x(
             z, deterministic=deterministic)[-1]
@@ -61,65 +61,73 @@ class GAN(object):
         # gt~d(t|gx,y,...)
         gt = self.d.sample_mean_given_x(
             [gx] + x[1:], deterministic=deterministic)[-1]
+
         # -log(t)
         d_loss = -self.d.log_likelihood(T.ones_like(t), t).mean()
         # -log(1-gt)
         d_g_loss = -self.d.log_likelihood(T.zeros_like(gt), gt).mean()
         # -log(gt)
         p_loss = -self.d.log_likelihood(T.ones_like(gt), gt).mean()
+        # -log(t)-log(1-gt)
+        d_loss = d_loss + d_g_loss
 
-        d_loss = d_loss + d_g_loss  # -log(t)-log(1-gt)
+        p_params = self.p.get_params()
+        d_params = self.d.get_params()
 
-        return p_loss, d_loss
+        return [p_loss, d_loss], [p_params, d_params]
 
-    def train(self, train_set, n_z, freq=1):
+    def train(self, train_set, freq=1, verbose=False):
         n_x = train_set[0].shape[0]
         nbatches = n_x // self.n_batch
-        train = []
+        loss_all = []
 
-        pbar = ProgressBar(maxval=nbatches).start()
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
             start = i * self.n_batch
             end = start + self.n_batch
-
             batch_x = [_x[start:end] for _x in train_set]
             batch_z = self.rng.uniform(-1., 1.,
-                                       size=(len(batch_x[0]), n_z)
-                                       ).astype(np.float32)
-            batch_zx = [batch_z] + batch_x
+                                       size=(len(batch_x[0]),
+                                             self.hidden_dim)
+                                       ).astype(batch_x[0].dtype)
+            _x = [batch_z] + batch_x
             if i % (freq + 1) == 0:
-                train_L = self.p_train(*batch_zx)
+                loss = self.p_train(*_x)
             else:
-                train_L = self.d_train(*batch_zx)
-            train.append(np.array(train_L))
-            pbar.update(i)
+                loss = self.d_train(*_x)
+            loss_all.append(np.array(loss))
 
-        train = np.mean(train, axis=0)
+            if verbose:
+                pbar.update(i)
 
-        return train
+        loss_all = np.mean(loss_all, axis=0)
+        return loss_all
 
-    def gan_test(self, test_set, n_z):
+    def gan_test(self, test_set, n_batch=None, verbose=False):
+        if n_batch is None:
+            n_batch = self.n_batch
+
         n_x = test_set[0].shape[0]
-        nbatches = n_x // self.n_batch
-        test = []
+        nbatches = n_x // n_batch
+        loss_all = []
 
-        pbar = ProgressBar(maxval=nbatches).start()
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
         for i in range(nbatches):
-            start = i * self.n_batch
-            end = start + self.n_batch
-
+            start = i * n_batch
+            end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
             batch_z = self.rng.uniform(-1., 1.,
-                                       size=(len(batch_x[0]), n_z)
-                                       ).astype(np.float32)
-            batch_zx = [batch_z] + batch_x
-            test_L = self.test(*batch_zx)
-            test.append(np.array(test_L))
-            pbar.update(i)
+                                       size=(len(batch_x[0]),
+                                             self.hidden_dim)
+                                       ).astype(batch_x[0].dtype)
+            _x = [batch_z] + batch_x
+            loss = self.test(*_x)
+            loss_all.append(np.array(loss))
 
-        test = np.mean(test, axis=0)
+            if verbose:
+                pbar.update(i)
 
-        return test
-
-    def set_seed(self, seed=1234):
-        self.rng = np.random.RandomState(seed)
+        loss_all = np.mean(loss_all, axis=0)
+        return loss_all

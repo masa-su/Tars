@@ -389,6 +389,7 @@ class Laplace_sample(Distribution_sample):
 
 class Kumaraswamy_sample(Distribution_sample):
     """
+    [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
     Kumaraswamy distribution
     p(x) = a*b*x^(a-1)(1-x^a)^(b-1)
     """

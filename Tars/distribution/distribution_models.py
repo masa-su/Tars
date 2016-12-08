@@ -4,7 +4,7 @@ import theano.tensor as T
 import lasagne
 from abc import ABCMeta, abstractmethod
 
-from ..utils import tolist, t_repeat
+from ..utils import tolist
 from .distribution_samples import (
     Deterministic_sample,
     Bernoulli_sample,
@@ -66,6 +66,16 @@ class Distribution(object):
             self.mean_network, inputs, deterministic=deterministic)
         return mean
 
+    def get_input_shape(self):
+        """
+        Returns
+        -------
+        tuple
+          This represents the shape of the inputs of this distribution.
+        """
+
+        return [x.shape for x in self.given]
+
     def get_output_shape(self):
         """
         Returns
@@ -92,7 +102,7 @@ class Distribution(object):
            This contains 'x' and sample ~ p(*|x), such as [x, sample].
         """
         if repeat != 1:
-            x = [t_repeat(_x, repeat, axis=0) for _x in x]
+            x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(x, **kwargs)
         return [x, self.sample(*tolist(mean))]
 
@@ -219,7 +229,7 @@ class Categorical(Categorical_sample, Distribution):
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
-            x = [t_repeat(_x, repeat, axis=0) for _x in x]
+            x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
@@ -281,6 +291,9 @@ class Laplace(Laplace_sample, Distribution_double):
 
 
 class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
+    """
+    [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
+    """
 
     def __init__(self, a_network, b_network,
                  given, stick_breaking=True, seed=1):
