@@ -512,13 +512,13 @@ class UnitGamma_sample(Gamma_sample):
 
         return super(UnitGamma_sample,
                      self).sample(T.ones(shape),
-                                  T.ones(shape)*0.01)
+                                  T.ones(shape))
 
     def log_likelihood(self, samples):
         return super(UnitGamma_sample,
                      self).log_likelihood(samples,
                                           T.ones_like(samples),
-                                          T.ones_like(samples)*0.01)
+                                          T.ones_like(samples))
 
 
 class UnitBeta_sample(Distribution_sample):

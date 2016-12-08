@@ -70,7 +70,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
     elif q1_class == "Gamma" and q2_class == "UnitGamma_sample":
         alpha1, beta1 = q1.fprop(x1, deterministic=deterministic)
         alpha2 = T.ones_like(alpha1)
-        beta2 = T.ones_like(beta1)*0.01
+        beta2 = T.ones_like(beta1)
 
         output = (alpha1 - alpha2) * psi(alpha1)
         output += -T.gammaln(alpha1) + T.gammaln(alpha2)
