@@ -423,6 +423,83 @@ class Kumaraswamy_sample(Distribution_sample):
         return mean_sum_samples(loglike)
 
 
+class Gamma_sample(Distribution_sample):
+    """
+    Gamma distribution
+    (beta^alpha)/gamma * x^(alpha-1) * exp^(-beta*x)
+
+    [Naesseth+ 2016]
+    Rejection Sampling Variational Inference
+    """
+
+    def __init__(self, seed=1):
+        super(Gamma_sample, self).__init__(seed=seed)
+
+    def sample(self, alpha, beta):
+        _shape = alpha.shape
+        alpha = alpha.flatten()
+        output_sample = -T.ones_like(alpha, dtype=alpha.dtype)
+        index = T.arange(output_sample.shape[0])
+
+        # We don't use theano.scan in order to avoid to use updates.
+        output_sample = self._rejection_sampling(output_sample, alpha, index)
+        output_sample = self._rejection_sampling(output_sample, alpha, index)
+        output_sample = self._rejection_sampling(output_sample, alpha, index)
+        output_sample = self._rejection_sampling(output_sample, alpha, index)
+        output_sample = self._rejection_sampling(output_sample, alpha, index)
+        output_sample = T.clip(output_sample, 0, output_sample)
+
+        return output_sample.reshape(_shape) / beta
+
+    def log_likelihood(self, samples, alpha, beta):
+        output = alpha * T.log(beta + epsilon()) - T.gammaln(alpha)
+        output += (alpha - 1) * T.log(samples + epsilon())
+        output += -beta * samples
+        return mean_sum_samples(output)
+
+    def pdf(self, samples, alpha, beta):
+        output = (beta**alpha) / T.gamma(alpha)
+        output *= samples**(alpha - 1)
+        output *= T.exp(-beta * samples)
+        return output
+
+    def _gauss_pdf(self, sample):
+        output = 1 / T.sqrt(2 * math.pi)
+        output *= T.exp(-sample**2 / 2)
+        return output
+
+    def _h(self, alpha, eps):
+        output = alpha - 1 / 3.
+        output *= (1 + eps / T.sqrt(alpha * 9 - 3))**3
+        return output
+
+    def _rejection_sampling(self, output_z, alpha, idx):
+        idx = idx[T.eq(-1, output_z).nonzero()]
+        under_one_idx = idx[T.gt(1, alpha[idx]).nonzero()]
+        added_alpha = T.inc_subtensor(alpha[under_one_idx], 1)
+
+        eps = self.srng.normal(idx.shape, dtype=alpha.dtype)
+        U = self.srng.uniform(idx.shape,
+                              low=epsilon(),
+                              high=1 - epsilon(),
+                              dtype=alpha.dtype)
+        z = self._h(added_alpha[idx], eps)
+
+        _idx = T.lt(U, self.pdf(z, added_alpha[idx], T.ones_like(
+            added_alpha[idx])) / self._gauss_pdf(z)).nonzero()
+        idx = idx[_idx]
+        output_z = T.set_subtensor(output_z[idx], z[_idx])
+
+        _under_one_idx = T.arange(idx.shape[0])[T.gt(1, alpha[idx]).nonzero()]
+        under_one_idx = idx[_under_one_idx]
+        output_z = T.set_subtensor(output_z[under_one_idx],
+                                   (U[_under_one_idx] **
+                                    (1 / (alpha[under_one_idx]))) *
+                                   output_z[under_one_idx])
+
+        return output_z
+
+
 class UnitBeta_sample(Distribution_sample):
     """
     Unit Beta distribution
