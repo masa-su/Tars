@@ -42,7 +42,8 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
     elif q1_class == "Kumaraswamy" and q2_class == "UnitBeta_sample":
         """
-        [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
+        [Naelisnick+ 2016]
+        Deep Generative Models with Stick-Breaking Priors
         """
         M = 10
         euler_gamma = 0.57721
@@ -51,7 +52,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         def taylor(m, a, b):
             return 1. / (m + a * b) * q2._beta_func(m / a, b)
-        kl, updates = theano.scan(fn=taylor,
+        kl, _ = theano.scan(fn=taylor,
                                   sequences=T.arange(1, M + 1),
                                   non_sequences=[a, b])
         kl = T.sum(kl, axis=0)
