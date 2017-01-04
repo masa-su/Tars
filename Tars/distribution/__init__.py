@@ -7,6 +7,7 @@ from .distribution_models import (
     GaussianConstantVar,
     Laplace,
     Kumaraswamy,
+    Gamma,
 )
 from .multiple import (
     Concatenate,
@@ -23,6 +24,7 @@ __all__ = [
     'GaussianConstantVar',
     'Laplace',
     'Kumaraswamy',
+    'Gamma',
     'Concatenate',
     'Multilayer',
 ]
