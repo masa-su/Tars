@@ -20,6 +20,7 @@ __all__ = [
     'UnitBernoulli_sample',
     'UnitCategorical_sample',
     'UnitBeta_sample',
+    'UnitDirichlet_sample',
 ]
 
 
@@ -470,9 +471,9 @@ class Beta_sample(Gamma_sample):
 
         return z_1 / (z_1 + z_2)
 
-    def log_likelihood(self, sample, alpha, beta):
-        output = (alpha - 1) * T.log(sample + epsilon())
-        output += (beta - 1) * T.log(1 - sample + epsilon())
+    def log_likelihood(self, samples, alpha, beta):
+        output = (alpha - 1) * T.log(samples + epsilon())
+        output += (beta - 1) * T.log(1 - samples + epsilon())
         output -= self._log_beta_func(alpha, beta)
         return mean_sum_samples(output)
 
@@ -501,14 +502,16 @@ class Dirichlet_sample(Gamma_sample):
                        self).sample(_alpha, T.ones_like(_alpha))
             z = T.set_subtensor(self._slice_last(z, _k), _z)
         z = z / T.sum(z, axis=-1, keepdims=True)
+        if flatten and alpha.ndim == 3:
+            z = T.flatten(z, outdim=2)
         return z
 
-    def log_likelihood(self, sample, alpha):
+    def log_likelihood(self, samples, alpha):
         output = 0
         for _k in range(self.k):
             _alpha = self._slice_last(alpha, _k)
             _sample = self._slice_last(sample, _k)
-            output += (_alpha - 1) * T.log(_sample + epsilon())
+            output += (_alpha - 1) * T.log(_samples + epsilon())
         output -= self._log_beta_vec_func(alpha)
         return mean_sum_samples(output)
 
@@ -611,28 +614,52 @@ class UnitGamma_sample(Gamma_sample):
                                           T.ones_like(samples))
 
 
-class UnitBeta_sample(Distribution_sample):
+class UnitBeta_sample(Beta_sample):
     """
     Unit Beta distribution
     """
 
-    def __init__(self, alpha=1., beta=5., seed=1):
-        super(UnitBeta_sample, self).__init__(seed=seed)
+    def __init__(self, alpha=1., beta=1.,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        super(UnitBeta_sample,
+              self).__init__(iter_sampling=iter_sampling,
+                             rejection_sampling=rejection_sampling,
+                             seed=seed)
         self.alpha = alpha
         self.beta = beta
 
     def sample(self, shape):
-        raise NotImplementedError
+        return super(UnitBeta_sample,
+                     self).sample(T.ones(shape)*self.alpha,
+                                  T.ones(shape)*self.beta)
 
     def log_likelihood(self, samples):
-        output = -T.log(self._beta_func(self.alpha, self.beta) + epsilon())
-        output += (self.alpha - 1) * samples
-        output += (self.beta - 1) * (1 - samples)
-        return output
+        alpha = T.ones_like(samples)*self.alpha
+        beta = T.ones_like(samples)*self.beta
+        return super(UnitBeta_sample,
+                     self).log_likelihood(samples, alpha, beta)
 
-    def _beta_func(self, a, b):
-        return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
 
+class UnitDirichlet_sample(Dirichlet_sample):
+
+    def __init__(self, k, alpha=1.,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        super(UnitDirichlet_sample,
+              self).__init__(iter_sampling=iter_sampling,
+                             rejection_sampling=rejection_sampling,
+                             seed=seed)
+        self.alpha = alpha
+        self.k = k
+
+    def sample(self, shape):
+        return super(UnitDirichlet_sample,
+                     self).sample(T.ones(shape)*self.alpha)
+
+    def log_likelihood(self, samples):
+        alpha = T.ones_like(samples)*self.alpha
+        return super(UnitDirichlet_sample,
+                     self).log_likelihood(samples, alpha)
+    
 
 def mean_sum_samples(samples):
     n_dim = samples.ndim
