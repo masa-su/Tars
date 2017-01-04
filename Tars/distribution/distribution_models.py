@@ -13,6 +13,8 @@ from .distribution_samples import (
     Laplace_sample,
     Kumaraswamy_sample,
     Gamma_sample,
+    Beta_sample,
+    Dirichlet_sample,
 )
 
 
@@ -349,3 +351,41 @@ class Gamma(Gamma_sample, Distribution_double):
     def set_seed(self, seed=1):
         super(Gamma, self).set_seed(seed=seed)
         self._set_theano_func()
+
+class Beta(Beta_sample, Distribution_double):
+
+    def __init__(self, alpha_network, beta_network, given,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        Distribution_double.__init__(self, alpha_network, beta_network, given)
+        super(Beta, self).__init__(iter_sampling=iter_sampling,
+                                   rejection_sampling=rejection_sampling,
+                                   seed=seed)
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        super(Beta, self).set_seed(seed=seed)
+        self._set_theano_func()
+
+class Dirichlet(Dirichlet_sample, Distribution):
+
+    def __init__(self, alpha_network, given, k,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        Distribution.__init__(self, alpha_network, given)
+        super(Beta, self).__init__(k, iter_sampling=iter_sampling,
+                                   rejection_sampling=rejection_sampling,
+                                   seed=seed)
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        super(Beta, self).set_seed(seed=seed)
+        self._set_theano_func()
+
+    def sample_given_x(self, x, repeat=1, **kwargs):
+        if repeat != 1:
+            x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
+
+        # use fprop of super class
+        mean = Distribution.fprop(self, x, **kwargs)
+        output = self.sample(mean).reshape((mean.shape[0],
+                                            mean.shape[1]/self.k, self.k))
+        return [x, output]
