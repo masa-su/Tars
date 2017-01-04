@@ -104,7 +104,7 @@ def gauss_gauss_kl(mean1, var1, mean2, var2):
 def psi(b):
     # Because T.psi haven't implemented yet.
     output = T.log(b + epsilon()) - 1. / (2 * b + epsilon()) -\
-             1. / (12 * b**2 + epsilon())
+        1. / (12 * b**2 + epsilon())
     return output
 
 
