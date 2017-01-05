@@ -422,7 +422,7 @@ class Gamma_sample(Distribution_sample):
         d = alpha - 1 / 3.
         c = 1 / T.sqrt(9 * d)
         v = (1 + c * eps)**3
-        judge_1 = np.exp(0.5 * eps**2 + d - d*v + d*T.log(v))
+        judge_1 = np.exp(0.5 * eps**2 + d - d * v + d * T.log(v))
         judge_2 = -1 / c
         output = d * v
         return output, judge_1, judge_2
@@ -510,7 +510,7 @@ class Dirichlet_sample(Gamma_sample):
         output = 0
         for _k in range(self.k):
             _alpha = self._slice_last(alpha, _k)
-            _sample = self._slice_last(sample, _k)
+            _samples = self._slice_last(samples, _k)
             output += (_alpha - 1) * T.log(_samples + epsilon())
         output -= self._log_beta_vec_func(alpha)
         return mean_sum_samples(output)
@@ -630,12 +630,12 @@ class UnitBeta_sample(Beta_sample):
 
     def sample(self, shape):
         return super(UnitBeta_sample,
-                     self).sample(T.ones(shape)*self.alpha,
-                                  T.ones(shape)*self.beta)
+                     self).sample(T.ones(shape) * self.alpha,
+                                  T.ones(shape) * self.beta)
 
     def log_likelihood(self, samples):
-        alpha = T.ones_like(samples)*self.alpha
-        beta = T.ones_like(samples)*self.beta
+        alpha = T.ones_like(samples) * self.alpha
+        beta = T.ones_like(samples) * self.beta
         return super(UnitBeta_sample,
                      self).log_likelihood(samples, alpha, beta)
 
@@ -653,13 +653,13 @@ class UnitDirichlet_sample(Dirichlet_sample):
 
     def sample(self, shape):
         return super(UnitDirichlet_sample,
-                     self).sample(T.ones(shape)*self.alpha)
+                     self).sample(T.ones(shape) * self.alpha)
 
     def log_likelihood(self, samples):
-        alpha = T.ones_like(samples)*self.alpha
+        alpha = T.ones_like(samples) * self.alpha
         return super(UnitDirichlet_sample,
                      self).log_likelihood(samples, alpha)
-    
+
 
 def mean_sum_samples(samples):
     n_dim = samples.ndim

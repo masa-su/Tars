@@ -352,6 +352,7 @@ class Gamma(Gamma_sample, Distribution_double):
         super(Gamma, self).set_seed(seed=seed)
         self._set_theano_func()
 
+
 class Beta(Beta_sample, Distribution_double):
 
     def __init__(self, alpha_network, beta_network, given,
@@ -365,6 +366,7 @@ class Beta(Beta_sample, Distribution_double):
     def set_seed(self, seed=1):
         super(Beta, self).set_seed(seed=seed)
         self._set_theano_func()
+
 
 class Dirichlet(Dirichlet_sample, Distribution):
 
@@ -387,5 +389,5 @@ class Dirichlet(Dirichlet_sample, Distribution):
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
         output = self.sample(mean).reshape((mean.shape[0],
-                                            mean.shape[1]/self.k, self.k))
+                                            mean.shape[1] / self.k, self.k))
         return [x, output]

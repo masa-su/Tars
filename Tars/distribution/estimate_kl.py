@@ -93,12 +93,12 @@ def analytical_kl(q1, q2, given, deterministic=False):
         alpha2 = T.ones_like(alpha1) * q2_class.alpha
         beta2 = T.ones_like(beta1) * q2_class.beta
 
-        output = T.gammaln(alpha1 + beta1)
-            - T.gammaln(alpha2 + beta2)
-            - (T.gammaln(alpha1) + T.gammaln(beta1))
-            + (T.gammaln(alpha2) + T.gammaln(beta2))
-            + (alpha1 - alpha2) * (psi(alpha1) - psi(alpha1 + beta1))
-            + (beta1 - beta2) * (psi(beta1) - psi(alpha1 + beta1))
+        output = T.gammaln(alpha1 + beta1) -\
+            T.gammaln(alpha2 + beta2) -\
+            (T.gammaln(alpha1) + T.gammaln(beta1)) +\
+            (T.gammaln(alpha2) + T.gammaln(beta2)) +\
+            (alpha1 - alpha2) * (psi(alpha1) - psi(alpha1 + beta1)) +\
+            (beta1 - beta2) * (psi(beta1) - psi(alpha1 + beta1))
 
         return T.sum(output, axis=1)
 
@@ -110,14 +110,14 @@ def analytical_kl(q1, q2, given, deterministic=False):
         alpha1 = q1.fprop(x1, deterministic=deterministic)
         alpha2 = T.ones_like(alpha1) * q2_class.alpha
 
-        output = T.gammaln(T.sum(alpha1, axis=-1))
-            - T.gammaln(T.sum(alpha2, axis=-1))
-            - T.sum(T.gammaln(alpha1), axis=-1)
-            + T.sum(T.gammaln(alpha2), axis=-1)
-            + T.sum((alpha1 - alpha2)
-                    * (psi(alpha1)
-                       - psi(T.sum(alpha1, axis=-1,
-                                   keepdims=True))), axis=-1)
+        output = T.gammaln(T.sum(alpha1, axis=-1)) -\
+            T.gammaln(T.sum(alpha2, axis=-1)) -\
+            T.sum(T.gammaln(alpha1), axis=-1) +\
+            T.sum(T.gammaln(alpha2), axis=-1) +\
+            T.sum((alpha1 - alpha2) *
+                  (psi(alpha1) -
+                   psi(T.sum(alpha1, axis=-1,
+                             keepdims=True))), axis=-1)
 
         return T.sum(output, axis=1)
 
