@@ -8,6 +8,8 @@ from .distribution_models import (
     Laplace,
     Kumaraswamy,
     Gamma,
+    Beta,
+    Dirichlet,
 )
 from .multiple import (
     Concatenate,
@@ -25,6 +27,8 @@ __all__ = [
     'Laplace',
     'Kumaraswamy',
     'Gamma',
+    'Beta',
+    'Dirichlet',
     'Concatenate',
     'Multilayer',
 ]
