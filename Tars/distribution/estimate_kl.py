@@ -84,14 +84,14 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         return T.sum(output, axis=1)
 
-    elif q1_class == "Beta" and q2_class == "UnitGamma_sample":
+    elif q1_class == "Beta" and q2_class == "UnitBeta_sample":
         """
         http://bariskurt.com/kullback-leibler-divergence\
         -between-two-dirichlet-and-beta-distributions/
         """
         alpha1, beta1 = q1.fprop(x1, deterministic=deterministic)
-        alpha2 = T.ones_like(alpha1) * q2_class.alpha
-        beta2 = T.ones_like(beta1) * q2_class.beta
+        alpha2 = T.ones_like(alpha1) * q2.alpha
+        beta2 = T.ones_like(beta1) * q2.beta
 
         output = T.gammaln(alpha1 + beta1) -\
             T.gammaln(alpha2 + beta2) -\
@@ -108,7 +108,10 @@ def analytical_kl(q1, q2, given, deterministic=False):
         -between-two-dirichlet-and-beta-distributions/
         """
         alpha1 = q1.fprop(x1, deterministic=deterministic)
-        alpha2 = T.ones_like(alpha1) * q2_class.alpha
+        alpha1 = alpha1.reshape((alpha1.shape[0], alpha1.shape[1] / q1.k,
+                                 q1.k))
+        
+        alpha2 = T.ones_like(alpha1) * q2.alpha
 
         output = T.gammaln(T.sum(alpha1, axis=-1)) -\
             T.gammaln(T.sum(alpha2, axis=-1)) -\
@@ -164,7 +167,7 @@ def get_prior(q):
         return UnitBeta_sample()
 
     elif q_class == "Dirichlet":
-        return UnitDirichlet_sample()
+        return UnitDirichlet_sample(q.k)
 
     elif q_class == "Gamma":
         return UnitGamma_sample()

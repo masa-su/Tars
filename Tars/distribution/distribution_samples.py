@@ -507,6 +507,12 @@ class Dirichlet_sample(Gamma_sample):
         return z
 
     def log_likelihood(self, samples, alpha):
+        samples = samples.reshape((samples.shape[0],
+                                   samples.shape[1] / self.k,
+                                   self.k))
+        alpha = alpha.reshape((alpha.shape[0],
+                                 alpha.shape[1] / self.k,
+                                 self.k))
         output = 0
         for _k in range(self.k):
             _alpha = self._slice_last(alpha, _k)
@@ -517,7 +523,7 @@ class Dirichlet_sample(Gamma_sample):
 
     def _log_beta_vec_func(self, alpha):
         output = 0
-        for _k in self.k:
+        for _k in range(self.k):
             output += T.gammaln(self._slice_last(alpha, _k))
         output -= T.gammaln(T.sum(alpha, axis=-1))
         return output
@@ -645,11 +651,10 @@ class UnitDirichlet_sample(Dirichlet_sample):
     def __init__(self, k, alpha=1.,
                  iter_sampling=6, rejection_sampling=True, seed=1):
         super(UnitDirichlet_sample,
-              self).__init__(iter_sampling=iter_sampling,
+              self).__init__(k, iter_sampling=iter_sampling,
                              rejection_sampling=rejection_sampling,
                              seed=seed)
         self.alpha = alpha
-        self.k = k
 
     def sample(self, shape):
         return super(UnitDirichlet_sample,
