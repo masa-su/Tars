@@ -110,7 +110,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
         alpha1 = q1.fprop(x1, deterministic=deterministic)
         alpha1 = alpha1.reshape((alpha1.shape[0], alpha1.shape[1] / q1.k,
                                  q1.k))
-        
+
         alpha2 = T.ones_like(alpha1) * q2.alpha
 
         output = T.gammaln(T.sum(alpha1, axis=-1)) -\

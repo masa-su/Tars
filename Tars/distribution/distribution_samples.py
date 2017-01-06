@@ -511,8 +511,8 @@ class Dirichlet_sample(Gamma_sample):
                                    samples.shape[1] / self.k,
                                    self.k))
         alpha = alpha.reshape((alpha.shape[0],
-                                 alpha.shape[1] / self.k,
-                                 self.k))
+                               alpha.shape[1] / self.k,
+                               self.k))
         output = 0
         for _k in range(self.k):
             _alpha = self._slice_last(alpha, _k)

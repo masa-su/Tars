@@ -37,8 +37,8 @@ class Distribution(object):
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
-        _output_shape = self.get_output_shape()        
-        self.output = T.TensorType('float32', (False,)*len(_output_shape))()
+        _output_shape = self.get_output_shape()
+        self.output = T.TensorType('float32', (False,) * len(_output_shape))()
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
@@ -161,7 +161,7 @@ class Distribution(object):
         sample = self.output
         samples = self.log_likelihood_given_x([x, sample], deterministic=True)
         self.np_log_liklihood_given_x = theano.function(
-            inputs=x+[sample], outputs=samples[-1], on_unused_input='ignore')
+            inputs=x + [sample], outputs=samples[-1], on_unused_input='ignore')
 
     @abstractmethod
     def sample(self):
@@ -379,8 +379,8 @@ class Dirichlet(Dirichlet_sample, Distribution):
                  iter_sampling=6, rejection_sampling=True, seed=1):
         Distribution.__init__(self, alpha_network, given)
         super(Dirichlet, self).__init__(k, iter_sampling=iter_sampling,
-                                   rejection_sampling=rejection_sampling,
-                                   seed=seed)
+                                        rejection_sampling=rejection_sampling,
+                                        seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
