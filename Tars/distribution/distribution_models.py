@@ -13,6 +13,8 @@ from .distribution_samples import (
     Laplace_sample,
     Kumaraswamy_sample,
     Gamma_sample,
+    Beta_sample,
+    Dirichlet_sample,
 )
 
 
@@ -35,8 +37,8 @@ class Distribution(object):
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
-        self.get_output_shape = lasagne.layers.get_output_shape(
-            self.mean_network)
+        _output_shape = self.get_output_shape()
+        self.output = T.TensorType('float32', (False,) * len(_output_shape))()
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
@@ -156,6 +158,11 @@ class Distribution(object):
         self.np_sample_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
+        sample = self.output
+        samples = self.log_likelihood_given_x([x, sample], deterministic=True)
+        self.np_log_liklihood_given_x = theano.function(
+            inputs=x + [sample], outputs=samples[-1], on_unused_input='ignore')
+
     @abstractmethod
     def sample(self):
         pass
@@ -170,7 +177,7 @@ class Distribution_double(Distribution):
     def __init__(self, mean_network, var_network, given):
         super(Distribution_double, self).__init__(mean_network, given)
         self.var_network = var_network
-        if self.get_output_shape != lasagne.layers.get_output_shape(
+        if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
             raise ValueError("The output shapes of the two networks"
                              "do not match.")
@@ -221,7 +228,7 @@ class Categorical(Categorical_sample, Distribution):
         Distribution.__init__(self, mean_network, given)
         super(Categorical, self).__init__(temp=temp, seed=seed)
         self.n_dim = n_dim
-        self.k = self.get_output_shape[-1]
+        self.k = self.get_output_shape()[-1]
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -349,3 +356,45 @@ class Gamma(Gamma_sample, Distribution_double):
     def set_seed(self, seed=1):
         super(Gamma, self).set_seed(seed=seed)
         self._set_theano_func()
+
+
+class Beta(Beta_sample, Distribution_double):
+
+    def __init__(self, alpha_network, beta_network, given,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        Distribution_double.__init__(self, alpha_network, beta_network, given)
+        super(Beta, self).__init__(iter_sampling=iter_sampling,
+                                   rejection_sampling=rejection_sampling,
+                                   seed=seed)
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        super(Beta, self).set_seed(seed=seed)
+        self._set_theano_func()
+
+
+class Dirichlet(Dirichlet_sample, Distribution):
+
+    def __init__(self, alpha_network, given, k,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        Distribution.__init__(self, alpha_network, given)
+        super(Dirichlet, self).__init__(k, iter_sampling=iter_sampling,
+                                        rejection_sampling=rejection_sampling,
+                                        seed=seed)
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        super(Dirichlet, self).set_seed(seed=seed)
+        self._set_theano_func()
+
+    def sample_given_x(self, x, repeat=1, **kwargs):
+        if repeat != 1:
+            x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
+
+        # use fprop of super class
+        mean = Distribution.fprop(self, x, **kwargs)
+        _shape = mean.shape
+        mean = mean.reshape((_shape[0], _shape[1] / self.k,
+                             self.k))
+        output = self.sample(mean).reshape(_shape)
+        return [x, output]

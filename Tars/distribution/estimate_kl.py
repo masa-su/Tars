@@ -8,6 +8,7 @@ from .distribution_samples import (
     UnitBernoulli_sample,
     UnitCategorical_sample,
     UnitBeta_sample,
+    UnitDirichlet_sample,
     UnitGamma_sample,
 )
 
@@ -68,6 +69,9 @@ def analytical_kl(q1, q2, given, deterministic=False):
         return T.sum(kl, axis=1)
 
     elif q1_class == "Gamma" and q2_class == "UnitGamma_sample":
+        """
+        https://arxiv.org/pdf/1611.01437.pdf
+        """
         alpha1, beta1 = q1.fprop(x1, deterministic=deterministic)
         alpha2 = T.ones_like(alpha1)
         beta2 = T.ones_like(beta1)
@@ -77,6 +81,46 @@ def analytical_kl(q1, q2, given, deterministic=False):
         output += alpha2 * (T.log(beta1 + epsilon()) -
                             T.log(beta2 + epsilon()))
         output += alpha1 * (beta2 - beta1) / (beta1 + epsilon())
+
+        return T.sum(output, axis=1)
+
+    elif q1_class == "Beta" and q2_class == "UnitBeta_sample":
+        """
+        http://bariskurt.com/kullback-leibler-divergence\
+        -between-two-dirichlet-and-beta-distributions/
+        """
+        alpha1, beta1 = q1.fprop(x1, deterministic=deterministic)
+        alpha2 = T.ones_like(alpha1) * q2.alpha
+        beta2 = T.ones_like(beta1) * q2.beta
+
+        output = T.gammaln(alpha1 + beta1) -\
+            T.gammaln(alpha2 + beta2) -\
+            (T.gammaln(alpha1) + T.gammaln(beta1)) +\
+            (T.gammaln(alpha2) + T.gammaln(beta2)) +\
+            (alpha1 - alpha2) * (psi(alpha1) - psi(alpha1 + beta1)) +\
+            (beta1 - beta2) * (psi(beta1) - psi(alpha1 + beta1))
+
+        return T.sum(output, axis=1)
+
+    elif q1_class == "Dirichlet" and q2_class == "UnitDirichlet_sample":
+        """
+        http://bariskurt.com/kullback-leibler-divergence\
+        -between-two-dirichlet-and-beta-distributions/
+        """
+        alpha1 = q1.fprop(x1, deterministic=deterministic)
+        alpha1 = alpha1.reshape((alpha1.shape[0], alpha1.shape[1] / q1.k,
+                                 q1.k))
+
+        alpha2 = T.ones_like(alpha1) * q2.alpha
+
+        output = T.gammaln(T.sum(alpha1, axis=-1)) -\
+            T.gammaln(T.sum(alpha2, axis=-1)) -\
+            T.sum(T.gammaln(alpha1), axis=-1) +\
+            T.sum(T.gammaln(alpha2), axis=-1) +\
+            T.sum((alpha1 - alpha2) *
+                  (psi(alpha1) -
+                   psi(T.sum(alpha1, axis=-1,
+                             keepdims=True))), axis=-1)
 
         return T.sum(output, axis=1)
 
@@ -119,8 +163,11 @@ def get_prior(q):
     elif q_class == "Categorical":
         return UnitCategorical_sample(q.k)
 
-    elif q_class == "Kumaraswamy":
+    elif q_class == "Kumaraswamy" or q_class == "Beta":
         return UnitBeta_sample()
+
+    elif q_class == "Dirichlet":
+        return UnitDirichlet_sample(q.k)
 
     elif q_class == "Gamma":
         return UnitGamma_sample()

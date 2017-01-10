@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
@@ -8,15 +9,18 @@ __all__ = [
     'Deterministic_sample',
     'Bernoulli_sample',
     'Categorical_sample',
-    'UnitBernoulli_sample',
-    'UnitCategorical_sample',
     'Gaussian_sample',
-    'UnitGaussian_sample',
     'Laplace_sample',
     'Gumbel_sample',
     'Concrete_sample',
+    'Beta_sample',
+    'Dirichlet_sample',
     'Kumaraswamy_sample',
+    'UnitGaussian_sample',
+    'UnitBernoulli_sample',
+    'UnitCategorical_sample',
     'UnitBeta_sample',
+    'UnitDirichlet_sample',
 ]
 
 
@@ -251,43 +255,6 @@ class Categorical_sample(Concrete_sample):
         return mean_sum_samples(loglike)
 
 
-class UnitBernoulli_sample(Bernoulli_sample):
-    """
-    Unit bernoulli distribution
-    """
-
-    def sample(self, shape):
-        return super(UnitBernoulli_sample,
-                     self).sample(T.ones(shape) * 0.5)
-
-    def log_likelihood(self, samples):
-        return super(UnitBernoulli_sample,
-                     self).log_likelihood(samples,
-                                          T.ones_like(samples) * 0.5)
-
-
-class UnitCategorical_sample(Categorical_sample):
-    """
-    Unit Categorical distribution
-    """
-
-    def __init__(self, k=1, seed=1):
-        super(UnitCategorical_sample, self).__init__(seed=seed)
-        self.k = k
-
-    def sample(self, shape):
-        if self.k == shape[-1]:
-            return super(UnitCategorical_sample,
-                         self).sample(T.ones(shape) / self.k)
-
-        raise ValueError("self.k and shape don't match.")
-
-    def log_likelihood(self, samples):
-        return super(UnitCategorical_sample,
-                     self).log_likelihood(samples,
-                                          T.ones_like(samples) / self.k)
-
-
 class Gaussian_sample(Distribution_sample):
     """
     Gaussian distribution
@@ -325,29 +292,6 @@ class Gaussian_sample(Distribution_sample):
         c = - 0.5 * math.log(2 * math.pi)
         _var = var + epsilon()  # avoid NaN
         return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
-
-
-class UnitGaussian_sample(Gaussian_sample):
-    """
-    Standard normal gaussian distribution
-    p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{x^2}{2}}
-    """
-
-    def sample(self, shape):
-        """
-        Paramaters
-        --------
-        shape : tuple
-           sets a shape of the output sample
-        """
-
-        return self.srng.normal(shape)
-
-    def log_likelihood(self, samples):
-        return super(UnitGaussian_sample,
-                     self).log_likelihood(samples,
-                                          T.zeros_like(samples),
-                                          T.ones_like(samples))
 
 
 class Laplace_sample(Distribution_sample):
@@ -430,24 +374,41 @@ class Gamma_sample(Distribution_sample):
 
     [Naesseth+ 2016]
     Rejection Sampling Variational Inference
+
+    http://www.hongliangjie.com/2012/12/19/how-to-generate-gamma-random-variables/
     """
 
-    def __init__(self, seed=1):
+    def __init__(self, iter_sampling=6, rejection_sampling=True, seed=1):
         super(Gamma_sample, self).__init__(seed=seed)
+        self.iter_sampling = iter_sampling
+        self.rejection_sampling = rejection_sampling
 
     def sample(self, alpha, beta):
         _shape = alpha.shape
         alpha = alpha.flatten()
+
         output_sample = -T.ones_like(alpha, dtype=alpha.dtype)
         index = T.arange(output_sample.shape[0])
 
-        # We don't use theano.scan in order to avoid to use updates.
-        output_sample = self._rejection_sampling(output_sample, alpha, index)
-        output_sample = self._rejection_sampling(output_sample, alpha, index)
-        output_sample = self._rejection_sampling(output_sample, alpha, index)
-        output_sample = self._rejection_sampling(output_sample, alpha, index)
-        output_sample = self._rejection_sampling(output_sample, alpha, index)
+        under_one_idx = T.gt(1, alpha[index]).nonzero()
+        added_alpha = T.inc_subtensor(alpha[under_one_idx], 1)
+        U = self.srng.uniform(under_one_idx[0].shape,
+                              low=epsilon(), high=1 - epsilon(),
+                              dtype=alpha.dtype)
+
+        if self.rejection_sampling:
+            # We don't use theano.scan in order to avoid to use updates.
+            for _ in range(self.iter_sampling):
+                output_sample, index = self._rejection_sampling(output_sample,
+                                                                added_alpha,
+                                                                index)
+        else:
+            output_sample = self._not_rejection_sampling(alpha)
+
         output_sample = T.clip(output_sample, 0, output_sample)
+        output_sample = T.set_subtensor(output_sample[under_one_idx],
+                                        (U ** (1 / alpha[under_one_idx])) *
+                                        output_sample[under_one_idx])
 
         return output_sample.reshape(_shape) / beta
 
@@ -457,47 +418,185 @@ class Gamma_sample(Distribution_sample):
         output += -beta * samples
         return mean_sum_samples(output)
 
-    def pdf(self, samples, alpha, beta):
-        output = (beta**alpha) / T.gamma(alpha)
-        output *= samples**(alpha - 1)
-        output *= T.exp(-beta * samples)
-        return output
-
-    def _gauss_pdf(self, sample):
-        output = 1 / T.sqrt(2 * math.pi)
-        output *= T.exp(-sample**2 / 2)
-        return output
-
     def _h(self, alpha, eps):
-        output = alpha - 1 / 3.
-        output *= (1 + eps / T.sqrt(alpha * 9 - 3))**3
-        return output
+        d = alpha - 1 / 3.
+        c = 1 / T.sqrt(9 * d)
+        v = (1 + c * eps)**3
+        judge_1 = np.exp(0.5 * eps**2 + d - d * v + d * T.log(v))
+        judge_2 = -1 / c
+        output = d * v
+        return output, judge_1, judge_2
 
     def _rejection_sampling(self, output_z, alpha, idx):
-        idx = idx[T.eq(-1, output_z).nonzero()]
-        under_one_idx = idx[T.gt(1, alpha[idx]).nonzero()]
-        added_alpha = T.inc_subtensor(alpha[under_one_idx], 1)
-
         eps = self.srng.normal(idx.shape, dtype=alpha.dtype)
         U = self.srng.uniform(idx.shape,
                               low=epsilon(),
                               high=1 - epsilon(),
                               dtype=alpha.dtype)
-        z = self._h(added_alpha[idx], eps)
+        z, judge1, judge2 = self._h(alpha[idx], eps)
 
-        _idx = T.lt(U, self.pdf(z, added_alpha[idx], T.ones_like(
-            added_alpha[idx])) / self._gauss_pdf(z)).nonzero()
-        idx = idx[_idx]
-        output_z = T.set_subtensor(output_z[idx], z[_idx])
+        _idx_binary = T.and_(T.lt(U, judge1), T.gt(eps, judge2))
+        output_z = T.set_subtensor(output_z[idx[_idx_binary.nonzero()]],
+                                   z[_idx_binary.nonzero()])
 
-        _under_one_idx = T.arange(idx.shape[0])[T.gt(1, alpha[idx]).nonzero()]
-        under_one_idx = idx[_under_one_idx]
-        output_z = T.set_subtensor(output_z[under_one_idx],
-                                   (U[_under_one_idx] **
-                                    (1 / (alpha[under_one_idx]))) *
-                                   output_z[under_one_idx])
+        # update idx
+        idx = idx[T.eq(0, _idx_binary).nonzero()]
 
-        return output_z
+        return output_z, idx
+
+    def _not_rejection_sampling(self, alpha):
+        eps = self.srng.normal(alpha.shape, dtype=alpha.dtype)
+        z, _, _ = self._h(alpha, eps)
+        return z
+
+
+class Beta_sample(Gamma_sample):
+    """
+    Beta distribution
+    x^(alpha-1) * (1-x)^(beta-1) / B(alpha, beta)
+    """
+
+    def __init__(self, iter_sampling=6, rejection_sampling=True, seed=1):
+        super(Beta_sample,
+              self).__init__(iter_sampling=iter_sampling,
+                             rejection_sampling=rejection_sampling,
+                             seed=seed)
+
+    def sample(self, alpha, beta):
+        z_1 = super(Beta_sample,
+                    self).sample(alpha, T.ones_like(alpha))
+
+        z_2 = super(Beta_sample,
+                    self).sample(beta, T.ones_like(beta))
+
+        return z_1 / (z_1 + z_2)
+
+    def log_likelihood(self, samples, alpha, beta):
+        output = (alpha - 1) * T.log(samples + epsilon())
+        output += (beta - 1) * T.log(1 - samples + epsilon())
+        output -= self._log_beta_func(alpha, beta)
+        return mean_sum_samples(output)
+
+    def _log_beta_func(self, alpha, beta):
+        return T.gammaln(alpha) + T.gammaln(beta) - T.gammaln(alpha + beta)
+
+
+class Dirichlet_sample(Gamma_sample):
+    """
+    Dirichlet distribution
+    x^(alpha-1) * (1-x)^(beta-1) / B(alpha, beta)
+    """
+
+    def __init__(self, k, iter_sampling=6, rejection_sampling=True, seed=1):
+        super(Dirichlet_sample,
+              self).__init__(iter_sampling=iter_sampling,
+                             rejection_sampling=rejection_sampling,
+                             seed=seed)
+        self.k = k
+
+    def sample(self, alpha, flatten=True):
+        z = T.zeros_like(alpha)
+        for _k in range(self.k):
+            _alpha = self._slice_last(alpha, _k)
+            _z = super(Dirichlet_sample,
+                       self).sample(_alpha, T.ones_like(_alpha))
+            z = T.set_subtensor(self._slice_last(z, _k), _z)
+        z = z / T.sum(z, axis=-1, keepdims=True)
+        if flatten and alpha.ndim == 3:
+            z = T.flatten(z, outdim=2)
+        return z
+
+    def log_likelihood(self, samples, alpha):
+        samples = samples.reshape((samples.shape[0],
+                                   samples.shape[1] / self.k,
+                                   self.k))
+        alpha = alpha.reshape((alpha.shape[0],
+                               alpha.shape[1] / self.k,
+                               self.k))
+        output = 0
+        for _k in range(self.k):
+            _alpha = self._slice_last(alpha, _k)
+            _samples = self._slice_last(samples, _k)
+            output += (_alpha - 1) * T.log(_samples + epsilon())
+        output -= self._log_beta_vec_func(alpha)
+        return mean_sum_samples(output)
+
+    def _log_beta_vec_func(self, alpha):
+        output = 0
+        for _k in range(self.k):
+            output += T.gammaln(self._slice_last(alpha, _k))
+        output -= T.gammaln(T.sum(alpha, axis=-1))
+        return output
+
+    def _slice_last(self, a, k):
+        if a.ndim == 1:
+            return a[k]
+        elif a.ndim == 2:
+            return a[:, k]
+        elif a.ndim == 3:
+            return a[:, :, k]
+
+        raise ValueError('Wrong the dimention of input.')
+
+
+class UnitGaussian_sample(Gaussian_sample):
+    """
+    Standard normal gaussian distribution
+    p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{x^2}{2}}
+    """
+
+    def sample(self, shape):
+        """
+        Paramaters
+        --------
+        shape : tuple
+           sets a shape of the output sample
+        """
+
+        return self.srng.normal(shape)
+
+    def log_likelihood(self, samples):
+        return super(UnitGaussian_sample,
+                     self).log_likelihood(samples,
+                                          T.zeros_like(samples),
+                                          T.ones_like(samples))
+
+
+class UnitBernoulli_sample(Bernoulli_sample):
+    """
+    Unit bernoulli distribution
+    """
+
+    def sample(self, shape):
+        return super(UnitBernoulli_sample,
+                     self).sample(T.ones(shape) * 0.5)
+
+    def log_likelihood(self, samples):
+        return super(UnitBernoulli_sample,
+                     self).log_likelihood(samples,
+                                          T.ones_like(samples) * 0.5)
+
+
+class UnitCategorical_sample(Categorical_sample):
+    """
+    Unit Categorical distribution
+    """
+
+    def __init__(self, k=1, seed=1):
+        super(UnitCategorical_sample, self).__init__(seed=seed)
+        self.k = k
+
+    def sample(self, shape):
+        if self.k == shape[-1]:
+            return super(UnitCategorical_sample,
+                         self).sample(T.ones(shape) / self.k)
+
+        raise ValueError("self.k and shape don't match.")
+
+    def log_likelihood(self, samples):
+        return super(UnitCategorical_sample,
+                     self).log_likelihood(samples,
+                                          T.ones_like(samples) / self.k)
 
 
 class UnitGamma_sample(Gamma_sample):
@@ -521,27 +620,50 @@ class UnitGamma_sample(Gamma_sample):
                                           T.ones_like(samples))
 
 
-class UnitBeta_sample(Distribution_sample):
+class UnitBeta_sample(Beta_sample):
     """
     Unit Beta distribution
     """
 
-    def __init__(self, alpha=1., beta=5., seed=1):
-        super(UnitBeta_sample, self).__init__(seed=seed)
+    def __init__(self, alpha=1., beta=1.,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        super(UnitBeta_sample,
+              self).__init__(iter_sampling=iter_sampling,
+                             rejection_sampling=rejection_sampling,
+                             seed=seed)
         self.alpha = alpha
         self.beta = beta
 
     def sample(self, shape):
-        raise NotImplementedError
+        return super(UnitBeta_sample,
+                     self).sample(T.ones(shape) * self.alpha,
+                                  T.ones(shape) * self.beta)
 
     def log_likelihood(self, samples):
-        output = -T.log(self._beta_func(self.alpha, self.beta) + epsilon())
-        output += (self.alpha - 1) * samples
-        output += (self.beta - 1) * (1 - samples)
-        return output
+        alpha = T.ones_like(samples) * self.alpha
+        beta = T.ones_like(samples) * self.beta
+        return super(UnitBeta_sample,
+                     self).log_likelihood(samples, alpha, beta)
 
-    def _beta_func(self, a, b):
-        return T.exp(T.gammaln(a) + T.gammaln(b) - T.gammaln(a + b))
+
+class UnitDirichlet_sample(Dirichlet_sample):
+
+    def __init__(self, k, alpha=1.,
+                 iter_sampling=6, rejection_sampling=True, seed=1):
+        super(UnitDirichlet_sample,
+              self).__init__(k, iter_sampling=iter_sampling,
+                             rejection_sampling=rejection_sampling,
+                             seed=seed)
+        self.alpha = alpha
+
+    def sample(self, shape):
+        return super(UnitDirichlet_sample,
+                     self).sample(T.ones(shape) * self.alpha)
+
+    def log_likelihood(self, samples):
+        alpha = T.ones_like(samples) * self.alpha
+        return super(UnitDirichlet_sample,
+                     self).log_likelihood(samples, alpha)
 
 
 def mean_sum_samples(samples):
