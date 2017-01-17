@@ -44,4 +44,4 @@ When you execute this command, the following packages will be automatically inst
 * sklearn
 
 ## Examples
-Please go to the "examples" directory and try to execute some examples.
+Please go to the "examples" directory and try to run some examples.
