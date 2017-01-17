@@ -21,12 +21,12 @@ Tars is the deep generative models library. It has the following features:
     * Variational RNN
     * DRAW, Convolutional DRAW
   * Various lower bounds
-    * The evidence lower bound (ELBO, which is the same as the original lowerbound)
-    * The importance sampling lowerbound 
+    * The evidence lower bound (ELBO, which is the same as the original lower bound)
+    * The importance sampling lower bound 
     * The variational R'enyi bound
 
 * Note: Some of the implementations of the above models have not yet been released in this version. If you want to use such models, please use the old version (v0.0.2).
-* For a more detailed explanation of this library, please refer to [this page](http://qiita.com/mms/private/c548ac3268e5a325b129) (written in Japanese).
+* For a more detailed explanation of this library, please refer to [this page](http://qiita.com/mms/private/c548ac3268e5a325b129) (in Japanese).
 
 ## Installation
 ```
