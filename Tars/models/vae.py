@@ -5,8 +5,8 @@ import lasagne
 from progressbar import ProgressBar
 
 from ..utils import log_mean_exp
-from ..distribution.estimate_kl import analytical_kl, get_prior
-from ..model.model import Model
+from ..distributions.estimate_kl import analytical_kl, get_prior
+from ..models.model import Model
 
 
 class VAE(Model):

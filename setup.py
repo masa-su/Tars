@@ -24,7 +24,7 @@ def find_version(*file_paths):
 setup(
     name='Tars',
     version=find_version("Tars", "__init__.py"),
-    description='Variational autoencoder library',
+    description='Deep generative model library',
     url='https://github.com/masa-su/Tars',
     author='Masahiro Suzuki',
     dependency_links=[

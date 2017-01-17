@@ -143,7 +143,7 @@ class Distribution(object):
         mean = self.fprop(x, **kwargs)
         return self.log_likelihood(sample, *tolist(mean))
 
-    def _set_theano_func(self):
+    def _set_theano_func(self, set_log_likelihood=True):
         x = self.inputs
         samples = self.fprop(x, deterministic=True)
         self.np_fprop = theano.function(inputs=x,
@@ -158,10 +158,11 @@ class Distribution(object):
         self.np_sample_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        sample = self.output
-        samples = self.log_likelihood_given_x([x, sample], deterministic=True)
-        self.np_log_liklihood_given_x = theano.function(
-            inputs=x + [sample], outputs=samples[-1], on_unused_input='ignore')
+        if set_log_likelihood:
+            sample = self.output
+            samples = self.log_likelihood_given_x([x, sample], deterministic=True)
+            self.np_log_liklihood_given_x = theano.function(
+                inputs=x + [sample], outputs=samples[-1], on_unused_input='ignore')
 
     @abstractmethod
     def sample(self):
@@ -203,11 +204,11 @@ class Deterministic(Deterministic_sample, Distribution):
     def __init__(self, network, given, seed=1):
         Distribution.__init__(self, network, given)
         super(Deterministic, self).__init__(seed=seed)
-        self._set_theano_func()
+        self._set_theano_func(False)
 
     def set_seed(self, seed=1):
         super(Deterministic, self).set_seed(seed=seed)
-        self._set_theano_func()
+        self._set_theano_func(False)
 
 
 class Bernoulli(Bernoulli_sample, Distribution):

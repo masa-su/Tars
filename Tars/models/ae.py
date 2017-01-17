@@ -4,7 +4,7 @@ import theano.tensor as T
 import lasagne
 from progressbar import ProgressBar
 
-from ..model.model import Model
+from ..models.model import Model
 
 
 class AE(Model):
