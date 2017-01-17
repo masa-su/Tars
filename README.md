@@ -14,9 +14,9 @@ Tars is the deep generative models library. It has the following features:
      * Importance weighted autoencoder
      * [JMVAE](https://arxiv.org/abs/1611.01891v1)
      * Multiple latent layers
-  * Multimodal VAE-GAN
   * GAN, Conditional GAN
   * VAE-GAN, conditional VAE-GAN
+    * [JMVAE-GAN](https://arxiv.org/abs/1611.01891v1)
   * VAE-RNN
     * Variational RNN
     * DRAW, Convolutional DRAW
@@ -25,7 +25,8 @@ Tars is the deep generative models library. It has the following features:
     * The importance sampling lowerbound 
     * The variational R'enyi bound
 
-Note: Some of the implementations of the above models have not yet been released in this version.
+* Note: Some of the implementations of the above models have not yet been released in this version. If you want to use such models, please use the old version (v0.0.2).
+* For a more detailed explanation of this library, please refer to [this page](http://qiita.com/mms/private/c548ac3268e5a325b129) (written in Japanese).
 
 ## Installation
 ```
@@ -44,4 +45,4 @@ When you execute this command, the following packages will be automatically inst
 * sklearn
 
 ## Examples
-Please go to the "examples" directory and try to run some examples.
+Please go to the examples directory and try to run some examples.
