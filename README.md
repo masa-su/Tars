@@ -25,7 +25,7 @@ Tars is the deep generative models library. It has the following features:
     * The importance sampling lowerbound 
     * The variational R'enyi bound
 
-* Note: Implementations of some models has not yet been released in this version.
+Note: Some of the implementations of the above models have not yet been released in this version.
 
 ## Installation
 ```
