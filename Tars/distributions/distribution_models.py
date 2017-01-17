@@ -160,9 +160,11 @@ class Distribution(object):
 
         if set_log_likelihood:
             sample = self.output
-            samples = self.log_likelihood_given_x([x, sample], deterministic=True)
+            samples = self.log_likelihood_given_x([x, sample],
+                                                  deterministic=True)
             self.np_log_liklihood_given_x = theano.function(
-                inputs=x + [sample], outputs=samples[-1], on_unused_input='ignore')
+                inputs=x + [sample], outputs=samples[-1],
+                on_unused_input='ignore')
 
     @abstractmethod
     def sample(self):
