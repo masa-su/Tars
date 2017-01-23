@@ -4,6 +4,7 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from ..utils import epsilon
+from abc import ABCMeta, abstractmethod
 
 __all__ = [
     'Deterministic_sample',
@@ -25,12 +26,21 @@ __all__ = [
 
 
 class Distribution_sample(object):
+    __metaclass__ = ABCMeta
 
     def __init__(self, seed=1, **kwargs):
         self.srng = RandomStreams(seed)
 
     def set_seed(self, seed=1):
         self.srng = RandomStreams(seed)
+
+    @abstractmethod
+    def sample(self):
+        pass
+
+    @abstractmethod
+    def log_likelihood(self):
+        pass
 
 
 class Deterministic_sample(object):

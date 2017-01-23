@@ -19,7 +19,6 @@ from .distribution_samples import (
 
 
 class Distribution(object):
-    __metaclass__ = ABCMeta
     """
     Paramaters
     ----------
@@ -33,7 +32,8 @@ class Distribution(object):
             log p(*|x,y)
     """
 
-    def __init__(self, mean_network, given):
+    def __init__(self, distribution, mean_network, given):
+        self.distribution = distribution
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
@@ -107,7 +107,7 @@ class Distribution(object):
         if repeat != 1:
             x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
         mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean))]
+        return [x, self.distribution.sample(*tolist(mean))]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -141,7 +141,7 @@ class Distribution(object):
 
         x, sample = samples
         mean = self.fprop(x, **kwargs)
-        return self.log_likelihood(sample, *tolist(mean))
+        return self.distribution.log_likelihood(sample, *tolist(mean))
 
     def _set_theano_func(self, set_log_likelihood=True):
         x = self.inputs
@@ -166,13 +166,6 @@ class Distribution(object):
                 inputs=x + [sample], outputs=samples[-1],
                 on_unused_input='ignore')
 
-    @abstractmethod
-    def sample(self):
-        pass
-
-    @abstractmethod
-    def log_likelihood(self):
-        pass
 
 
 class Distribution_double(Distribution):
@@ -213,11 +206,12 @@ class Deterministic(Deterministic_sample, Distribution):
         self._set_theano_func(False)
 
 
-class Bernoulli(Bernoulli_sample, Distribution):
+class Bernoulli(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, seed=1):
-        Distribution.__init__(self, mean_network, given)
-        super(Bernoulli, self).__init__(temp=temp, seed=seed)
+        distribution = Bernoulli_sample()
+        Distribution.__init__(self, distribution, mean_network, given)
+        #super(Bernoulli, self).__init__(temp=temp, seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
