@@ -31,8 +31,8 @@ class Distribution(object):
             log p(*|x,y)
     """
 
-    def __init__(self, distribution, mean_network, given):
-        self.distribution = distribution
+    def __init__(self, distribution, mean_network, given, seed=1):
+        self.distribution = distribution(seed=1)
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
@@ -168,9 +168,9 @@ class Distribution(object):
 
 class Distribution_double(Distribution):
 
-    def __init__(self, distribution, mean_network, var_network, given):
+    def __init__(self, distribution, mean_network, var_network, given, seed=1):
         super(Distribution_double, self).__init__(
-            distribution, mean_network, given)
+            distribution, mean_network, given, seed)
         self.var_network = var_network
         if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
