@@ -31,13 +31,19 @@ class Distribution(object):
             log p(*|x,y)
     """
 
-    def __init__(self, distribution, mean_network, given, seed=1):
+    def __init__(self, distribution, mean_network, given, seed=1, set_log_likelihood=True):
         self.distribution = distribution(seed=1)
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
         _output_shape = self.get_output_shape()
         self.output = T.TensorType('float32', (False,) * len(_output_shape))()
+        self.set_log_likelihood = set_log_likelihood
+        self._set_theano_func()
+
+    def set_seed(self, seed=1):
+        self.distribution.set_seed(seed)
+        self._set_theano_func()
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
@@ -142,7 +148,7 @@ class Distribution(object):
         mean = self.fprop(x, **kwargs)
         return self.distribution.log_likelihood(sample, *tolist(mean))
 
-    def _set_theano_func(self, set_log_likelihood=True):
+    def _set_theano_func(self):
         x = self.inputs
         samples = self.fprop(x, deterministic=True)
         self.np_fprop = theano.function(inputs=x,
@@ -157,7 +163,7 @@ class Distribution(object):
         self.np_sample_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        if set_log_likelihood:
+        if self.set_log_likelihood:
             sample = self.output
             samples = self.log_likelihood_given_x([x, sample],
                                                   deterministic=True)
