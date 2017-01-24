@@ -45,6 +45,7 @@ class Distribution(object):
     def set_seed(self, seed=1):
         self.distribution.set_seed(seed)
         self._set_theano_func()
+        self.distribution.set_seed(seed)
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
