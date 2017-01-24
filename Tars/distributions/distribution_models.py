@@ -167,11 +167,11 @@ class Distribution(object):
                 on_unused_input='ignore')
 
 
-
 class Distribution_double(Distribution):
 
     def __init__(self, distribution, mean_network, var_network, given):
-        super(Distribution_double, self).__init__(distribution, mean_network, given)
+        super(Distribution_double, self).__init__(
+            distribution, mean_network, given)
         self.var_network = var_network
         if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
@@ -250,7 +250,8 @@ class Gaussian(Distribution_double):
 
     def __init__(self, mean_network, var_network, given, seed=1):
         distribution = Gaussian_sample()
-        super(Gaussian, self).__init__(distribution, mean_network, var_network, given)
+        super(Gaussian, self).__init__(
+            distribution, mean_network, var_network, given)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
