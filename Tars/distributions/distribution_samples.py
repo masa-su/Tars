@@ -270,6 +270,8 @@ class Gaussian_sample(Distribution_sample):
     Gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
+    def __init__(self, seed=1):
+        super(Gaussian_sample, self).__init__(seed=seed)
 
     def sample(self, mean, var):
         """

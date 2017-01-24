@@ -170,8 +170,8 @@ class Distribution(object):
 
 class Distribution_double(Distribution):
 
-    def __init__(self, mean_network, var_network, given):
-        super(Distribution_double, self).__init__(mean_network, given)
+    def __init__(self, distribution, mean_network, var_network, given):
+        super(Distribution_double, self).__init__(distribution, mean_network, given)
         self.var_network = var_network
         if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
@@ -210,8 +210,7 @@ class Bernoulli(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, seed=1):
         distribution = Bernoulli_sample()
-        Distribution.__init__(self, distribution, mean_network, given)
-        #super(Bernoulli, self).__init__(temp=temp, seed=seed)
+        super(Bernoulli, self).__init__(distribution, mean_network, given)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -247,11 +246,11 @@ class Categorical(Categorical_sample, Distribution):
         return mean
 
 
-class Gaussian(Gaussian_sample, Distribution_double):
+class Gaussian(Distribution_double):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        Distribution_double.__init__(self, mean_network, var_network, given)
-        super(Gaussian, self).__init__(seed=seed)
+        distribution = Gaussian_sample()
+        super(Gaussian, self).__init__(distribution, mean_network, var_network, given)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
