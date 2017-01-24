@@ -31,7 +31,8 @@ class Distribution(object):
             log p(*|x,y)
     """
 
-    def __init__(self, distribution, mean_network, given, seed=1, set_log_likelihood=True):
+    def __init__(self, distribution, mean_network, given, seed=1,
+                 set_log_likelihood=True):
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
