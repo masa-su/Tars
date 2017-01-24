@@ -32,14 +32,15 @@ class Distribution(object):
     """
 
     def __init__(self, distribution, mean_network, given, seed=1, set_log_likelihood=True):
-        self.distribution = distribution(seed=1)
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
         _output_shape = self.get_output_shape()
         self.output = T.TensorType('float32', (False,) * len(_output_shape))()
+
+        self.distribution = distribution
         self.set_log_likelihood = set_log_likelihood
-        self._set_theano_func()
+        self.set_seed(seed=seed)
 
     def set_seed(self, seed=1):
         self.distribution.set_seed(seed)
@@ -175,9 +176,9 @@ class Distribution(object):
 class Distribution_double(Distribution):
 
     def __init__(self, distribution, mean_network, var_network, given, seed=1):
+        self.var_network = var_network
         super(Distribution_double, self).__init__(
             distribution, mean_network, given, seed)
-        self.var_network = var_network
         if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
             raise ValueError("The output shapes of the two networks"
@@ -216,11 +217,6 @@ class Bernoulli(Distribution):
     def __init__(self, mean_network, given, temp=0.1, seed=1):
         distribution = Bernoulli_sample()
         super(Bernoulli, self).__init__(distribution, mean_network, given)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Bernoulli, self).set_seed(seed=seed)
-        self._set_theano_func()
 
 
 class Categorical(Categorical_sample, Distribution):
@@ -257,11 +253,6 @@ class Gaussian(Distribution_double):
         distribution = Gaussian_sample()
         super(Gaussian, self).__init__(
             distribution, mean_network, var_network, given)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Gaussian, self).set_seed(seed=seed)
-        self._set_theano_func()
 
 
 class GaussianConstantVar(Gaussian_sample, Deterministic):
