@@ -2,7 +2,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-from abc import ABCMeta, abstractmethod
 
 from ..utils import tolist
 from .distribution_samples import (
