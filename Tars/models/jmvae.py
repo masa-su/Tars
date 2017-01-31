@@ -146,7 +146,7 @@ class JMVAE(VAE):
                     [rep_x], rv_index, set_zeros=True)[0]
                 samples = self.q.sample_given_x(_rep_x, deterministic=True)
                 samples = self._select_input(samples, inputs=rep_x)
-                log_iw = self._log_cd_missing_importance_weight(
+                log_iw = self._log_cd_importance_weight(
                     samples, index, deterministic=True)
 
         else:
@@ -155,31 +155,15 @@ class JMVAE(VAE):
                 log_iw = self._log_selected_importance_weight(
                     samples, index, deterministic=True)
             else:
-                log_iw = self._log_importance_weight(
+                log_iw = self._log_cd_importance_weight(
                     samples, deterministic=True)
+
 
         log_iw_matrix = T.reshape(log_iw, (n_x * l, k))
         log_likelihood = log_mean_exp(
             log_iw_matrix, axis=1, keepdims=True)
         log_likelihood = log_likelihood.reshape((x[0].shape[0], l))
         log_likelihood = T.mean(log_likelihood, axis=1)
-
-        if type_p == "conditional":
-            # log p(x1) = logmeanexp(log p(w|z)), where z~N(0,1)
-            # samples : [std_z,x1] TODO: multiple latent variable
-            rep_x = [T.extra_ops.repeat(_x, sampling_n, axis=0) for _x in x]
-            z = self.q.sample_given_x(rep_x, deterministic=True)[-1]
-
-            # single sampling
-            std_z = self.prior.sample(z.shape)
-            p1_mg_log_likelihood = self.p[1].log_likelihood_given_x(
-                [[std_z], rep_x[1]], deterministic=True)
-
-            p1_mg_log_likelihood = T.reshape(p1_mg_log_likelihood,
-                                             (n_x, sampling_n))
-            p1_mg_log_likelihood = log_mean_exp(
-                p1_mg_log_likelihood, axis=1, keepdims=True)
-            log_likelihood -= p1_mg_log_likelihood
 
         return log_likelihood
 
@@ -298,8 +282,8 @@ class JMVAE(VAE):
 
         return log_iw
 
-    def _log_cd_missing_importance_weight(self, samples, index=[0],
-                                          deterministic=True):
+    def _log_cd_importance_weight(self, samples, index=[0],
+                                  deterministic=True):
         """
         Paramaters
         ----------
@@ -310,33 +294,20 @@ class JMVAE(VAE):
         -------
         log_iw : array, shape (n_samples*k)
            Estimated log likelihood.
-           log p(x0,x1,...,z1,z2,...,zn)/q(z1,z2,...,zn|x[index])
+           log p(x[index]|z1,z2,...,zn)
         """
 
         log_iw = 0
-
-        # samples : [[0,x1,...],z1,z2,...,zn]
-        _index = self._reverse_index(index)
-        missing_samples = self._select_input(
-            samples, index=_index, set_zeros=True)
-
-        # log q(z1,z2,...,zn|0,x1,...)
-        # samples : [[0,x1,...],z1,z2,...,zn]
-        q_log_likelihood = self.q.log_likelihood_given_x(
-            missing_samples, deterministic=deterministic)
-
-        # log p(x|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x]
+        # log p(x[index]|z1,z2,...,zn)
         p_log_likelihood_all = []
-        for i, p in enumerate(self.p):
+        for i in index:
             inverse_samples = self._inverse_samples(
                 self._select_input(samples, [i]))
             p_log_likelihood = self.p[i].log_likelihood_given_x(
                 inverse_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
 
-        log_iw += sum(p_log_likelihood_all) - q_log_likelihood
-        log_iw += self.prior.log_likelihood(samples[-1])
+        log_iw += sum(p_log_likelihood_all)
 
         return log_iw
 
