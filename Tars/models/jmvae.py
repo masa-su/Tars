@@ -27,7 +27,7 @@ class JMVAE(VAE):
                              iw_alpha=0, seed=seed)
 
     def _set_test(self, type_p="marginal", missing=False,
-                  index=[0], sampling_n=1):
+                  index=[0], sampling_n=1, missing_resample=False):
         # set inputs
         x = self.q.inputs
         l = T.iscalar("l")
@@ -44,16 +44,17 @@ class JMVAE(VAE):
         else:
             inputs = x + [l, k]
             lower_bound = self._vr_bound_test(
-                x, l, k, index, type_p, missing, sampling_n)
+                x, l, k, index, type_p, missing, sampling_n, missing_resample)
 
         self.lower_bound_test = theano.function(inputs=inputs,
                                                 outputs=lower_bound,
                                                 on_unused_input='ignore')
 
     def test(self, test_set, l=1, k=1, index=[0], sampling_n=1,
-             type_p="joint", missing=False, n_batch=None, verbose=True):
+             missing_resample=False, type_p="joint",
+             missing=False, n_batch=None, verbose=True):
 
-        self._set_test(type_p, missing, index, sampling_n)
+        self._set_test(type_p, missing, index, sampling_n, missing_resample)
         return super(JMVAE, self).test(test_set,
                                        l, k, n_batch, verbose)
 
@@ -105,7 +106,7 @@ class JMVAE(VAE):
         return log_likelihood, loss, params
 
     def _vr_bound_test(self, x, l, k, index=[0], type_p="marginal",
-                       missing=False, sampling_n=1):
+                       missing=False, sampling_n=1, missing_resample=False):
         """
         Paramaters
         ----------
@@ -144,6 +145,13 @@ class JMVAE(VAE):
                 rv_index = self._reverse_index(index)
                 _rep_x = self._select_input(
                     [rep_x], rv_index, set_zeros=True)[0]
+
+                if missing_resample:
+                    for _ in range(sampling_n-1):
+                        samples = self.q.sample_given_x(_rep_x, deterministic=True)[-1]
+                        for j in index:
+                            _rep_x[j] = self.p[j].sample_given_x([samples])[-1]
+
                 samples = self.q.sample_given_x(_rep_x, deterministic=True)
                 samples = self._select_input(samples, inputs=rep_x)
                 log_iw = self._log_cd_importance_weight(
