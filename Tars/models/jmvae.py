@@ -147,8 +147,9 @@ class JMVAE(VAE):
                     [rep_x], rv_index, set_zeros=True)[0]
 
                 if missing_resample:
-                    for _ in range(sampling_n-1):
-                        samples = self.q.sample_given_x(_rep_x, deterministic=True)[-1]
+                    for _ in range(sampling_n - 1):
+                        samples = self.q.sample_given_x(_rep_x,
+                                                        deterministic=True)[-1]
                         for j in index:
                             _rep_x[j] = self.p[j].sample_given_x([samples])[-1]
 
@@ -165,7 +166,6 @@ class JMVAE(VAE):
             else:
                 log_iw = self._log_cd_importance_weight(
                     samples, deterministic=True)
-
 
         log_iw_matrix = T.reshape(log_iw, (n_x * l, k))
         log_likelihood = log_mean_exp(

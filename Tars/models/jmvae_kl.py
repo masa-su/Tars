@@ -1,10 +1,7 @@
-from copy import copy
-
-import theano
 import theano.tensor as T
 import lasagne
 
-from ..utils import tolist, log_mean_exp
+from ..utils import log_mean_exp
 from ..distributions.estimate_kl import analytical_kl
 from . import JMVAE
 
@@ -31,7 +28,8 @@ class JMVAE_KL(JMVAE):
 
     def _elbo(self, x, l, annealing_beta, deterministic=False):
         lower_bound, loss, params = \
-            super(JMVAE_KL, self)._elbo(x, l, annealing_beta, deterministic=False)
+            super(JMVAE_KL, self)._elbo(x, l, annealing_beta,
+                                        deterministic=False)
 
         # ---penalty
         kl_all = []
@@ -79,7 +77,8 @@ class JMVAE_KL(JMVAE):
         if missing:
             if type_p == "marginal":
                 _rep_x = self._select_input([rep_x], index)[0]
-                samples = self.pseudo_q[index[0]].sample_given_x(_rep_x, deterministic=True)
+                samples = self.pseudo_q[index[0]].sample_given_x(
+                    _rep_x, deterministic=True)
                 samples = self._select_input(samples, inputs=rep_x)
                 log_iw = self._log_mg_missing_importance_weight(
                     samples, index, deterministic=True)
@@ -89,7 +88,8 @@ class JMVAE_KL(JMVAE):
                 rv_index = self._reverse_index(index)
                 _rep_x = self._select_input(
                     [rep_x], rv_index)[0]
-                samples = self.pseudo_q[rv_index[0]].sample_given_x(_rep_x, deterministic=True)
+                samples = self.pseudo_q[rv_index[0]].sample_given_x(
+                    _rep_x, deterministic=True)
                 samples = self._select_input(samples, inputs=rep_x)
                 log_iw = self._log_cd_importance_weight(
                     samples, index, deterministic=True)
