@@ -76,8 +76,8 @@ class JMVAE(VAE):
             p_params += self.p[i].get_params()
 
         lower_bound = T.stack([-kl_divergence] + log_likelihood_all, axis=-1)
-        loss = -T.mean(sum(log_likelihood_all)
-                       - annealing_beta * kl_divergence)
+        loss = -T.mean(sum(log_likelihood_all) -
+                       annealing_beta * kl_divergence)
 
         q_params = self.q.get_params()
         params = q_params + p_params
