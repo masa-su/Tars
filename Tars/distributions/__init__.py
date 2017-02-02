@@ -14,6 +14,7 @@ from .distribution_models import (
 from .multiple import (
     Concatenate,
     MultiDistributions,
+    MultiPriorDistributions,
 )
 
 
@@ -31,4 +32,5 @@ __all__ = [
     'Dirichlet',
     'Concatenate',
     'MultiDistributions',
+    'MultiPriorDistributions',
 ]

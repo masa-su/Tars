@@ -296,3 +296,45 @@ class MultiDistributions(object):
         samples = self.sample_given_x(x, layer_id=-1, deterministic=True)
         self.np_sample_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
+
+
+class MultiPriorDistributions(MultiDistributions):
+    """
+    p(z) = p(zn)p(zn-1|zn)...p(z1|z2).
+
+    Samples
+    -------
+    distributions : list
+       Contain multiple distributions.
+
+    Examples
+    --------
+    >>> from Tars.distribution import MultiPriorDistributions
+    >>> from Tars.distribution import Gaussian, Bernoulli
+    >>> gauss = Gaussian(mean, var, given=[z2])
+    >>> bernoulli = Bernoulli(mean, given=[z1])
+    >>> multi = MultiPriorDistributions([gauss, bernoulli])
+    """
+
+    def __init__(self, distributions, prior=None):
+        self.prior = prior
+        super(MultiPriorDistributions,
+              self).__init__(distributions, approximate=False)
+
+    def fprop(self, x, layer_id=-1, *args, **kwargs):
+        return super(MultiPriorDistributions,
+                     self).fprop(x, layer_id=layer_id,
+                                 *args, **kwargs)
+
+    def sample_given_x(self, x, layer_id=-1, repeat=1, **kwargs):
+        return super(MultiPriorDistributions,
+                     self).sample_given_x(x, layer_id=layer_id,
+                                          **kwargs)
+
+    def sample_mean_given_x(self, x, layer_id=-1, *args, **kwargs):        
+        return super(MultiPriorDistributions,
+                     self).sample_mean_given_x(x, layer_id=layer_id,
+                                               *args, **kwargs)
+
+    def log_likelihood_given_x(self, samples, **kwargs):
+        NotImplementedError
