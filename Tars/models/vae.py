@@ -25,6 +25,14 @@ class VAE(Model):
             self.prior = prior
         else:
             self.prior = get_prior(self.q)
+
+        # set prior distribution mode
+        if self.prior.__class__.__name__ == "MultiPriorDistributions":
+            self.prior.prior = get_prior(self.q.distributions[-1])
+            self.prior_mode = "MultiPrior"
+        else:
+            self.prior_mode = "Normal"
+
         self.train_iw = train_iw
         self.test_iw = test_iw
 
@@ -130,7 +138,8 @@ class VAE(Model):
                                       deterministic=deterministic)
         z = self.q.sample_given_x(x, repeat=l,
                                   deterministic=deterministic)
-        inverse_z = self._inverse_samples(z)
+
+        inverse_z = self._inverse_samples(z, prior_mode=self.prior_mode)
         log_likelihood =\
             self.p.log_likelihood_given_x(inverse_z,
                                           deterministic=deterministic)
@@ -142,10 +151,8 @@ class VAE(Model):
         p_params = self.p.get_params()
         params = q_params + p_params
 
-        if self.prior.__class__.__name__ == "MultiPriorDistributions":
-            print params
+        if self.prior_mode == "MultiPrior":
             params += self.prior.get_params()
-            print params
 
         return lower_bound, loss, params
 
@@ -155,8 +162,8 @@ class VAE(Model):
         [Li+ 2016] Renyi Divergence Variational Inference
         [Burda+ 2015] Importance Weighted Autoencoders
         """
-        q_samples = self.q.sample_given_x(
-            x, repeat=l * k, deterministic=deterministic)
+        q_samples = self.q.sample_given_x(x, repeat=l * k,
+                                          deterministic=deterministic)
         log_iw = self._log_importance_weight(q_samples,
                                              deterministic=deterministic)
         log_iw_matrix = log_iw.reshape((x[0].shape[0] * l, k))
@@ -182,6 +189,9 @@ class VAE(Model):
         p_params = self.p.get_params()
         params = q_params + p_params
 
+        if self.prior_mode == "MultiPrior":
+            params += self.prior.get_params()
+
         return log_likelihood, loss, params
 
     def _log_importance_weight(self, samples, deterministic=False):
@@ -203,12 +213,18 @@ class VAE(Model):
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
-        inverse_samples = self._inverse_samples(samples)
+        p_samples, prior_samples = self._inverse_samples(
+            samples, prior_mode=self.prior_mode, return_prior=True)
+
         p_log_likelihood =\
-            self.p.log_likelihood_given_x(inverse_samples,
+            self.p.log_likelihood_given_x(p_samples,
                                           deterministic=deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood
-        log_iw += self.prior.log_likelihood(samples[-1])
+
+        if self.prior_mode == "MultiPrior":
+            log_iw += self.prior.log_likelihood_given_x(prior_samples)
+        else:
+            log_iw += self.prior.log_likelihood(prior_samples)
 
         return log_iw

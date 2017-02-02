@@ -193,6 +193,30 @@ class MultiDistributions(object):
             samples.append(sample[-1])
         return samples
 
+    def _approx_sample(self, x, layer_id, **kwargs):
+        """
+        Paramaters
+        ----------
+        x : list
+           This contains Theano variables.
+
+        Returns
+        -------
+        list
+           This contains 'x' and samples, such as [x,z1,...,zn-1].
+        """
+
+        mean = x
+        samples = [x]
+        for i, d in enumerate(self.distributions[:layer_id]):
+            sample = d.sample_given_x(
+                tolist(mean), **kwargs)
+            samples.append(sample[-1])
+            mean = d.sample_mean_given_x(
+                tolist(mean), **kwargs)[-1]
+
+        return samples, mean
+
     def fprop(self, x, layer_id=-1, *args, **kwargs):
         """
         Paramaters
@@ -230,11 +254,13 @@ class MultiDistributions(object):
         """
 
         if self.approximate:
-            samples = self._sample_mean(x, layer_id, **kwargs)
+            samples, mean = self._approx_sample(x, layer_id, **kwargs)
+            samples += self.distributions[layer_id].sample_given_x(
+                tolist(mean), repeat=repeat, **kwargs)[-1:]
         else:
             samples = self._sample(x, layer_id, **kwargs)
-        samples += self.distributions[layer_id].sample_given_x(
-            tolist(samples[-1]), repeat=repeat, **kwargs)[-1:]
+            samples += self.distributions[layer_id].sample_given_x(
+                tolist(samples[-1]), repeat=repeat, **kwargs)[-1:]
         return samples
 
     def sample_mean_given_x(self, x, layer_id=-1, *args, **kwargs):
@@ -322,4 +348,25 @@ class MultiPriorDistributions(MultiDistributions):
               self).__init__(distributions, approximate=False)
 
     def log_likelihood_given_x(self, samples, **kwargs):
-        NotImplementedError
+        """
+        Paramaters
+        --------
+        samples : list
+           This contains 'x', which has Theano variables, and test samples,
+           such as z1, z2,...,zn.
+
+        Returns
+        --------
+        Theano variable, shape (n_samples,)
+           log_likelihood : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
+        """
+
+        all_log_likelihood = 0
+        for x, sample, d in zip(samples, samples[1:], self.distributions):
+            log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
+                                                      **kwargs)
+            all_log_likelihood += log_likelihood
+
+        prior_samples = samples[0][0]
+        all_log_likelihood += self.prior.log_likelihood(prior_samples)
+        return all_log_likelihood

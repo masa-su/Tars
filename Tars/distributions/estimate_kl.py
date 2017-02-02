@@ -142,10 +142,9 @@ def analytical_kl(q1, q2, given, deterministic=False):
             kl = analytical_kl(q, p, given=[tolist(_x), tolist(z)])
             all_kl += kl
 
-        prior = get_prior(q1.distributions[-1])
         _x = q1.sample_mean_given_x(x1, layer_id=-2)[-1]
         kl = analytical_kl(
-            q1.distributions[-1], prior, given=[tolist(_x), None])
+            q1.distributions[-1], q2.prior, given=[tolist(_x), None])
         all_kl += kl
 
         return all_kl

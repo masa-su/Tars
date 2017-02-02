@@ -3,7 +3,7 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from lasagne.updates import total_norm_constraint
 from abc import ABCMeta, abstractmethod
-
+from ..utils import tolist
 
 class Model(object):
     __metaclass__ = ABCMeta
@@ -36,14 +36,14 @@ class Model(object):
             prior_samples = samples[-1]
 
         elif prior_mode == "MultiPrior":
-            p_samples = inverse_samples[-2:]
+            p_samples = [tolist(inverse_samples[-2]), inverse_samples[-1]]
             prior_samples = inverse_samples[:-1]
 
         else:
             raise Exception("You should set prior_mode to 'Normal' or"
                             "'MultiPrior', got %s." % prior_mode)
 
-        if prior:
+        if return_prior:
             return p_samples, prior_samples
         else:
             return p_samples
