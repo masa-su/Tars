@@ -28,12 +28,13 @@ class TestGumbelSample(TestCase):
         sample = f(mu_vector, beta_vector)
         return sample
 
-    def test_consistance(self):
+    def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mu, beta = 0, 1
         gumbel_sample = Gumbel_sample(temp=0.01, seed=1234567890)
         actual = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
-        desired = [ 1.7462246417999268,
+        desired = [
+            1.7462246417999268,
             0.2874840497970581,
             0.9974965453147888,
             0.3290553689002991,
@@ -47,14 +48,14 @@ class TestBernoulliSample(TestCase):
         self.bernoulli_sample = Bernoulli_sample(temp=0.01, seed=1)
 
     @staticmethod
-    def get_samples(mean, bernoulli, size):
+    def get_sample(mean, bernoulli, size):
         # get a sample from given bernoulli distribution in ndarray
-        mean_sample = np.ones(size).astype("float32") * mean
+        mean_vector = np.ones(size).astype("float32") * mean
         t_mean = T.fvector("mean")
-        sample = bernoulli.sample(t_mean)
-        f = theano.function(inputs = [t_mean], outputs=sample)
-        samples = f(mean_sample)
-        return samples
+        t_sample = bernoulli.sample(t_mean)
+        f = theano.function(inputs = [t_mean], outputs=t_sample)
+        sample = f(mean_vector)
+        return sample
 
     def test_mean_zero(self):
         # Tests the corner case of mean == 0 for the bernoulli distribution.
@@ -62,7 +63,7 @@ class TestBernoulliSample(TestCase):
         # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         zeros = np.zeros(1000, dtype='float')
         mean = 0
-        samples = TestBernoulliSample.get_samples(mean, self.bernoulli_sample, 1000)
+        samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
         self.assertTrue(np.allclose(zeros, samples))
 
     def test_mean_one(self):
@@ -71,8 +72,22 @@ class TestBernoulliSample(TestCase):
         # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         ones = np.ones(1000, dtype='float')
         mean = 1
-        samples = TestBernoulliSample.get_samples(mean, self.bernoulli_sample, 1000)
+        samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
         self.assertTrue(np.allclose(ones, samples))
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        mean = 0.5
+        bernoulli_sample = Bernoulli_sample(temp=0.1, seed=1234567890)
+        actual = TestBernoulliSample.get_sample(mean, bernoulli_sample, 5)
+        desired = [
+            0.9999971508356551,
+            0.9101269246280252,
+            0.0248156363467501,
+            0.3538078165724645,
+            0.1615775890919983
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
 
 
 class TestGaussianSample(TestCase):
@@ -111,6 +126,20 @@ class TestGaussianSample(TestCase):
         # the return value is slightly different from numpy result. (Reason for setting decimal=7, not 15)
         assert_array_almost_equal(tars_sample, theano_sample, decimal=7)
         assert_array_almost_equal(tars_sample, numpy_sample, decimal=7)
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        mean, var = 0, 1
+        gaussian_sample = Gaussian_sample(seed=1234567890)
+        actual = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
+        desired = [
+            -0.1004791483283043,
+            1.2329169511795044,
+            -0.1330301910638809,
+            1.9520784616470337,
+            -0.3533721268177032
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
 
 
 
