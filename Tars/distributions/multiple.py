@@ -193,7 +193,7 @@ class MultiDistributions(object):
             samples.append(sample[-1])
         return samples
 
-    def fprop(self, x, layer_id=0, *args, **kwargs):
+    def fprop(self, x, layer_id=-1, *args, **kwargs):
         """
         Paramaters
         ----------
@@ -213,7 +213,7 @@ class MultiDistributions(object):
             tolist(output), *args, **kwargs)
         return mean
 
-    def sample_given_x(self, x, layer_id=0, repeat=1, **kwargs):
+    def sample_given_x(self, x, layer_id=-1, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -237,7 +237,7 @@ class MultiDistributions(object):
             tolist(samples[-1]), repeat=repeat, **kwargs)[-1:]
         return samples
 
-    def sample_mean_given_x(self, x, layer_id=0, *args, **kwargs):
+    def sample_mean_given_x(self, x, layer_id=-1, *args, **kwargs):
         """
         Paramaters
         --------
@@ -300,7 +300,7 @@ class MultiDistributions(object):
 
 class MultiPriorDistributions(MultiDistributions):
     """
-    p(z) = p(zn)p(zn-1|zn)...p(z1|z2).
+    p(z|y) = p(zn)p(zn-1|zn,y)...p(z1|z2).
 
     Samples
     -------
@@ -320,21 +320,6 @@ class MultiPriorDistributions(MultiDistributions):
         self.prior = prior
         super(MultiPriorDistributions,
               self).__init__(distributions, approximate=False)
-
-    def fprop(self, x, layer_id=-1, *args, **kwargs):
-        return super(MultiPriorDistributions,
-                     self).fprop(x, layer_id=layer_id,
-                                 *args, **kwargs)
-
-    def sample_given_x(self, x, layer_id=-1, repeat=1, **kwargs):
-        return super(MultiPriorDistributions,
-                     self).sample_given_x(x, layer_id=layer_id,
-                                          **kwargs)
-
-    def sample_mean_given_x(self, x, layer_id=-1, *args, **kwargs):        
-        return super(MultiPriorDistributions,
-                     self).sample_mean_given_x(x, layer_id=layer_id,
-                                               *args, **kwargs)
 
     def log_likelihood_given_x(self, samples, **kwargs):
         NotImplementedError
