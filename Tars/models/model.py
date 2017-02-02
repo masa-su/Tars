@@ -20,7 +20,7 @@ class Model(object):
         self.rng = np.random.RandomState(seed)
         self.srng = RandomStreams(seed)
 
-    def _inverse_samples(self, samples, dist_mode="Normal"):
+    def _inverse_samples(self, samples, dist_mode="Normal", prior=False):
         """
         inputs : [[x,y],z1,z2,...zn]
         outputs :
@@ -32,13 +32,21 @@ class Model(object):
         inverse_samples[-1] = inverse_samples[-1][0]
 
         if dist_mode == "Normal":
-            return inverse_samples, samples[-1]
+            p_samples = inverse_samples
+            prior_samples = samples[-1]
 
         elif dist_mode == "MultiPrior":
-            return inverse_samples[-2:], inverse_samples[:-1]
+            p_samples = inverse_samples[-2:]
+            prior_samples = inverse_samples[:-1]
 
-        raise Exception("You should set dist_mode to 'Normal' or"
-                        "'MultiPrior', got %s." % dist_mode)
+        else:
+            raise Exception("You should set dist_mode to 'Normal' or"
+                            "'MultiPrior', got %s." % dist_mode)
+
+        if prior:
+            return p_samples, prior_samples
+        else:
+            return p_samples
 
     def _get_updates(self, loss, params, optimizer, optimizer_params={},
                      clip_grad=None, max_norm_constraint=None):
