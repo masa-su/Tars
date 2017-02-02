@@ -2,7 +2,7 @@ import math
 import theano
 import theano.tensor as T
 
-from ..utils import epsilon
+from ..utils import epsilon, tolist
 from .distribution_samples import (
     UnitGaussian_sample,
     UnitBernoulli_sample,
@@ -123,6 +123,32 @@ def analytical_kl(q1, q2, given, deterministic=False):
                              keepdims=True))), axis=-1)
 
         return T.sum(output, axis=1)
+
+    elif (q1_class == "MultiDistributions") and (
+            q2_class == "MultiPriorDistributions"):
+        """
+        PixelVAE
+        https://arxiv.org/abs/1611.05013
+        """
+        all_kl = 0
+        for i, q, p in zip(range(len(q1.distributions[:-1])),
+                           q1.distributions[:-1],
+                           reversed(q2.distributions)):
+            if i == 0:
+                _x = x1
+            else:
+                _x = q1.sample_mean_given_x(x1, layer_id=i - 1)[-1]
+            z = q1.sample_given_x(x1, layer_id=i + 1)[-1]
+            kl = analytical_kl(q, p, given=[tolist(_x), tolist(z)])
+            all_kl += kl
+
+        prior = get_prior(q1.distributions[-1])
+        _x = q1.sample_mean_given_x(x1, layer_id=-2)[-1]
+        kl = analytical_kl(
+            q1.distributions[-1], prior, given=[tolist(_x), None])
+        all_kl += kl
+
+        return all_kl
 
     raise Exception("You cannot use this distribution as q or prior, "
                     "got %s and %s." % (q1_class, q2_class))
