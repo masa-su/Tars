@@ -142,6 +142,11 @@ class VAE(Model):
         p_params = self.p.get_params()
         params = q_params + p_params
 
+        if self.prior.__class__.__name__ == "MultiPriorDistributions":
+            print params
+            params += self.prior.get_params()
+            print params
+
         return lower_bound, loss, params
 
     def _vr_bound(self, x, l, k, iw_alpha=0, deterministic=False):
