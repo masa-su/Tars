@@ -20,7 +20,7 @@ class TestBernoulliSample(TestCase):
         self.bernoulli_sample = Bernoulli_sample(temp=0.01, seed=1)
 
     @staticmethod
-    def get_samples(mean, bernoulli, size):
+    def get_sample(mean, bernoulli, size):
         # get a sample from given bernoulli distribution in ndarray
         mean_sample = np.ones(size).astype("float32") * mean
         t_mean = T.fvector("mean")
@@ -35,7 +35,7 @@ class TestBernoulliSample(TestCase):
         # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         zeros = np.zeros(1000, dtype='float')
         mean = 0
-        samples = TestBernoulliSample.get_samples(mean, self.bernoulli_sample, 1000)
+        samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
         self.assertTrue(np.allclose(zeros, samples))
 
     def test_mean_one(self):
@@ -44,7 +44,7 @@ class TestBernoulliSample(TestCase):
         # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         ones = np.ones(1000, dtype='float')
         mean = 1
-        samples = TestBernoulliSample.get_samples(mean, self.bernoulli_sample, 1000)
+        samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
         self.assertTrue(np.allclose(ones, samples))
 
 
@@ -53,7 +53,7 @@ class TestGaussianSample(TestCase):
         pass
 
     @staticmethod
-    def get_samples(mean, var, gaussian, size):
+    def get_sample(mean, var, gaussian, size):
         # get a sample from given bernoulli distribution in ndarray
         mean_sample = np.ones(size).astype("float32") * mean
         var_sample = np.ones(size).astype("float32") * var
@@ -70,7 +70,7 @@ class TestGaussianSample(TestCase):
 
         gaussian_sample = Gaussian_sample(seed=utt.fetch_seed())
         mean, var = 0, 1
-        tars_samples = TestGaussianSample.get_samples(mean, var, gaussian_sample, 5)
+        tars_samples = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
 
         random = RandomStreams(utt.fetch_seed())
         fn = function([], random.normal((5,), 0, 1))
