@@ -170,7 +170,7 @@ class MultiDistributions(object):
         samples = [x]
         for i, d in enumerate(self.distributions[:layer_id]):
             sample = d.sample_given_x(
-                samples[i], **kwargs)
+                tolist(samples[i]), **kwargs)
             samples.append(sample[-1])
         return samples
 
@@ -188,8 +188,8 @@ class MultiDistributions(object):
         """
         samples = [x]
         for i, d in enumerate(self.distributions[:layer_id]):
-            sample = d.sample_given_x(
-                samples[i], **kwargs)
+            sample = d.sample_mean_given_x(
+                tolist(samples[i]), **kwargs)
             samples.append(sample[-1])
         return samples
 
