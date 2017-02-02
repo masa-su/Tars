@@ -120,19 +120,21 @@ class MultiDistributions(object):
 
     Examples
     --------
-    >>> from Tars.distribution import Multilayer, Gaussian, Bernoulli
+    >>> from Tars.distribution import MultiDistributions
+    >>> from Tars.distribution import Gaussian, Bernoulli
     >>> gauss = Gaussian(mean, var, given=[x])
     >>> bernoulli = Bernoulli(mean, given=[z])
-    >>> multi = Multilayer([gauss, bernoulli])
+    >>> multi = MultiDistributions([gauss, bernoulli])
     """
 
-    def __init__(self, distributions):
+    def __init__(self, distributions, approximate=True):
         self.distributions = distributions
         self.given = self.distributions[0].given
         self.inputs = self.distributions[0].inputs
         self.output = self.distributions[-1].output
         self.get_input_shape = self.distributions[0].get_input_shape
         self.get_output_shape = self.distributions[-1].get_output_shape
+        self.approximate = approximate
         self._set_theano_func()
 
         for i, d in enumerate(distributions[1:]):
@@ -152,7 +154,7 @@ class MultiDistributions(object):
             params += d.get_params()
         return params
 
-    def _sample(self, x, **kwargs):
+    def _sample(self, x, layer_id, **kwargs):
         """
         Paramaters
         ----------
@@ -166,13 +168,13 @@ class MultiDistributions(object):
         """
 
         samples = [x]
-        for i, d in enumerate(self.distributions[:-1]):
+        for i, d in enumerate(self.distributions[:layer_id]):
             sample = d.sample_given_x(
                 samples[i], **kwargs)
             samples.append(sample[-1])
         return samples
 
-    def _fprop(self, x, **kwargs):
+    def _sample_mean(self, x, layer_id, **kwargs):
         """
         Paramaters
         ----------
@@ -184,12 +186,14 @@ class MultiDistributions(object):
         list
            This contains 'x' and samples, such as [x,z1,...,zn-1].
         """
-        output = x
-        for d in self.distributions[:-1]:
-            output = d.fprop(tolist(output), **kwargs)
-        return output
+        samples = [x]
+        for i, d in enumerate(self.distributions[:layer_id]):
+            sample = d.sample_given_x(
+                samples[i], **kwargs)
+            samples.append(sample[-1])
+        return samples
 
-    def fprop(self, x, sampling=True, *args, **kwargs):
+    def fprop(self, x, layer_id=0, *args, **kwargs):
         """
         Paramaters
         ----------
@@ -201,15 +205,15 @@ class MultiDistributions(object):
         mean : Theano variable
             The output of this distribution.
         """
-        if sampling:
-            output = self._sample(x, **kwargs)[-1]
+        if self.approximate:
+            output = self._sample_mean(x, layer_id, **kwargs)[-1]
         else:
-            output = self._fprop(x, **kwargs)
-        mean = self.distributions[-1].fprop(
+            output = self._sample(x, layer_id, **kwargs)[-1]
+        mean = self.distributions[layer_id].fprop(
             tolist(output), *args, **kwargs)
         return mean
 
-    def sample_given_x(self, x, repeat=1, **kwargs):
+    def sample_given_x(self, x, layer_id=0, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -225,12 +229,15 @@ class MultiDistributions(object):
            This contains 'x' and samples, such as [x,z1,...,zn].
         """
 
-        samples = self._sample(x, **kwargs)
-        samples += self.distributions[-1].sample_given_x(
+        if self.approximate:
+            samples = self._sample_mean(x, layer_id, **kwargs)
+        else:
+            samples = self._sample(x, layer_id, **kwargs)
+        samples += self.distributions[layer_id].sample_given_x(
             tolist(samples[-1]), repeat=repeat, **kwargs)[-1:]
         return samples
 
-    def sample_mean_given_x(self, x, *args, **kwargs):
+    def sample_mean_given_x(self, x, layer_id=0, *args, **kwargs):
         """
         Paramaters
         --------
@@ -245,8 +252,11 @@ class MultiDistributions(object):
            such as [x,z1,...,zn_mean]
         """
 
-        mean = self._sample(x, **kwargs)
-        mean += self.distributions[-1].sample_mean_given_x(
+        if self.approximate:
+            mean = self._sample_mean(x, layer_id, **kwargs)
+        else:
+            mean = self._sample(x, layer_id, **kwargs)
+        mean += self.distributions[layer_id].sample_mean_given_x(
             tolist(mean[-1]), *args, **kwargs)[-1:]
         return mean
 
@@ -274,15 +284,15 @@ class MultiDistributions(object):
 
     def _set_theano_func(self):
         x = self.inputs
-        samples = self.fprop(x, deterministic=True)
+        samples = self.fprop(x, layer_id=-1, deterministic=True)
         self.np_fprop = theano.function(inputs=x,
                                         outputs=samples,
                                         on_unused_input='ignore')
 
-        samples = self.sample_mean_given_x(x, deterministic=True)
+        samples = self.sample_mean_given_x(x, layer_id=-1, deterministic=True)
         self.np_sample_mean_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        samples = self.sample_given_x(x, deterministic=True)
+        samples = self.sample_given_x(x, layer_id=-1, deterministic=True)
         self.np_sample_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
