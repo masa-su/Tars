@@ -12,7 +12,34 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from theano.tensor.shared_randomstreams import RandomStreams
 from theano import function, shared
 from theano.tests import unittest_tools as utt
-from ..distributions.distribution_samples import Bernoulli_sample, Gaussian_sample
+from ..distributions.distribution_samples import Bernoulli_sample, Gaussian_sample, Gumbel_sample
+
+
+class TestGumbelSample(TestCase):
+    @staticmethod
+    def get_sample(mu, beta, gumbel, size):
+        # get a sample from given gumbel distribution in ndarray
+        mu_vector = np.ones(size).astype("float32") * mu
+        beta_vector = np.ones(size).astype("float32") * beta
+        t_mu = T.fvector("mu")
+        t_beta = T.fvector("beta")
+        t_sample = gumbel.sample(t_mu, t_beta)
+        f = theano.function(inputs = [t_mu, t_beta], outputs=t_sample)
+        sample = f(mu_vector, beta_vector)
+        return sample
+
+    def test_consistance(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        mu, beta = 0, 1
+        gumbel_sample = Gumbel_sample(temp=0.01, seed=1234567890)
+        actual = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
+        desired = [ 1.7462246417999268,
+            0.2874840497970581,
+            0.9974965453147888,
+            0.3290553689002991,
+            -1.0215276479721069
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
 
 
 class TestBernoulliSample(TestCase):
@@ -80,8 +107,8 @@ class TestGaussianSample(TestCase):
         rng = np.random.RandomState(int(rng_seed))  # int() is for 32bit
         numpy_sample = rng.normal(mean, var, (5,))
 
-        # As Distribution_sample.sample method performs reparametrization trick,
-        # the return value is slightly different from numpy result.
+        # As Gaussian_sample.sample method performs reparametrization trick,
+        # the return value is slightly different from numpy result. (Reason for setting decimal=7, not 15)
         assert_array_almost_equal(tars_sample, theano_sample, decimal=7)
         assert_array_almost_equal(tars_sample, numpy_sample, decimal=7)
 
