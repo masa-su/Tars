@@ -5,6 +5,7 @@ from lasagne.updates import total_norm_constraint
 from abc import ABCMeta, abstractmethod
 from ..utils import tolist
 
+
 class Model(object):
     __metaclass__ = ABCMeta
 
@@ -20,7 +21,8 @@ class Model(object):
         self.rng = np.random.RandomState(seed)
         self.srng = RandomStreams(seed)
 
-    def _inverse_samples(self, samples, prior_mode="Normal", return_prior=False):
+    def _inverse_samples(self, samples, prior_mode="Normal",
+                         return_prior=False):
         """
         inputs : [[x,y],z1,z2,...zn]
         outputs : p_samples, prior_samples
