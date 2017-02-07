@@ -2,7 +2,7 @@ import math
 import theano
 import theano.tensor as T
 
-from ..utils import epsilon
+from ..utils import epsilon, tolist
 from .distribution_samples import (
     UnitGaussian_sample,
     UnitBernoulli_sample,
@@ -26,7 +26,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
         mean, var = q1.fprop(x1, deterministic=deterministic)
         return gauss_unitgauss_kl(mean, var)
 
-    if q1_class == "Gaussian" and q2_class == "Gaussian":
+    elif q1_class == "Gaussian" and q2_class == "Gaussian":
         mean1, var1 = q1.fprop(x1, deterministic=deterministic)
         mean2, var2 = q2.fprop(x2, deterministic=deterministic)
         return gauss_gauss_kl(mean1, var1, mean2, var2)
@@ -124,6 +124,40 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         return T.sum(output, axis=1)
 
+    elif (q1_class == "MultiDistributions") and (
+            q2_class == "MultiPriorDistributions"):
+        """
+        PixelVAE
+        https://arxiv.org/abs/1611.05013
+        """
+        all_kl = 0
+        for i, q, p in zip(range(len(q1.distributions[:-1])),
+                           q1.distributions[:-1],
+                           reversed(q2.distributions)):
+            if i == 0:
+                _x = x1
+            else:
+                _x = q1.sample_mean_given_x(x1, layer_id=i - 1)[-1]
+            z = q1.sample_given_x(x1, layer_id=i + 1)[-1]
+            kl = analytical_kl(q, p, given=[tolist(_x), tolist(z)])
+            all_kl += kl
+
+        _x = q1.sample_mean_given_x(x1, layer_id=-2)[-1]
+        kl = analytical_kl(
+            q1.distributions[-1], q2.prior, given=[tolist(_x), None])
+        all_kl += kl
+
+        return all_kl
+
+    elif q1_class == "MultiDistributions":
+        if len(q1.distributions) >= 2:
+            _x1 = q1.sample_given_x(x1, layer_id=-2)[-1]
+        else:
+            _x1 = x1
+        return analytical_kl(q1.distributions[-1], q2,
+                             given=[tolist(_x1), x2],
+                             deterministic=deterministic)
+
     raise Exception("You cannot use this distribution as q or prior, "
                     "got %s and %s." % (q1_class, q2_class))
 
@@ -171,6 +205,9 @@ def get_prior(q):
 
     elif q_class == "Gamma":
         return UnitGamma_sample()
+
+    elif q_class == "MultiDistributions":
+        return get_prior(q.distributions[-1])
 
     raise Exception("You cannot use this distribution as q, "
                     "got %s." % q_class)

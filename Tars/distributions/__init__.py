@@ -13,7 +13,8 @@ from .distribution_models import (
 )
 from .multiple import (
     Concatenate,
-    Multilayer,
+    MultiDistributions,
+    MultiPriorDistributions,
 )
 
 
@@ -30,5 +31,6 @@ __all__ = [
     'Beta',
     'Dirichlet',
     'Concatenate',
-    'Multilayer',
+    'MultiDistributions',
+    'MultiPriorDistributions',
 ]
