@@ -154,7 +154,7 @@ class MultiDistributions(object):
             params += d.get_params()
         return params
 
-    def _sample(self, x, layer_id, **kwargs):
+    def _sample(self, x, layer_id, repeat=1, **kwargs):
         """
         Paramaters
         ----------
@@ -167,7 +167,7 @@ class MultiDistributions(object):
            This contains 'x' and samples, such as [x,z1,...,zn-1].
         """
 
-        samples = [x]
+        samples = [[T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]]
         for i, d in enumerate(self.distributions[:layer_id]):
             sample = d.sample_given_x(
                 tolist(samples[i]), **kwargs)
@@ -193,7 +193,7 @@ class MultiDistributions(object):
             samples.append(sample[-1])
         return samples
 
-    def _approx_sample(self, x, layer_id, **kwargs):
+    def _approx_sample(self, x, layer_id, repeat=1, **kwargs):
         """
         Paramaters
         ----------
@@ -207,10 +207,10 @@ class MultiDistributions(object):
         """
 
         mean = x
-        samples = [x]
-        for i, d in enumerate(self.distributions[:layer_id]):
+        samples = [[T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]]
+        for d in self.distributions[:layer_id]:
             sample = d.sample_given_x(
-                tolist(mean), **kwargs)
+                tolist(mean), repeat=repeat, **kwargs)
             samples.append(sample[-1])
             mean = d.sample_mean_given_x(
                 tolist(mean), **kwargs)[-1]
@@ -254,11 +254,12 @@ class MultiDistributions(object):
         """
 
         if self.approximate:
-            samples, mean = self._approx_sample(x, layer_id, **kwargs)
+            samples, mean = self._approx_sample(x, layer_id,
+                                                repeat=repeat, **kwargs)
             samples += self.distributions[layer_id].sample_given_x(
                 tolist(mean), repeat=repeat, **kwargs)[-1:]
         else:
-            samples = self._sample(x, layer_id, **kwargs)
+            samples = self._sample(x, layer_id, repeat=repeat, **kwargs)
             samples += self.distributions[layer_id].sample_given_x(
                 tolist(samples[-1]), repeat=repeat, **kwargs)[-1:]
         return samples
