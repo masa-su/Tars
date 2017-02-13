@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 from numpy.testing import (
-    assert_, assert_array_almost_equal
+    assert_, assert_equal, assert_array_almost_equal
 )
 import theano
 import theano.tensor as T
@@ -41,6 +41,12 @@ class TestGumbelSample(TestCase):
         ]
         assert_array_almost_equal(actual, desired, decimal=15)
 
+    def test_mean_zero(self):
+        mu, beta = 0, 0
+        gumbel_sample = Gumbel_sample(temp=0.01)
+        sample = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
+        assert_equal(sample, 0)
+
 
 class TestBernoulliSample(TestCase):
     def setUp(self):
@@ -59,7 +65,7 @@ class TestBernoulliSample(TestCase):
     def test_mean_zero(self):
         # Tests the corner case of mean == 0 for the bernoulli distribution.
         # All elements of Bernoulli_sample.sample(mean=0) should be zero.
-        # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py #noqa
+        # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         zeros = np.zeros(1000, dtype='float')
         mean = 0
         samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
@@ -139,3 +145,10 @@ class TestGaussianSample(TestCase):
             -0.3533721268177032
         ]
         assert_array_almost_equal(actual, desired, decimal=15)
+
+    def test_mean_zero(self):
+        mean, var = 0, 0
+        gaussian_sample = Gaussian_sample()
+        sample = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
+        assert_equal(sample, 0)
+
