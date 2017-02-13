@@ -1,18 +1,17 @@
 from unittest import TestCase
 
-import mock
 import numpy as np
 from numpy.testing import (
-        TestCase, run_module_suite, assert_, assert_raises, assert_equal,
-        assert_warns, assert_no_warnings, assert_array_equal,
-        assert_array_almost_equal)
+    assert_, assert_array_almost_equal
+)
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from theano.tensor.shared_randomstreams import RandomStreams
-from theano import function, shared
+from theano import function
 from theano.tests import unittest_tools as utt
-from ..distributions.distribution_samples import Bernoulli_sample, Gaussian_sample, Gumbel_sample
+from ..distributions.distribution_samples import (
+    Bernoulli_sample, Gaussian_sample, Gumbel_sample
+)
 
 
 class TestGumbelSample(TestCase):
@@ -24,7 +23,7 @@ class TestGumbelSample(TestCase):
         t_mu = T.fvector("mu")
         t_beta = T.fvector("beta")
         t_sample = gumbel.sample(t_mu, t_beta)
-        f = theano.function(inputs = [t_mu, t_beta], outputs=t_sample)
+        f = theano.function(inputs=[t_mu, t_beta], outputs=t_sample)
         sample = f(mu_vector, beta_vector)
         return sample
 
@@ -53,18 +52,18 @@ class TestBernoulliSample(TestCase):
         mean_vector = np.ones(size).astype("float32") * mean
         t_mean = T.fvector("mean")
         t_sample = bernoulli.sample(t_mean)
-        f = theano.function(inputs = [t_mean], outputs=t_sample)
+        f = theano.function(inputs=[t_mean], outputs=t_sample)
         sample = f(mean_vector)
         return sample
 
     def test_mean_zero(self):
         # Tests the corner case of mean == 0 for the bernoulli distribution.
         # All elements of Bernoulli_sample.sample(mean=0) should be zero.
-        # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
+        # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py #noqa
         zeros = np.zeros(1000, dtype='float')
         mean = 0
         samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
-        self.assertTrue(np.allclose(zeros, samples))
+        assert_(np.allclose(zeros, samples))
 
     def test_mean_one(self):
         # Tests the corner case of mean == 1 for the bernoulli distribution.
@@ -73,7 +72,7 @@ class TestBernoulliSample(TestCase):
         ones = np.ones(1000, dtype='float')
         mean = 1
         samples = TestBernoulliSample.get_sample(mean, self.bernoulli_sample, 1000)
-        self.assertTrue(np.allclose(ones, samples))
+        assert_(np.allclose(ones, samples))
 
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
@@ -99,10 +98,10 @@ class TestGaussianSample(TestCase):
         # get a sample from given bernoulli distribution in ndarray
         mean_vector = np.ones(size).astype("float32") * mean
         var_vector = np.ones(size).astype("float32") * var
-        t_mean = T.fvector("mean") # A theano symbolic variable
+        t_mean = T.fvector("mean")  # A theano symbolic variable
         t_var = T.fvector("var")
         t_sample = gaussian.sample(t_mean, t_var)
-        f = theano.function(inputs = [t_mean, t_var], outputs=t_sample)
+        f = theano.function(inputs=[t_mean, t_var], outputs=t_sample)
         sample = f(mean_vector, var_vector)
         return sample
 
@@ -140,11 +139,3 @@ class TestGaussianSample(TestCase):
             -0.3533721268177032
         ]
         assert_array_almost_equal(actual, desired, decimal=15)
-
-
-
-
-
-
-
-
