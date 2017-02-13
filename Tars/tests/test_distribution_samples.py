@@ -10,7 +10,9 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from theano import function
 from theano.tests import unittest_tools as utt
 from ..distributions.distribution_samples import (
-    Bernoulli_sample, Gaussian_sample, Gumbel_sample
+    Bernoulli_sample, Gaussian_sample, Gumbel_sample, Concrete_sample,
+    Categorical_sample, Laplace_sample, Kumaraswamy_sample,
+    Beta_sample, Gamma_sample, Dirichlet_sample
 )
 
 
@@ -101,7 +103,7 @@ class TestGaussianSample(TestCase):
 
     @staticmethod
     def get_sample(mean, var, gaussian, size):
-        # get a sample from given bernoulli distribution in ndarray
+        # get a sample from given gaussian distribution in ndarray
         mean_vector = np.ones(size).astype("float32") * mean
         var_vector = np.ones(size).astype("float32") * var
         t_mean = T.fvector("mean")  # A theano symbolic variable
@@ -152,3 +154,227 @@ class TestGaussianSample(TestCase):
         sample = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
         assert_equal(sample, 0)
 
+
+class TestConcreteSample(TestCase):
+
+    @staticmethod
+    def get_sample(mean, concrete, size):
+        # get a sample from given concrete distribution in ndarray
+        mean_vector = np.ones(size).astype("float32") * mean
+        t_mean = T.fvector("mean")  # A theano symbolic variable
+        t_sample = concrete.sample(t_mean)
+        f = theano.function(inputs=[t_mean], outputs=t_sample)
+        sample = f(mean_vector)
+        return sample
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        mean = 0
+        concrete_sample = Concrete_sample(seed=1234567890)
+        actual = TestConcreteSample.get_sample(mean, concrete_sample, 5)
+        desired = [
+            0.9994389867572965,
+            0.0000004618787093,
+            0.0005598514063278,
+            0.0000006999567125,
+            0.0000000000009540
+        ]
+        # TODO: Avoid returning a nested array?
+        assert_array_almost_equal(actual[0], desired, decimal=15)
+
+
+class TestCategoricalSample(TestCase):
+
+    @staticmethod
+    def get_sample(mean, categorical, size):
+        # get a sample from given categorical distribution in ndarray
+        mean_vector = np.ones(size).astype("float32") * mean
+        t_mean = T.fvector("mean")  # A theano symbolic variable
+        t_sample = categorical.sample(t_mean)
+        f = theano.function(inputs=[t_mean], outputs=t_sample)
+        sample = f(mean_vector)
+        return sample
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        mean = 0
+        categorical_sample = Categorical_sample(seed=1234567890)
+        actual = TestCategoricalSample.get_sample(mean, categorical_sample, 5)
+        desired = [
+            0.9994389867572965,
+            0.0000004618787093,
+            0.0005598514063278,
+            0.0000006999567125,
+            0.0000000000009540
+        ]
+        # TODO: Avoid returning a nested array?
+        assert_array_almost_equal(actual[0], desired, decimal=15)
+
+
+class TestLaplaceSample(TestCase):
+
+    @staticmethod
+    def get_sample(mean, b, laplace, size):
+        # get a sample from given laplace distribution in ndarray
+        mean_vector = np.ones(size).astype("float32") * mean
+        b_vector = np.ones(size).astype("float32") * b
+        t_mean = T.fvector("mean")  # A theano symbolic variable
+        t_b = T.fvector("b")
+        t_sample = laplace.sample(t_mean, t_b)
+        f = theano.function(inputs=[t_mean, t_b], outputs=t_sample)
+        sample = f(mean_vector, b_vector)
+        return sample
+
+    def test_laplace(self):
+        # Test Laplace_sample.sample generates the same result as numpy
+        # ref: https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.laplace.html
+
+        laplace_sample = Laplace_sample(seed=utt.fetch_seed())
+        mean, b = 0, 1
+        tars_sample = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
+
+        rng_seed = np.random.RandomState(utt.fetch_seed()).randint(2**30)
+        rng = np.random.RandomState(int(rng_seed))  # int() is for 32bit
+        numpy_sample = rng.laplace(mean, b, (5,))
+
+        # As laplace_sample.sample method performs reparametrization trick,
+        # the return value is slightly different from numpy result. (Reason for setting decimal=7, not 15)
+        assert_array_almost_equal(tars_sample, numpy_sample, decimal=7)
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        mean = 0
+        b = 1
+        laplace_sample = Laplace_sample(seed=1234567890)
+        actual = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
+        desired = [
+            1.1390253305435181,
+            -0.0570014975965023,
+            0.4830891788005829,
+            -0.0264561157673597,
+            -2.0842888355255127
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
+
+    def test_mean_zero(self):
+        mean, b = 0, 0
+        laplace_sample = Laplace_sample()
+        sample = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
+        assert_equal(sample, 0)
+
+
+class TestKumaraswamySample(TestCase):
+
+    @staticmethod
+    def get_sample(a, b, kumaraswamy, size):
+        # get a sample from given kumaraswamy distribution in ndarray
+        a_vector = np.ones(size).astype("float32") * a
+        b_vector = np.ones(size).astype("float32") * b
+        t_a = T.fvector("a")  # A theano symbolic variable
+        t_b = T.fvector("b")
+        t_sample = kumaraswamy.sample(t_a, t_b)
+        f = theano.function(inputs=[t_a, t_b], outputs=t_sample)
+        sample = f(a_vector, b_vector)
+        return sample
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        a = 0.5
+        b = 0.5
+        kumaraswamy_sample = Kumaraswamy_sample(seed=1234567890)
+        actual = TestKumaraswamySample.get_sample(a, b, kumaraswamy_sample, 5)
+        desired = [
+            0.0867361798882484,
+            0.6036298274993896,
+            0.2722139656543732,
+            0.5819923281669617,
+            0.9922778010368347
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
+
+
+class TestBetaSample(TestCase):
+
+    @staticmethod
+    def get_sample(a, b, beta, size):
+        # get a sample from given beta distribution in ndarray
+        a_vector = np.ones(size).astype("float32") * a
+        b_vector = np.ones(size).astype("float32") * b
+        t_a = T.fvector("a")  # A theano symbolic variable
+        t_b = T.fvector("b")
+        t_sample = beta.sample(t_a, t_b)
+        f = theano.function(inputs=[t_a, t_b], outputs=t_sample)
+        sample = f(a_vector, b_vector)
+        return sample
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        a = 0.5
+        b = 0.5
+        beta_sample = Beta_sample(seed=1234567890)
+        actual = TestBetaSample.get_sample(a, b, beta_sample, 5)
+        desired = [
+            0.1251193732023239,
+            0.9949938058853149,
+            0.8267091512680054,
+            0.8865647912025452,
+            0.0070835566148162
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
+
+
+class TestGammaSample(TestCase):
+
+    @staticmethod
+    def get_sample(a, b, gamma, size):
+        # get a sample from given gamma distribution in ndarray
+        a_vector = np.ones(size).astype("float32") * a
+        b_vector = np.ones(size).astype("float32") * b
+        t_a = T.fvector("a")  # A theano symbolic variable
+        t_b = T.fvector("b")
+        t_sample = gamma.sample(t_a, t_b)
+        f = theano.function(inputs=[t_a, t_b], outputs=t_sample)
+        sample = f(a_vector, b_vector)
+        return sample
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        a = 0.5
+        b = 0.5
+        gamma_sample = Gamma_sample(seed=1234567890)
+        actual = TestGammaSample.get_sample(a, b, gamma_sample, 5)
+        desired = [
+            0.0402308329939842,
+            0.9522227048873901,
+            1.1623692512512207,
+            1.7846230268478394,
+            0.0116019621491432
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
+
+
+class TestDirichletSample(TestCase):
+
+    @staticmethod
+    def get_sample(alpha, dirichlet, size):
+        # get a sample from given dirichlet distribution in ndarray
+        alpha_vector = np.ones(size).astype("float32") * alpha
+        t_alpha = T.fvector("alpha")
+        t_sample = dirichlet.sample(t_alpha)
+        f = theano.function(inputs=[t_alpha], outputs=t_sample)
+        sample = f(alpha_vector)
+        return sample
+
+    def test_consistency(self):
+        # Ensure that returned values stay the same when setting a fixed seed.
+        alpha = 0.5
+        dirichlet_sample = Dirichlet_sample(k=2, seed=1234567890)
+        actual = TestDirichletSample.get_sample(alpha, dirichlet_sample, 5)
+        desired = [
+            0.1251193732023239,
+            0.8748806118965149,
+            0.0000000000000000,
+            0.0000000000000000,
+            0.0000000000000000
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
