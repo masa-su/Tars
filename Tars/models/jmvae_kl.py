@@ -8,7 +8,8 @@ from . import JMVAE
 
 class JMVAE_KL(JMVAE):
 
-    def __init__(self, q, p, pseudo_q, gamma=1,
+    def __init__(self, q, p, pseudo_q,
+                 prior=None, gamma=1,
                  n_batch=100, optimizer=lasagne.updates.adam,
                  optimizer_params={},
                  clip_grad=None, max_norm_constraint=None,
@@ -17,7 +18,7 @@ class JMVAE_KL(JMVAE):
         self.gamma = gamma
 
         super(JMVAE_KL,
-              self).__init__(q, p,
+              self).__init__(q, p, prior=prior,
                              n_batch=n_batch,
                              optimizer=optimizer,
                              optimizer_params=optimizer_params,
@@ -35,7 +36,11 @@ class JMVAE_KL(JMVAE):
         kl_all = []
         pseudo_q_params = []
         for i, _pseudo_q in enumerate(self.pseudo_q):
-            kl_all.append(analytical_kl(self.q, _pseudo_q, given=[x, [x[i]]],
+            if self.q.__class__.__name__=="MultiDistributions":
+                q = self.q.distributions[0]
+            else:
+                q = self.q
+            kl_all.append(analytical_kl(q, _pseudo_q, given=[x, [x[i]]],
                                         deterministic=False))
             pseudo_q_params += _pseudo_q.get_params()
 
@@ -47,7 +52,7 @@ class JMVAE_KL(JMVAE):
 
         return lower_bound, loss, params
 
-    def _vr_bound_test(self, x, l, k, index=[0], type_p="marginal",
+    def _vr_bound_test(self, x, l=1, k=1, index=[0], type_p="marginal",
                        missing=False, sampling_n=1, missing_resample=False):
         """
         Paramaters
@@ -128,23 +133,28 @@ class JMVAE_KL(JMVAE):
 
         log_iw = 0
 
-        # log q(z1,z2,...,zn|x0,0,...)
         # _samples : [[x0,0,...],z1,z2,...,zn]
         _samples = self._select_input(samples, [index[0]])
+
+        # log q(z1,z2,...,zn|x0,0,...)
         q_log_likelihood = self.pseudo_q[0].log_likelihood_given_x(
             _samples, deterministic=deterministic)
 
-        # log p(x0|z1,z2,...,zn)
-        # inverse_samples0 : [zn,zn-1,...,x0]
+        # log p(x[index]|z1)
         p_log_likelihood_all = []
         for i in index:
-            inverse_samples = self._inverse_samples(
-                self._select_input(samples, [i]))
+            p_samples, prior_samples = self._inverse_samples(
+                self._select_input(samples, [i]),
+                prior_mode=self.prior_mode, return_prior=True)
             p_log_likelihood = self.p[i].log_likelihood_given_x(
                 inverse_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
 
         log_iw += sum(p_log_likelihood_all) - q_log_likelihood
-        log_iw += self.prior.log_likelihood(samples[-1])
+        # log p(z1,..,zn)
+        if self.prior_mode == "MultiPrior":
+            log_iw += self.prior.log_likelihood_given_x(prior_samples)
+        else:
+            log_iw += self.prior.log_likelihood(prior_samples)
 
         return log_iw
