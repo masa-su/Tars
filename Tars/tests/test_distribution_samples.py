@@ -41,7 +41,7 @@ class TestGumbelSample(TestCase):
             0.3290553689002991,
             -1.0215276479721069
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
     def test_mean_zero(self):
         mu, beta = 0, 0
@@ -94,7 +94,7 @@ class TestBernoulliSample(TestCase):
             0.3538078165724645,
             0.1615775890919983
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
 
 class TestGaussianSample(TestCase):
@@ -146,7 +146,7 @@ class TestGaussianSample(TestCase):
             1.9520784616470337,
             -0.3533721268177032
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
     def test_mean_zero(self):
         mean, var = 0, 0
@@ -180,7 +180,7 @@ class TestConcreteSample(TestCase):
             0.0000000000009540
         ]
         # TODO: Avoid returning a nested array?
-        assert_array_almost_equal(actual[0], desired, decimal=15)
+        assert_array_almost_equal(actual[0], desired, decimal=6)
 
 
 class TestCategoricalSample(TestCase):
@@ -208,7 +208,7 @@ class TestCategoricalSample(TestCase):
             0.0000000000009540
         ]
         # TODO: Avoid returning a nested array?
-        assert_array_almost_equal(actual[0], desired, decimal=15)
+        assert_array_almost_equal(actual[0], desired, decimal=6)
 
 
 class TestLaplaceSample(TestCase):
@@ -254,7 +254,7 @@ class TestLaplaceSample(TestCase):
             -0.0264561157673597,
             -2.0842888355255127
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
     def test_mean_zero(self):
         mean, b = 0, 0
@@ -290,7 +290,7 @@ class TestKumaraswamySample(TestCase):
             0.5819923281669617,
             0.9922778010368347
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
 
 class TestBetaSample(TestCase):
@@ -320,7 +320,7 @@ class TestBetaSample(TestCase):
             0.8865647912025452,
             0.0070835566148162
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
 
 class TestGammaSample(TestCase):
@@ -350,7 +350,7 @@ class TestGammaSample(TestCase):
             1.7846230268478394,
             0.0116019621491432
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
 
 
 class TestDirichletSample(TestCase):
@@ -377,4 +377,4 @@ class TestDirichletSample(TestCase):
             0.0000000000000000,
             0.0000000000000000
         ]
-        assert_array_almost_equal(actual, desired, decimal=15)
+        assert_array_almost_equal(actual, desired, decimal=6)
