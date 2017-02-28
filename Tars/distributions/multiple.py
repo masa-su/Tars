@@ -360,7 +360,7 @@ class MultiPriorDistributions(MultiDistributions):
         --------
         Theano variable, shape (n_samples,)
            log_likelihood :
-             add_prior=True : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1) 
+             add_prior=True : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
              add_prior=False : log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
         """
 
