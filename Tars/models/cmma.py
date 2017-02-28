@@ -65,8 +65,7 @@ class CMMA(VAE):
         z = self.q.sample_given_x(x, repeat=l,
                                   deterministic=deterministic)
 
-        inverse_z = self._inverse_samples(self._select_input(z, [0]),
-                                          prior_mode=self.prior_mode)
+        inverse_z = self._inverse_samples(self._select_input(z, [0]))
         log_likelihood =\
             self.p[1].log_likelihood_given_x(inverse_z,
                                              deterministic=deterministic)
@@ -168,8 +167,7 @@ class CMMA(VAE):
         inverse_samples : [zn,zn-1,...,x]
         """
         samples_1 = self._select_input(samples, [0])
-        p_samples = self._inverse_samples(
-            samples_1, prior_mode=self.prior_mode)
+        p_samples = self._inverse_samples(samples_1)
 
         p1_log_likelihood =\
             self.p[1].log_likelihood_given_x(p_samples,
@@ -196,8 +194,7 @@ class CMMA(VAE):
         log_iw = 0
         # log p(x1|z1,...)
         p_samples, prior_samples = self._inverse_samples(
-            self._select_input(samples, [0]),
-            prior_mode=self.prior_mode, return_prior=True)
+            self._select_input(samples, [0]), return_prior=True)
         p_log_likelihood = self.p[1].log_likelihood_given_x(
             p_samples, deterministic=deterministic)
 

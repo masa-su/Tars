@@ -144,8 +144,7 @@ class JMVAE_KL(JMVAE):
         p_log_likelihood_all = []
         for i in index:
             p_samples, prior_samples = self._inverse_samples(
-                self._select_input(samples, [i]),
-                prior_mode=self.prior_mode, return_prior=True)
+                self._select_input(samples, [i]), return_prior=True)
             p_log_likelihood = self.p[i].log_likelihood_given_x(
                 prior_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
