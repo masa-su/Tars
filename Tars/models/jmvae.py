@@ -250,7 +250,7 @@ class JMVAE(VAE):
                 self._select_input(samples, [i]),
                 prior_mode=self.prior_mode, return_prior=True)
             p_log_likelihood = self.p[i].log_likelihood_given_x(
-                inverse_samples, deterministic=deterministic)
+                prior_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
 
         log_iw += sum(p_log_likelihood_all) - q_log_likelihood
@@ -294,7 +294,7 @@ class JMVAE(VAE):
                 self._select_input(samples, [i]),
                 prior_mode=self.prior_mode, return_prior=True)
             p_log_likelihood = self.p[i].log_likelihood_given_x(
-                inverse_samples, deterministic=deterministic)
+                prior_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
 
         log_iw += sum(p_log_likelihood_all) - q_log_likelihood

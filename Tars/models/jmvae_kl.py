@@ -36,7 +36,7 @@ class JMVAE_KL(JMVAE):
         kl_all = []
         pseudo_q_params = []
         for i, _pseudo_q in enumerate(self.pseudo_q):
-            if self.q.__class__.__name__=="MultiDistributions":
+            if self.q.__class__.__name__ == "MultiDistributions":
                 q = self.q.distributions[0]
             else:
                 q = self.q
@@ -147,7 +147,7 @@ class JMVAE_KL(JMVAE):
                 self._select_input(samples, [i]),
                 prior_mode=self.prior_mode, return_prior=True)
             p_log_likelihood = self.p[i].log_likelihood_given_x(
-                inverse_samples, deterministic=deterministic)
+                prior_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
 
         log_iw += sum(p_log_likelihood_all) - q_log_likelihood

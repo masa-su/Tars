@@ -1,13 +1,11 @@
 from copy import copy
 
-import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-from progressbar import ProgressBar
 
-from ..utils import log_mean_exp
-from ..distributions.estimate_kl import analytical_kl, get_prior
+from ..utils import log_mean_exp, tolist
+from ..distributions.estimate_kl import analytical_kl
 from . import VAE
 
 
@@ -67,7 +65,8 @@ class CMMA(VAE):
         z = self.q.sample_given_x(x, repeat=l,
                                   deterministic=deterministic)
 
-        inverse_z = self._inverse_samples(self._select_input(z, [0]), prior_mode=self.prior_mode)
+        inverse_z = self._inverse_samples(self._select_input(z, [0]),
+                                          prior_mode=self.prior_mode)
         log_likelihood =\
             self.p[1].log_likelihood_given_x(inverse_z,
                                              deterministic=deterministic)
