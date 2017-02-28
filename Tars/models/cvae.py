@@ -26,7 +26,7 @@ class CVAE(VAE):
 
         return super(CVAE, self).test(test_set, l=l, k=k,
                                       n_batch=n_batch, verbose=verbose)
-        
+
     def _vr_bound_test(self, x, l, k, missing=False, deterministic=False):
         n_x = x[0].shape[0]
         rep_x = [T.extra_ops.repeat(_x, l * k, axis=0) for _x in x]
