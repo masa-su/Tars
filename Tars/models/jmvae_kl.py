@@ -106,7 +106,7 @@ class JMVAE_KL(JMVAE):
                     samples, index, deterministic=True)
             else:
                 log_iw = self._log_cd_importance_weight(
-                    samples, deterministic=True)
+                    samples, index, deterministic=True)
 
         log_iw_matrix = T.reshape(log_iw, (n_x * l, k))
         log_likelihood = log_mean_exp(
