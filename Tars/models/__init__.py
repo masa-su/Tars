@@ -7,6 +7,7 @@ from .jmvae import JMVAE
 from .jmvae_kl import JMVAE_KL
 
 from .cmma import CMMA
+from .cvae import CVAE
 
 __all__ = [
     'AE',
@@ -15,4 +16,5 @@ __all__ = [
     'JMVAE',
     'JMVAE_KL',
     'CMMA',
+    'CVAE',
 ]
