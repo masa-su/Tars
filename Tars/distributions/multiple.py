@@ -348,7 +348,7 @@ class MultiPriorDistributions(MultiDistributions):
         super(MultiPriorDistributions,
               self).__init__(distributions, approximate=False)
 
-    def log_likelihood_given_x(self, samples, **kwargs):
+    def log_likelihood_given_x(self, samples, add_prior=True, **kwargs):
         """
         Paramaters
         --------
@@ -359,7 +359,9 @@ class MultiPriorDistributions(MultiDistributions):
         Returns
         --------
         Theano variable, shape (n_samples,)
-           log_likelihood : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
+           log_likelihood :
+             add_prior=True : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
+             add_prior=False : log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
         """
 
         all_log_likelihood = 0
@@ -368,6 +370,7 @@ class MultiPriorDistributions(MultiDistributions):
                                                       **kwargs)
             all_log_likelihood += log_likelihood
 
-        prior_samples = samples[0][0]
-        all_log_likelihood += self.prior.log_likelihood(prior_samples)
+        if add_prior:
+            prior_samples = samples[0][0]
+            all_log_likelihood += self.prior.log_likelihood(prior_samples)
         return all_log_likelihood
