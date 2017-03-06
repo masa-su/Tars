@@ -106,6 +106,9 @@ class JMVAE(VAE):
         q_params = self.q.get_params()
         params = q_params + p_params
 
+        if self.prior_mode == "MultiPrior":
+            params += self.prior.get_params()
+
         return log_likelihood, loss, params
 
     def _vr_bound_test(self, x, l, k, index=[0], type_p="marginal",
