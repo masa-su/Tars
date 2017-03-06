@@ -4,7 +4,7 @@ import theano.tensor as T
 import lasagne
 from progressbar import ProgressBar
 
-from ..utils import log_mean_exp
+from ..utils import log_mean_exp, tolist
 from ..distributions.estimate_kl import analytical_kl, get_prior
 from ..models.model import Model
 
@@ -25,6 +25,14 @@ class VAE(Model):
             self.prior = prior
         else:
             self.prior = get_prior(self.q)
+
+        # set prior distribution mode
+        if self.prior.__class__.__name__ == "MultiPriorDistributions":
+            self.prior.prior = get_prior(self.q.distributions[-1])
+            self.prior_mode = "MultiPrior"
+        else:
+            self.prior_mode = "Normal"
+
         self.train_iw = train_iw
         self.test_iw = test_iw
 
@@ -130,6 +138,7 @@ class VAE(Model):
                                       deterministic=deterministic)
         z = self.q.sample_given_x(x, repeat=l,
                                   deterministic=deterministic)
+
         inverse_z = self._inverse_samples(z)
         log_likelihood =\
             self.p.log_likelihood_given_x(inverse_z,
@@ -142,6 +151,9 @@ class VAE(Model):
         p_params = self.p.get_params()
         params = q_params + p_params
 
+        if self.prior_mode == "MultiPrior":
+            params += self.prior.get_params()
+
         return lower_bound, loss, params
 
     def _vr_bound(self, x, l, k, iw_alpha=0, deterministic=False):
@@ -150,8 +162,8 @@ class VAE(Model):
         [Li+ 2016] Renyi Divergence Variational Inference
         [Burda+ 2015] Importance Weighted Autoencoders
         """
-        q_samples = self.q.sample_given_x(
-            x, repeat=l * k, deterministic=deterministic)
+        q_samples = self.q.sample_given_x(x, repeat=l * k,
+                                          deterministic=deterministic)
         log_iw = self._log_importance_weight(q_samples,
                                              deterministic=deterministic)
         log_iw_matrix = log_iw.reshape((x[0].shape[0] * l, k))
@@ -177,6 +189,9 @@ class VAE(Model):
         p_params = self.p.get_params()
         params = q_params + p_params
 
+        if self.prior_mode == "MultiPrior":
+            params += self.prior.get_params()
+
         return log_likelihood, loss, params
 
     def _log_importance_weight(self, samples, deterministic=False):
@@ -198,12 +213,46 @@ class VAE(Model):
         log p(x|z1,z2,...,zn,y,...)
         inverse_samples : [[zn,y,...],zn-1,...,x]
         """
-        inverse_samples = self._inverse_samples(samples)
+        p_samples, prior_samples = self._inverse_samples(
+            samples, return_prior=True)
+
         p_log_likelihood =\
-            self.p.log_likelihood_given_x(inverse_samples,
+            self.p.log_likelihood_given_x(p_samples,
                                           deterministic=deterministic)
 
         log_iw += p_log_likelihood - q_log_likelihood
-        log_iw += self.prior.log_likelihood(samples[-1])
+
+        if self.prior_mode == "MultiPrior":
+            log_iw += self.prior.log_likelihood_given_x(prior_samples)
+        else:
+            log_iw += self.prior.log_likelihood(prior_samples)
 
         return log_iw
+
+    def _inverse_samples(self, samples, return_prior=False):
+        """
+        inputs : [[x,y],z1,z2,...zn]
+        outputs : p_samples, prior_samples
+           if mode is "Normal" : [[zn,y],zn-1,...x], zn
+           elif mode is "MultiPrior" : [z1, x], [[zn,y],zn-1,...z1]
+        """
+        inverse_samples = samples[::-1]
+        inverse_samples[0] = [inverse_samples[0]] + inverse_samples[-1][1:]
+        inverse_samples[-1] = inverse_samples[-1][0]
+
+        if self.prior_mode == "Normal":
+            p_samples = inverse_samples
+            prior_samples = samples[-1]
+
+        elif self.prior_mode == "MultiPrior":
+            p_samples = [tolist(inverse_samples[-2]), inverse_samples[-1]]
+            prior_samples = inverse_samples[:-1]
+
+        else:
+            raise Exception("You should set prior_mode to 'Normal' or"
+                            "'MultiPrior', got %s." % self.prior_mode)
+
+        if return_prior:
+            return p_samples, prior_samples
+        else:
+            return p_samples

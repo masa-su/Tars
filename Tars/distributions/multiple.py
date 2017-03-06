@@ -1,3 +1,4 @@
+import theano
 import theano.tensor as T
 
 from ..utils import tolist
@@ -100,7 +101,7 @@ class Concatenate(object):
         return loglikes
 
 
-class Multilayer(object):
+class MultiDistributions(object):
     """
     This distribution is used to stack multiple distiributions, that is
     p(x|z) = p(x|z1)p(z1|z2)...p(zn-1|zn). If the distributions are
@@ -119,15 +120,23 @@ class Multilayer(object):
 
     Examples
     --------
-    >>> from Tars.distribution import Multilayer, Gaussian, Bernoulli
+    >>> from Tars.distribution import MultiDistributions
+    >>> from Tars.distribution import Gaussian, Bernoulli
     >>> gauss = Gaussian(mean, var, given=[x])
     >>> bernoulli = Bernoulli(mean, given=[z])
-    >>> multi = Multilayer([gauss, bernoulli])
+    >>> multi = MultiDistributions([gauss, bernoulli])
     """
 
-    def __init__(self, distributions):
+    def __init__(self, distributions, approximate=True):
         self.distributions = distributions
+        self.given = self.distributions[0].given
         self.inputs = self.distributions[0].inputs
+        self.output = self.distributions[-1].output
+        self.get_input_shape = self.distributions[0].get_input_shape
+        self.get_output_shape = self.distributions[-1].get_output_shape
+        self.approximate = approximate
+        self._set_theano_func()
+
         for i, d in enumerate(distributions[1:]):
             if len(d.given) != 1:
                 raise ValueError("So far, each distribution except first "
@@ -145,14 +154,12 @@ class Multilayer(object):
             params += d.get_params()
         return params
 
-    def _sampling(self, x, srng, **kwargs):
+    def _sample(self, x, layer_id, repeat=1, **kwargs):
         """
         Paramaters
         ----------
         x : list
            This contains Theano variables.
-
-        srng : theano.sandbox.MRG_RandomStreams
 
         Returns
         -------
@@ -160,34 +167,77 @@ class Multilayer(object):
            This contains 'x' and samples, such as [x,z1,...,zn-1].
         """
 
-        samples = [x]
-        for i, d in enumerate(self.distributions[:-1]):
+        samples = [[T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]]
+        for i, d in enumerate(self.distributions[:layer_id]):
             sample = d.sample_given_x(
-                samples[i], srng, **kwargs)
+                tolist(samples[i]), **kwargs)
             samples.append(sample[-1])
         return samples
 
-    def fprop(self, x, srng, **kwargs):
+    def _sample_mean(self, x, layer_id, **kwargs):
         """
         Paramaters
         ----------
         x : list
            This contains Theano variables.
 
-        srng : theano.sandbox.MRG_RandomStreams
+        Returns
+        -------
+        list
+           This contains 'x' and samples, such as [x,z1,...,zn-1].
+        """
+        samples = [x]
+        for i, d in enumerate(self.distributions[:layer_id]):
+            sample = d.sample_mean_given_x(
+                tolist(samples[i]), **kwargs)
+            samples.append(sample[-1])
+        return samples
+
+    def _approx_sample(self, x, layer_id, repeat=1, **kwargs):
+        """
+        Paramaters
+        ----------
+        x : list
+           This contains Theano variables.
+
+        Returns
+        -------
+        list
+           This contains 'x' and samples, such as [x,z1,...,zn-1].
+        """
+
+        mean = x
+        samples = [[T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]]
+        for d in self.distributions[:layer_id]:
+            sample = d.sample_given_x(
+                tolist(mean), repeat=repeat, **kwargs)
+            samples.append(sample[-1])
+            mean = d.sample_mean_given_x(
+                tolist(mean), **kwargs)[-1]
+
+        return samples, mean
+
+    def fprop(self, x, layer_id=-1, *args, **kwargs):
+        """
+        Paramaters
+        ----------
+        x : list
+           This contains Theano variables.
 
         Returns
         -------
         mean : Theano variable
             The output of this distribution.
         """
-
-        samples = self._sampling(x, srng, **kwargs)
-        mean = self.distributions[-1].fprop(
-            tolist(samples[-1]), **kwargs)
+        if self.approximate:
+            output = self._sample_mean(x, layer_id, **kwargs)[-1]
+        else:
+            output = self._sample(x, layer_id, **kwargs)[-1]
+        mean = self.distributions[layer_id].fprop(
+            tolist(output), *args, **kwargs)
         return mean
 
-    def sample_given_x(self, x, srng, **kwargs):
+    def sample_given_x(self, x, layer_id=-1, repeat=1, **kwargs):
         """
         Paramaters
         --------
@@ -195,7 +245,7 @@ class Multilayer(object):
            This contains Theano variables, which must to correspond
            to 'given' of first layer distibution.
 
-        srng : theano.sandbox.MRG_RandomStreams
+        repeat : int or thenao variable
 
         Returns
         --------
@@ -203,12 +253,18 @@ class Multilayer(object):
            This contains 'x' and samples, such as [x,z1,...,zn].
         """
 
-        samples = self._sampling(x, srng, **kwargs)
-        samples += self.distributions[-1].sample_given_x(
-            tolist(samples[-1]), srng, **kwargs)[-1:]
+        if self.approximate:
+            samples, mean = self._approx_sample(x, layer_id,
+                                                repeat=repeat, **kwargs)
+            samples += self.distributions[layer_id].sample_given_x(
+                tolist(mean), repeat=repeat, **kwargs)[-1:]
+        else:
+            samples = self._sample(x, layer_id, repeat=repeat, **kwargs)
+            samples += self.distributions[layer_id].sample_given_x(
+                tolist(samples[-1]), repeat=repeat, **kwargs)[-1:]
         return samples
 
-    def sample_mean_given_x(self, x, srng, **kwargs):
+    def sample_mean_given_x(self, x, layer_id=-1, *args, **kwargs):
         """
         Paramaters
         --------
@@ -223,9 +279,12 @@ class Multilayer(object):
            such as [x,z1,...,zn_mean]
         """
 
-        mean = self._sampling(x, srng, **kwargs)
-        mean += self.distributions[-1].sample_mean_given_x(
-            tolist(mean[-1]), **kwargs)[-1:]
+        if self.approximate:
+            mean = self._sample_mean(x, layer_id, **kwargs)
+        else:
+            mean = self._sample(x, layer_id, **kwargs)
+        mean += self.distributions[layer_id].sample_mean_given_x(
+            tolist(mean[-1]), *args, **kwargs)[-1:]
         return mean
 
     def log_likelihood_given_x(self, samples, **kwargs):
@@ -248,4 +307,70 @@ class Multilayer(object):
             log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
                                                       **kwargs)
             all_log_likelihood += log_likelihood
+        return all_log_likelihood
+
+    def _set_theano_func(self):
+        x = self.inputs
+        samples = self.fprop(x, layer_id=-1, deterministic=True)
+        self.np_fprop = theano.function(inputs=x,
+                                        outputs=samples,
+                                        on_unused_input='ignore')
+
+        samples = self.sample_mean_given_x(x, layer_id=-1, deterministic=True)
+        self.np_sample_mean_given_x = theano.function(
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
+
+        samples = self.sample_given_x(x, layer_id=-1, deterministic=True)
+        self.np_sample_given_x = theano.function(
+            inputs=x, outputs=samples[-1], on_unused_input='ignore')
+
+
+class MultiPriorDistributions(MultiDistributions):
+    """
+    p(z|y) = p(zn)p(zn-1|zn,y)...p(z1|z2).
+
+    Samples
+    -------
+    distributions : list
+       Contain multiple distributions.
+
+    Examples
+    --------
+    >>> from Tars.distribution import MultiPriorDistributions
+    >>> from Tars.distribution import Gaussian, Bernoulli
+    >>> gauss = Gaussian(mean, var, given=[z2])
+    >>> bernoulli = Bernoulli(mean, given=[z1])
+    >>> multi = MultiPriorDistributions([gauss, bernoulli])
+    """
+
+    def __init__(self, distributions, prior=None):
+        self.prior = prior
+        super(MultiPriorDistributions,
+              self).__init__(distributions, approximate=False)
+
+    def log_likelihood_given_x(self, samples, add_prior=True, **kwargs):
+        """
+        Paramaters
+        --------
+        samples : list
+           This contains 'x', which has Theano variables, and test samples,
+           such as z1, z2,...,zn.
+
+        Returns
+        --------
+        Theano variable, shape (n_samples,)
+           log_likelihood :
+             add_prior=True : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
+             add_prior=False : log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
+        """
+
+        all_log_likelihood = 0
+        for x, sample, d in zip(samples, samples[1:], self.distributions):
+            log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
+                                                      **kwargs)
+            all_log_likelihood += log_likelihood
+
+        if add_prior:
+            prior_samples = samples[0][0]
+            all_log_likelihood += self.prior.log_likelihood(prior_samples)
         return all_log_likelihood

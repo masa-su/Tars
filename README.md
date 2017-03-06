@@ -7,6 +7,7 @@
 Tars is the deep generative models library. It has the following features:
 * Various distributions
   * Gaussian, Bernoulli, Laplace, Gamma, Beta, Dirichlet, Bernoulli, Categorical, and so on.
+  * Hierarchical latent distributions (New!).
   * We can draw samples from these distributions by **the reparameterization trick** .
 * Various models
   * Autoencoder

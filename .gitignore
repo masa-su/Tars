@@ -103,3 +103,5 @@ pyvenv.cfg
 .venv
 pip-selfcheck.json
 
+# Misc
+.DS_Store
