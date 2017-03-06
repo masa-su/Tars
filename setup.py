@@ -37,5 +37,7 @@ setup(
         'Theano',
         'sklearn',
         'six',
+        'nose_parameterized',
+        'mock',                 # for python 2.7
     ]
 )
