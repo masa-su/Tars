@@ -28,7 +28,8 @@ class VAE(Model):
 
         # set prior distribution mode
         if self.prior.__class__.__name__ == "MultiPriorDistributions":
-            self.prior.prior = get_prior(self.q.distributions[-1])
+            if self.prior.prior is None:
+                self.prior.prior = get_prior(self.q.distributions[-1])
             self.prior_mode = "MultiPrior"
         else:
             self.prior_mode = "Normal"
