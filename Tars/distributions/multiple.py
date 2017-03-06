@@ -287,7 +287,7 @@ class MultiDistributions(object):
             tolist(mean[-1]), *args, **kwargs)[-1:]
         return mean
 
-    def log_likelihood_given_x(self, samples, last_layer=False, **kwargs):
+    def log_likelihood_given_x(self, samples, **kwargs):
         """
         Paramaters
         --------
@@ -301,17 +301,11 @@ class MultiDistributions(object):
            log_likelihood (q) : log_q(z1|[x,y,...])+...+log_q(zn|zn-1)
            log_likelihood (p) : log_p(zn-1|[zn,y,...])+...+log_p(x|z1)
         """
-        if last_layer:
-            d = self.distributions[-1]
-            all_log_likelihood = d.log_likelihood_given_x([tolist(samples[0]),
-                                                           samples[1]],
-                                                          **kwargs)
-        else:
-            all_log_likelihood = 0
-            for x, sample, d in zip(samples, samples[1:], self.distributions):
-                log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
-                                                          **kwargs)
-                all_log_likelihood += log_likelihood
+        all_log_likelihood = 0
+        for x, sample, d in zip(samples, samples[1:], self.distributions):
+            log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
+                                                      **kwargs)
+            all_log_likelihood += log_likelihood
 
         return all_log_likelihood
 
