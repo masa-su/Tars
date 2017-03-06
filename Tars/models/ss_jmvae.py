@@ -4,6 +4,7 @@ import theano
 import theano.tensor as T
 import lasagne
 import numpy as np
+from progressbar import ProgressBar
 
 from ..utils import tolist, log_mean_exp
 from ..distributions.estimate_kl import analytical_kl
@@ -151,7 +152,7 @@ class SS_JMVAE(VAE):
         return log_likelihood, loss
 
     def _elbo(self, x, l, annealing_beta, deterministic=False):
-        raise NotImplementedError        
+        raise NotImplementedError
 
     def _vr_bound(self, x, l=1, k=1,
                   iw_alpha=0, deterministic=False, y=None):
