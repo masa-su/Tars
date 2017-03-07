@@ -33,13 +33,13 @@ class Distribution(object):
 
     def __init__(self, distribution, mean_network, given, seed=1,
                  set_log_likelihood=True):
+        self.distribution = distribution
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
         _output_shape = self.get_output_shape()
         self.output = T.TensorType('float32', (False,) * len(_output_shape))()
 
-        self.distribution = distribution
         self.set_log_likelihood = set_log_likelihood
         self.set_seed(seed=seed)
 
@@ -202,11 +202,11 @@ class Distribution_double(Distribution):
         return mean, var
 
 
-class Deterministic(Deterministic_sample, Distribution):
+class Deterministic(Distribution):
 
     def __init__(self, network, given, seed=1):
-        Distribution.__init__(self, network, given)
-        super(Deterministic, self).__init__(seed=seed)
+        distribution = Deterministic_sample(seed=seed)
+        super(Deterministic, self).__init__(distribution, network, given, seed=seed)
         self._set_theano_func(False)
 
     def set_seed(self, seed=1):
@@ -217,15 +217,15 @@ class Deterministic(Deterministic_sample, Distribution):
 class Bernoulli(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, seed=1):
-        distribution = Bernoulli_sample()
+        distribution = Bernoulli_sample(temp=temp, seed=seed)
         super(Bernoulli, self).__init__(distribution, mean_network, given)
 
 
-class Categorical(Categorical_sample, Distribution):
+class Categorical(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, n_dim=1, seed=1):
-        Distribution.__init__(self, mean_network, given)
-        super(Categorical, self).__init__(temp=temp, seed=seed)
+        distribution = Categorical_sample(temp=temp, seed=seed)
+        super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
         self._set_theano_func()
@@ -252,16 +252,16 @@ class Categorical(Categorical_sample, Distribution):
 class Gaussian(Distribution_double):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        distribution = Gaussian_sample()
+        distribution = Gaussian_sample(seed=seed)
         super(Gaussian, self).__init__(
             distribution, mean_network, var_network, given)
 
 
-class GaussianConstantVar(Gaussian_sample, Deterministic):
+class GaussianConstantVar(Deterministic):
 
     def __init__(self, mean_network, given, var=1, seed=1):
-        Deterministic.__init__(self, mean_network, given)
-        super(GaussianConstantVar, self).__init__(seed=seed)
+        distribution = Gaussian_sample(seed=seed)
+        super(GaussianConstantVar, self).__init__(distribution, mean_network, given, seed=seed)
         self.constant_var = var
         self._set_theano_func()
 
@@ -281,11 +281,11 @@ class GaussianConstantVar(Gaussian_sample, Deterministic):
                                           self.constant_var)
 
 
-class Laplace(Laplace_sample, Distribution_double):
+class Laplace(Distribution_double):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        Distribution_double.__init__(self, mean_network, var_network, given)
-        super(Laplace, self).__init__(seed=seed)
+        distribution = Laplace_sample(seed=seed)
+        super(Laplace, self).__init__(distribution, mean_network, var_network, given, seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -293,15 +293,15 @@ class Laplace(Laplace_sample, Distribution_double):
         self._set_theano_func()
 
 
-class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
+class Kumaraswamy(Distribution_double):
     """
     [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
     """
 
     def __init__(self, a_network, b_network,
                  given, stick_breaking=True, seed=1):
-        Distribution_double.__init__(self, a_network, b_network, given)
-        super(Kumaraswamy, self).__init__(seed=seed)
+        distribution = Kumaraswamy_sample(seed=seed)
+        super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
         self.stick_breaking = stick_breaking
         self._set_theano_func()
 
@@ -341,11 +341,11 @@ class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
                              axis=1)
 
 
-class Gamma(Gamma_sample, Distribution_double):
+class Gamma(Distribution_double):
 
     def __init__(self, alpha_network, beta_network, given, seed=1):
-        Distribution_double.__init__(self, alpha_network, beta_network, given)
-        super(Gamma, self).__init__(seed=seed)
+        distribution = Gamma_sample(seed=seed)
+        super(Gamma, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -353,14 +353,14 @@ class Gamma(Gamma_sample, Distribution_double):
         self._set_theano_func()
 
 
-class Beta(Beta_sample, Distribution_double):
+class Beta(Distribution_double):
 
     def __init__(self, alpha_network, beta_network, given,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        Distribution_double.__init__(self, alpha_network, beta_network, given)
-        super(Beta, self).__init__(iter_sampling=iter_sampling,
-                                   rejection_sampling=rejection_sampling,
-                                   seed=seed)
+        distribution = Beta_sample(iter_sampling=iter_sampling,
+                                    rejection_sampling=rejection_sampling,
+                                    seed=seed)
+        super(Beta, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -372,10 +372,10 @@ class Dirichlet(Dirichlet_sample, Distribution):
 
     def __init__(self, alpha_network, given, k,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        Distribution.__init__(self, alpha_network, given)
-        super(Dirichlet, self).__init__(k, iter_sampling=iter_sampling,
+        distribution = Dirichlet_sample(k, iter_sampling=iter_sampling,
                                         rejection_sampling=rejection_sampling,
                                         seed=seed)
+        super(Dirichlet, self).__init__(distribution, alpha_network, given, seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
