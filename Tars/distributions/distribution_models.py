@@ -225,9 +225,11 @@ class Categorical(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, n_dim=1, seed=1):
         distribution = Categorical_sample(temp=temp, seed=seed)
-        super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
+        self.mean_network = mean_network # need to set mean_network first for computing k
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
+        super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
+
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -240,7 +242,7 @@ class Categorical(Distribution):
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
-        output = self.sample(mean).reshape((-1, self.n_dim * self.k))
+        output = self.distribution.sample(mean).reshape((-1, self.n_dim * self.k))
         return [x, output]
 
     def fprop(self, x, *args, **kwargs):
@@ -301,8 +303,8 @@ class Kumaraswamy(Distribution_double):
     def __init__(self, a_network, b_network,
                  given, stick_breaking=True, seed=1):
         distribution = Kumaraswamy_sample(seed=seed)
-        super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
         self.stick_breaking = stick_breaking
+        super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
         self._set_theano_func()
 
     def set_seed(self, seed=1):
@@ -357,9 +359,10 @@ class Beta(Distribution_double):
 
     def __init__(self, alpha_network, beta_network, given,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        distribution = Beta_sample(iter_sampling=iter_sampling,
-                                    rejection_sampling=rejection_sampling,
-                                    seed=seed)
+        distribution = Beta_sample(
+            iter_sampling=iter_sampling,
+            rejection_sampling=rejection_sampling,
+            seed=seed)
         super(Beta, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
         self._set_theano_func()
 
@@ -368,13 +371,14 @@ class Beta(Distribution_double):
         self._set_theano_func()
 
 
-class Dirichlet(Dirichlet_sample, Distribution):
+class Dirichlet(Distribution):
 
     def __init__(self, alpha_network, given, k,
                  iter_sampling=6, rejection_sampling=True, seed=1):
         distribution = Dirichlet_sample(k, iter_sampling=iter_sampling,
                                         rejection_sampling=rejection_sampling,
                                         seed=seed)
+        self.k = k
         super(Dirichlet, self).__init__(distribution, alpha_network, given, seed=seed)
         self._set_theano_func()
 
@@ -391,5 +395,5 @@ class Dirichlet(Dirichlet_sample, Distribution):
         _shape = mean.shape
         mean = mean.reshape((_shape[0], _shape[1] / self.k,
                              self.k))
-        output = self.sample(mean).reshape(_shape)
+        output = self.distribution.sample(mean).reshape(_shape)
         return [x, output]
