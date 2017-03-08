@@ -44,9 +44,10 @@ class Distribution(object):
         self.set_seed(seed=seed)
 
     def set_seed(self, seed=1):
-        self.distribution.set_seed(seed)
+        # Need to call set_seed twice to get consistent sampling results
+        self.distribution.set_seed(seed)  # for compiling theano functions
         self._set_theano_func()
-        self.distribution.set_seed(seed)
+        self.distribution.set_seed(seed)  # for actual sampling
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
@@ -226,7 +227,7 @@ class Categorical(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, n_dim=1, seed=1):
         distribution = Categorical_sample(temp=temp, seed=seed)
-        self.mean_network = mean_network # need to set mean_network first for computing k
+        self.mean_network = mean_network
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
         super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
