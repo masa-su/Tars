@@ -306,6 +306,24 @@ class GaussianSample(DistributionSample):
         return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
 
 
+class GaussianConstantVarSample(GaussianSample):
+
+    def __init__(self, constant_var=1, seed=1):
+        self.constant_var = constant_var
+        super(GaussianConstantVarSample, self).__init__(seed=seed)
+
+    def sample(self, mean):
+        return super(GaussianConstantVarSample,
+                     self).sample(mean,
+                                  T.ones_like(mean) * self.constant_var)
+
+    def log_likelihood(self, samples, mean):
+        return super(GaussianConstantVarSample,
+                     self).log_likelihood(samples, mean,
+                                          T.ones_like(samples) *
+                                          self.constant_var)
+
+
 class LaplaceSample(DistributionSample):
     """
     Laplace distribution

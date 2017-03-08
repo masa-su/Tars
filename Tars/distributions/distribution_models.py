@@ -9,6 +9,7 @@ from .distribution_samples import (
     BernoulliSample,
     CategoricalSample,
     GaussianSample,
+    GaussianConstantVarSample,
     LaplaceSample,
     KumaraswamySample,
     GammaSample,
@@ -205,8 +206,7 @@ class DistributionDouble(Distribution):
 
 class Deterministic(Distribution):
 
-    def __init__(self, network, given, seed=1):
-        distribution = DeterministicSample(seed=seed)
+    def __init__(self, distribution, network, given, seed=1):
         super(Deterministic, self).__init__(distribution, network, given, seed=seed)
 
 
@@ -252,20 +252,8 @@ class Gaussian(DistributionDouble):
 class GaussianConstantVar(Deterministic):
 
     def __init__(self, mean_network, given, var=1, seed=1):
-        distribution = GaussianSample(seed=seed)
+        distribution = GaussianConstantVarSample(constant_var=var, seed=seed)
         super(GaussianConstantVar, self).__init__(distribution, mean_network, given, seed=seed)
-        self.constant_var = var
-
-    def sample(self, mean):
-        return super(GaussianConstantVar,
-                     self).sample(mean,
-                                  T.ones_like(mean) * self.constant_var)
-
-    def log_likelihood(self, samples, mean):
-        return super(GaussianConstantVar,
-                     self).log_likelihood(samples, mean,
-                                          T.ones_like(samples) *
-                                          self.constant_var)
 
 
 class Laplace(DistributionDouble):
