@@ -220,7 +220,7 @@ class Bernoulli(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, seed=1):
         distribution = Bernoulli_sample(temp=temp, seed=seed)
-        super(Bernoulli, self).__init__(distribution, mean_network, given)
+        super(Bernoulli, self).__init__(distribution, mean_network, given, seed)
 
 
 class Categorical(Distribution):
@@ -259,7 +259,7 @@ class Gaussian(Distribution_double):
     def __init__(self, mean_network, var_network, given, seed=1):
         distribution = Gaussian_sample(seed=seed)
         super(Gaussian, self).__init__(
-            distribution, mean_network, var_network, given)
+            distribution, mean_network, var_network, given, seed)
 
 
 class GaussianConstantVar(Deterministic):
