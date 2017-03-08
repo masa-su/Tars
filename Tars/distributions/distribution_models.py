@@ -212,6 +212,7 @@ class Deterministic(Distribution):
     def set_seed(self, seed=1):
         super(Deterministic, self).set_seed(seed=seed)
         self._set_theano_func(False)
+        super(Deterministic, self).set_seed(seed=seed)
 
 
 class Bernoulli(Distribution):
@@ -235,6 +236,7 @@ class Categorical(Distribution):
     def set_seed(self, seed=1):
         super(Categorical, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(Categorical, self).set_seed(seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
@@ -270,6 +272,7 @@ class GaussianConstantVar(Deterministic):
     def set_seed(self, seed=1):
         super(GaussianConstantVar, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(GaussianConstantVar, self).set_seed(seed=seed)
 
     def sample(self, mean):
         return super(GaussianConstantVar,
@@ -293,6 +296,7 @@ class Laplace(Distribution_double):
     def set_seed(self, seed=1):
         super(Laplace, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(Laplace, self).set_seed(seed=seed)
 
 
 class Kumaraswamy(Distribution_double):
@@ -310,6 +314,7 @@ class Kumaraswamy(Distribution_double):
     def set_seed(self, seed=1):
         super(Kumaraswamy, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(Kumaraswamy, self).set_seed(seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         [x, v] = super(Kumaraswamy, self).sample_given_x(x,
@@ -353,6 +358,7 @@ class Gamma(Distribution_double):
     def set_seed(self, seed=1):
         super(Gamma, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(Gamma, self).set_seed(seed=seed)
 
 
 class Beta(Distribution_double):
@@ -369,6 +375,7 @@ class Beta(Distribution_double):
     def set_seed(self, seed=1):
         super(Beta, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(Beta, self).set_seed(seed=seed)
 
 
 class Dirichlet(Distribution):
@@ -385,6 +392,7 @@ class Dirichlet(Distribution):
     def set_seed(self, seed=1):
         super(Dirichlet, self).set_seed(seed=seed)
         self._set_theano_func()
+        super(Dirichlet, self).set_seed(seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
