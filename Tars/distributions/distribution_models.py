@@ -116,8 +116,8 @@ class Distribution(object):
         """
         if repeat != 1:
             x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
-        mean = self.fprop(x, **kwargs)
-        return [x, self.distribution.sample(*tolist(mean))]
+        output = self.fprop(x, **kwargs)
+        return [x, self.distribution.sample(*tolist(output))]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
