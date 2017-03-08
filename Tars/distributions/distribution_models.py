@@ -348,8 +348,8 @@ class Dirichlet(Distribution):
     def __init__(self, alpha_network, given, k,
                  iter_sampling=6, rejection_sampling=True, seed=1):
         distribution = DirichletSample(k, iter_sampling=iter_sampling,
-                                        rejection_sampling=rejection_sampling,
-                                        seed=seed)
+                                       rejection_sampling=rejection_sampling,
+                                       seed=seed)
         self.k = k
         super(Dirichlet, self).__init__(distribution, alpha_network, given, seed=seed)
         self._set_theano_func()

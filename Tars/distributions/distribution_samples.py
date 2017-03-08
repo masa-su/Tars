@@ -118,7 +118,7 @@ class ConcreteSample(GumbelSample):
 
         if self.temp != 0:
             output = super(ConcreteSample, self).sample(T.zeros_like(mean),
-                                                         T.ones_like(mean))
+                                                        T.ones_like(mean))
             output += T.log(mean + epsilon())
 
             if output.ndim == 1 or output.ndim == 2:
@@ -163,9 +163,9 @@ class BernoulliSample(GumbelSample):
 
         if self.temp != 0:
             z1 = super(BernoulliSample, self).sample(T.zeros_like(mean),
-                                                      T.ones_like(mean))
+                                                     T.ones_like(mean))
             z0 = super(BernoulliSample, self).sample(T.zeros_like(mean),
-                                                      T.ones_like(mean))
+                                                     T.ones_like(mean))
             z1 += T.log(mean + epsilon())
             z0 += T.log(1 - mean + epsilon())
 
