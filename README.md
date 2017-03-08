@@ -4,7 +4,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/6e6c735a1bc9484986a0d5877302042b)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=masa-su/Tars&amp;utm_campaign=Badge_Grade)
 [![Python Version](https://img.shields.io/badge/python-2.7-blue.svg)](https://github.com/masa-su/Tars)
 
-Tars is the deep generative models library. It has the following features:
+Tars is a deep generative models library. It has the following features:
 * Various distributions
   * Gaussian, Bernoulli, Laplace, Gamma, Beta, Dirichlet, Bernoulli, Categorical, and so on.
   * Hierarchical latent distributions (New!).
