@@ -5,7 +5,6 @@ import lasagne
 
 from ..utils import tolist
 from .distribution_samples import (
-    DeterministicSample,
     BernoulliSample,
     CategoricalSample,
     GaussianSample,
