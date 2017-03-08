@@ -176,11 +176,11 @@ class Distribution(object):
                 on_unused_input='ignore')
 
 
-class Distribution_double(Distribution):
+class DistributionDouble(Distribution):
 
     def __init__(self, distribution, mean_network, var_network, given, seed=1):
         self.var_network = var_network
-        super(Distribution_double, self).__init__(
+        super(DistributionDouble, self).__init__(
             distribution, mean_network, given, seed)
         if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
@@ -188,14 +188,14 @@ class Distribution_double(Distribution):
                              "do not match.")
 
     def get_params(self):
-        params = super(Distribution_double, self).get_params()
+        params = super(DistributionDouble, self).get_params()
         params += self.var_network.get_params(trainable=True)
         # delete duplicated paramaters
         params = sorted(set(params), key=params.index)
         return params
 
     def fprop(self, x, deterministic=False):
-        mean = super(Distribution_double,
+        mean = super(DistributionDouble,
                      self).fprop(x, deterministic=deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
@@ -241,7 +241,7 @@ class Categorical(Distribution):
         return mean
 
 
-class Gaussian(Distribution_double):
+class Gaussian(DistributionDouble):
 
     def __init__(self, mean_network, var_network, given, seed=1):
         distribution = GaussianSample(seed=seed)
@@ -268,14 +268,14 @@ class GaussianConstantVar(Deterministic):
                                           self.constant_var)
 
 
-class Laplace(Distribution_double):
+class Laplace(DistributionDouble):
 
     def __init__(self, mean_network, var_network, given, seed=1):
         distribution = LaplaceSample(seed=seed)
         super(Laplace, self).__init__(distribution, mean_network, var_network, given, seed=seed)
 
 
-class Kumaraswamy(Distribution_double):
+class Kumaraswamy(DistributionDouble):
     """
     [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
     """
@@ -318,14 +318,14 @@ class Kumaraswamy(Distribution_double):
                              axis=1)
 
 
-class Gamma(Distribution_double):
+class Gamma(DistributionDouble):
 
     def __init__(self, alpha_network, beta_network, given, seed=1):
         distribution = GammaSample(seed=seed)
         super(Gamma, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
 
 
-class Beta(Distribution_double):
+class Beta(DistributionDouble):
 
     def __init__(self, alpha_network, beta_network, given,
                  iter_sampling=6, rejection_sampling=True, seed=1):
