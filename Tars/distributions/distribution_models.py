@@ -210,11 +210,6 @@ class Deterministic(Distribution):
         super(Deterministic, self).__init__(distribution, network, given, seed=seed)
         self._set_theano_func(False)
 
-    def set_seed(self, seed=1):
-        super(Deterministic, self).set_seed(seed=seed)
-        self._set_theano_func(False)
-        super(Deterministic, self).set_seed(seed=seed)
-
 
 class Bernoulli(Distribution):
 
@@ -231,13 +226,7 @@ class Categorical(Distribution):
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
         super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
-
         self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Categorical, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(Categorical, self).set_seed(seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
@@ -270,11 +259,6 @@ class GaussianConstantVar(Deterministic):
         self.constant_var = var
         self._set_theano_func()
 
-    def set_seed(self, seed=1):
-        super(GaussianConstantVar, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(GaussianConstantVar, self).set_seed(seed=seed)
-
     def sample(self, mean):
         return super(GaussianConstantVar,
                      self).sample(mean,
@@ -294,11 +278,6 @@ class Laplace(Distribution_double):
         super(Laplace, self).__init__(distribution, mean_network, var_network, given, seed=seed)
         self._set_theano_func()
 
-    def set_seed(self, seed=1):
-        super(Laplace, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(Laplace, self).set_seed(seed=seed)
-
 
 class Kumaraswamy(Distribution_double):
     """
@@ -311,11 +290,6 @@ class Kumaraswamy(Distribution_double):
         self.stick_breaking = stick_breaking
         super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
         self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Kumaraswamy, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(Kumaraswamy, self).set_seed(seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         [x, v] = super(Kumaraswamy, self).sample_given_x(x,
@@ -356,11 +330,6 @@ class Gamma(Distribution_double):
         super(Gamma, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
         self._set_theano_func()
 
-    def set_seed(self, seed=1):
-        super(Gamma, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(Gamma, self).set_seed(seed=seed)
-
 
 class Beta(Distribution_double):
 
@@ -373,11 +342,6 @@ class Beta(Distribution_double):
         super(Beta, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
         self._set_theano_func()
 
-    def set_seed(self, seed=1):
-        super(Beta, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(Beta, self).set_seed(seed=seed)
-
 
 class Dirichlet(Distribution):
 
@@ -389,11 +353,6 @@ class Dirichlet(Distribution):
         self.k = k
         super(Dirichlet, self).__init__(distribution, alpha_network, given, seed=seed)
         self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Dirichlet, self).set_seed(seed=seed)
-        self._set_theano_func()
-        super(Dirichlet, self).set_seed(seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
