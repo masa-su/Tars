@@ -4,12 +4,12 @@ import theano.tensor as T
 
 from ..utils import epsilon, tolist
 from .distribution_samples import (
-    UnitGaussian_sample,
-    UnitBernoulli_sample,
-    UnitCategorical_sample,
-    UnitBeta_sample,
-    UnitDirichlet_sample,
-    UnitGamma_sample,
+    UnitGaussianSample,
+    UnitBernoulliSample,
+    UnitCategoricalSample,
+    UnitBetaSample,
+    UnitDirichletSample,
+    UnitGammaSample,
 )
 
 
@@ -22,7 +22,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
     q1_class = q1.__class__.__name__
     q2_class = q2.__class__.__name__
-    if q1_class == "Gaussian" and q2_class == "UnitGaussian_sample":
+    if q1_class == "Gaussian" and q2_class == "UnitGaussianSample":
         mean, var = q1.fprop(x1, deterministic=deterministic)
         return gauss_unitgauss_kl(mean, var)
 
@@ -31,18 +31,18 @@ def analytical_kl(q1, q2, given, deterministic=False):
         mean2, var2 = q2.fprop(x2, deterministic=deterministic)
         return gauss_gauss_kl(mean1, var1, mean2, var2)
 
-    elif q1_class == "Bernoulli" and q2_class == "UnitBernoulli_sample":
+    elif q1_class == "Bernoulli" and q2_class == "UnitBernoulliSample":
         mean = q1.fprop(x1, deterministic=deterministic)
         output = mean * (T.log(mean + epsilon()) + T.log(2)) +\
             (1 - mean) * (T.log(1 - mean + epsilon()) + T.log(2))
         return T.sum(output, axis=1)
 
-    elif q1_class == "Categorical" and q2_class == "UnitCategorical_sample":
+    elif q1_class == "Categorical" and q2_class == "UnitCategoricalSample":
         mean = q1.fprop(x1, deterministic=deterministic)
         output = mean * (T.log(mean + epsilon()) + T.log(q1.k))
         return T.sum(output, axis=1)
 
-    elif q1_class == "Kumaraswamy" and q2_class == "UnitBeta_sample":
+    elif q1_class == "Kumaraswamy" and q2_class == "UnitBetaSample":
         """
         [Naelisnick+ 2016]
         Deep Generative Models with Stick-Breaking Priors
@@ -68,7 +68,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         return T.sum(kl, axis=1)
 
-    elif q1_class == "Gamma" and q2_class == "UnitGamma_sample":
+    elif q1_class == "Gamma" and q2_class == "UnitGammaSample":
         """
         https://arxiv.org/pdf/1611.01437.pdf
         """
@@ -84,7 +84,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         return T.sum(output, axis=1)
 
-    elif q1_class == "Beta" and q2_class == "UnitBeta_sample":
+    elif q1_class == "Beta" and q2_class == "UnitBetaSample":
         """
         http://bariskurt.com/kullback-leibler-divergence\
         -between-two-dirichlet-and-beta-distributions/
@@ -102,7 +102,7 @@ def analytical_kl(q1, q2, given, deterministic=False):
 
         return T.sum(output, axis=1)
 
-    elif q1_class == "Dirichlet" and q2_class == "UnitDirichlet_sample":
+    elif q1_class == "Dirichlet" and q2_class == "UnitDirichletSample":
         """
         http://bariskurt.com/kullback-leibler-divergence\
         -between-two-dirichlet-and-beta-distributions/
@@ -189,22 +189,22 @@ def psi(b):
 def get_prior(q):
     q_class = q.__class__.__name__
     if q_class == "Gaussian":
-        return UnitGaussian_sample()
+        return UnitGaussianSample()
 
     elif q_class == "Bernoulli":
-        return UnitBernoulli_sample()
+        return UnitBernoulliSample()
 
     elif q_class == "Categorical":
-        return UnitCategorical_sample(q.k)
+        return UnitCategoricalSample(q.k)
 
     elif q_class == "Kumaraswamy" or q_class == "Beta":
-        return UnitBeta_sample()
+        return UnitBetaSample()
 
     elif q_class == "Dirichlet":
-        return UnitDirichlet_sample(q.k)
+        return UnitDirichletSample(q.k)
 
     elif q_class == "Gamma":
-        return UnitGamma_sample()
+        return UnitGammaSample()
 
     elif q_class == "MultiDistributions":
         return get_prior(q.distributions[-1])

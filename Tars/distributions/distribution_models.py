@@ -5,15 +5,15 @@ import lasagne
 
 from ..utils import tolist
 from .distribution_samples import (
-    Deterministic_sample,
-    Bernoulli_sample,
-    Categorical_sample,
-    Gaussian_sample,
-    Laplace_sample,
-    Kumaraswamy_sample,
-    Gamma_sample,
-    Beta_sample,
-    Dirichlet_sample,
+    DeterministicSample,
+    BernoulliSample,
+    CategoricalSample,
+    GaussianSample,
+    LaplaceSample,
+    KumaraswamySample,
+    GammaSample,
+    BetaSample,
+    DirichletSample,
 )
 
 
@@ -206,7 +206,7 @@ class Distribution_double(Distribution):
 class Deterministic(Distribution):
 
     def __init__(self, network, given, seed=1):
-        distribution = Deterministic_sample(seed=seed)
+        distribution = DeterministicSample(seed=seed)
         super(Deterministic, self).__init__(distribution, network, given, seed=seed)
         self._set_theano_func(False)
 
@@ -214,14 +214,14 @@ class Deterministic(Distribution):
 class Bernoulli(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, seed=1):
-        distribution = Bernoulli_sample(temp=temp, seed=seed)
+        distribution = BernoulliSample(temp=temp, seed=seed)
         super(Bernoulli, self).__init__(distribution, mean_network, given, seed)
 
 
 class Categorical(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, n_dim=1, seed=1):
-        distribution = Categorical_sample(temp=temp, seed=seed)
+        distribution = CategoricalSample(temp=temp, seed=seed)
         self.mean_network = mean_network
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
@@ -246,7 +246,7 @@ class Categorical(Distribution):
 class Gaussian(Distribution_double):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        distribution = Gaussian_sample(seed=seed)
+        distribution = GaussianSample(seed=seed)
         super(Gaussian, self).__init__(
             distribution, mean_network, var_network, given, seed)
 
@@ -254,7 +254,7 @@ class Gaussian(Distribution_double):
 class GaussianConstantVar(Deterministic):
 
     def __init__(self, mean_network, given, var=1, seed=1):
-        distribution = Gaussian_sample(seed=seed)
+        distribution = GaussianSample(seed=seed)
         super(GaussianConstantVar, self).__init__(distribution, mean_network, given, seed=seed)
         self.constant_var = var
         self._set_theano_func()
@@ -274,7 +274,7 @@ class GaussianConstantVar(Deterministic):
 class Laplace(Distribution_double):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        distribution = Laplace_sample(seed=seed)
+        distribution = LaplaceSample(seed=seed)
         super(Laplace, self).__init__(distribution, mean_network, var_network, given, seed=seed)
         self._set_theano_func()
 
@@ -286,7 +286,7 @@ class Kumaraswamy(Distribution_double):
 
     def __init__(self, a_network, b_network,
                  given, stick_breaking=True, seed=1):
-        distribution = Kumaraswamy_sample(seed=seed)
+        distribution = KumaraswamySample(seed=seed)
         self.stick_breaking = stick_breaking
         super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
         self._set_theano_func()
@@ -326,7 +326,7 @@ class Kumaraswamy(Distribution_double):
 class Gamma(Distribution_double):
 
     def __init__(self, alpha_network, beta_network, given, seed=1):
-        distribution = Gamma_sample(seed=seed)
+        distribution = GammaSample(seed=seed)
         super(Gamma, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
         self._set_theano_func()
 
@@ -335,7 +335,7 @@ class Beta(Distribution_double):
 
     def __init__(self, alpha_network, beta_network, given,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        distribution = Beta_sample(
+        distribution = BetaSample(
             iter_sampling=iter_sampling,
             rejection_sampling=rejection_sampling,
             seed=seed)
@@ -347,7 +347,7 @@ class Dirichlet(Distribution):
 
     def __init__(self, alpha_network, given, k,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        distribution = Dirichlet_sample(k, iter_sampling=iter_sampling,
+        distribution = DirichletSample(k, iter_sampling=iter_sampling,
                                         rejection_sampling=rejection_sampling,
                                         seed=seed)
         self.k = k
