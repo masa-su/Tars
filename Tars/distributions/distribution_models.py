@@ -208,7 +208,6 @@ class Deterministic(Distribution):
     def __init__(self, network, given, seed=1):
         distribution = DeterministicSample(seed=seed)
         super(Deterministic, self).__init__(distribution, network, given, seed=seed)
-        self._set_theano_func(False)
 
 
 class Bernoulli(Distribution):
@@ -226,7 +225,6 @@ class Categorical(Distribution):
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
         super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
-        self._set_theano_func()
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
@@ -257,7 +255,6 @@ class GaussianConstantVar(Deterministic):
         distribution = GaussianSample(seed=seed)
         super(GaussianConstantVar, self).__init__(distribution, mean_network, given, seed=seed)
         self.constant_var = var
-        self._set_theano_func()
 
     def sample(self, mean):
         return super(GaussianConstantVar,
@@ -276,7 +273,6 @@ class Laplace(Distribution_double):
     def __init__(self, mean_network, var_network, given, seed=1):
         distribution = LaplaceSample(seed=seed)
         super(Laplace, self).__init__(distribution, mean_network, var_network, given, seed=seed)
-        self._set_theano_func()
 
 
 class Kumaraswamy(Distribution_double):
@@ -289,7 +285,6 @@ class Kumaraswamy(Distribution_double):
         distribution = KumaraswamySample(seed=seed)
         self.stick_breaking = stick_breaking
         super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
-        self._set_theano_func()
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         [x, v] = super(Kumaraswamy, self).sample_given_x(x,
@@ -328,7 +323,6 @@ class Gamma(Distribution_double):
     def __init__(self, alpha_network, beta_network, given, seed=1):
         distribution = GammaSample(seed=seed)
         super(Gamma, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
-        self._set_theano_func()
 
 
 class Beta(Distribution_double):
@@ -340,7 +334,6 @@ class Beta(Distribution_double):
             rejection_sampling=rejection_sampling,
             seed=seed)
         super(Beta, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
-        self._set_theano_func()
 
 
 class Dirichlet(Distribution):
@@ -352,7 +345,6 @@ class Dirichlet(Distribution):
                                        seed=seed)
         self.k = k
         super(Dirichlet, self).__init__(distribution, alpha_network, given, seed=seed)
-        self._set_theano_func()
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
