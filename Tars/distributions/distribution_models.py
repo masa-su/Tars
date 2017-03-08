@@ -132,8 +132,8 @@ class Distribution(object):
            This contains 'x' and a mean value of sample ~ p(*|x).
         """
 
-        mean = self.fprop(x, **kwargs)
-        return [x, tolist(mean)[0]]
+        output = self.fprop(x, **kwargs)
+        return [x, tolist(output)[0]]
 
     def log_likelihood_given_x(self, samples, **kwargs):
         """
@@ -149,8 +149,8 @@ class Distribution(object):
         """
 
         x, sample = samples
-        mean = self.fprop(x, **kwargs)
-        return self.distribution.log_likelihood(sample, *tolist(mean))
+        output = self.fprop(x, **kwargs)
+        return self.distribution.log_likelihood(sample, *tolist(output))
 
     def _set_theano_func(self):
         x = self.inputs
