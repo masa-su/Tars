@@ -50,7 +50,7 @@ class TestGaussian(TestCase):
         mean_layer, var_layer = InputLayer((1,None)),InputLayer((1,None))
         return Gaussian(mean_layer, var_layer, given=[mean_layer, var_layer], seed=seed)
 
-    def test_consistency(self):
+    def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
         seed = 1234567890
         mean, var = 0, 1
