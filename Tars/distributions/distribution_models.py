@@ -2,24 +2,22 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-from abc import ABCMeta, abstractmethod
 
 from ..utils import tolist
 from .distribution_samples import (
-    Deterministic_sample,
-    Bernoulli_sample,
-    Categorical_sample,
-    Gaussian_sample,
-    Laplace_sample,
-    Kumaraswamy_sample,
-    Gamma_sample,
-    Beta_sample,
-    Dirichlet_sample,
+    BernoulliSample,
+    CategoricalSample,
+    GaussianSample,
+    GaussianConstantVarSample,
+    LaplaceSample,
+    KumaraswamySample,
+    GammaSample,
+    BetaSample,
+    DirichletSample,
 )
 
 
 class Distribution(object):
-    __metaclass__ = ABCMeta
     """
     Paramaters
     ----------
@@ -33,12 +31,23 @@ class Distribution(object):
             log p(*|x,y)
     """
 
-    def __init__(self, mean_network, given):
+    def __init__(self, distribution, mean_network, given, seed=1,
+                 set_log_likelihood=True):
+        self.distribution = distribution
         self.mean_network = mean_network
         self.given = given
         self.inputs = [x.input_var for x in given]
         _output_shape = self.get_output_shape()
         self.output = T.TensorType('float32', (False,) * len(_output_shape))()
+
+        self.set_log_likelihood = set_log_likelihood
+        self.set_seed(seed=seed)
+
+    def set_seed(self, seed=1):
+        # Need to call set_seed twice to get consistent sampling results
+        self.distribution.set_seed(seed)  # for compiling theano functions
+        self._set_theano_func()
+        self.distribution.set_seed(seed)  # for actual sampling
 
     def get_params(self):
         params = lasagne.layers.get_all_params(
@@ -106,8 +115,11 @@ class Distribution(object):
         """
         if repeat != 1:
             x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
-        mean = self.fprop(x, **kwargs)
-        return [x, self.sample(*tolist(mean))]
+
+        # Feedforward the inputs. The output corresponds to the mean of a distribution,
+        # or the mean and the variance if executed from DistributionDouble.
+        output = self.fprop(x, **kwargs)
+        return [x, self.distribution.sample(*tolist(output))]
 
     def sample_mean_given_x(self, x, *args, **kwargs):
         """
@@ -123,8 +135,8 @@ class Distribution(object):
            This contains 'x' and a mean value of sample ~ p(*|x).
         """
 
-        mean = self.fprop(x, **kwargs)
-        return [x, tolist(mean)[0]]
+        output = self.fprop(x, **kwargs)
+        return [x, tolist(output)[0]]
 
     def log_likelihood_given_x(self, samples, **kwargs):
         """
@@ -140,10 +152,10 @@ class Distribution(object):
         """
 
         x, sample = samples
-        mean = self.fprop(x, **kwargs)
-        return self.log_likelihood(sample, *tolist(mean))
+        output = self.fprop(x, **kwargs)
+        return self.distribution.log_likelihood(sample, *tolist(output))
 
-    def _set_theano_func(self, set_log_likelihood=True):
+    def _set_theano_func(self):
         x = self.inputs
         samples = self.fprop(x, deterministic=True)
         self.np_fprop = theano.function(inputs=x,
@@ -158,7 +170,7 @@ class Distribution(object):
         self.np_sample_given_x = theano.function(
             inputs=x, outputs=samples[-1], on_unused_input='ignore')
 
-        if set_log_likelihood:
+        if self.set_log_likelihood:
             sample = self.output
             samples = self.log_likelihood_given_x([x, sample],
                                                   deterministic=True)
@@ -166,34 +178,27 @@ class Distribution(object):
                 inputs=x + [sample], outputs=samples[-1],
                 on_unused_input='ignore')
 
-    @abstractmethod
-    def sample(self):
-        pass
 
-    @abstractmethod
-    def log_likelihood(self):
-        pass
+class DistributionDouble(Distribution):
 
-
-class Distribution_double(Distribution):
-
-    def __init__(self, mean_network, var_network, given):
-        super(Distribution_double, self).__init__(mean_network, given)
+    def __init__(self, distribution, mean_network, var_network, given, seed=1):
         self.var_network = var_network
+        super(DistributionDouble, self).__init__(
+            distribution, mean_network, given, seed)
         if self.get_output_shape() != lasagne.layers.get_output_shape(
                 self.var_network):
             raise ValueError("The output shapes of the two networks"
                              "do not match.")
 
     def get_params(self):
-        params = super(Distribution_double, self).get_params()
+        params = super(DistributionDouble, self).get_params()
         params += self.var_network.get_params(trainable=True)
         # delete duplicated paramaters
         params = sorted(set(params), key=params.index)
         return params
 
     def fprop(self, x, deterministic=False):
-        mean = super(Distribution_double,
+        mean = super(DistributionDouble,
                      self).fprop(x, deterministic=deterministic)
         inputs = dict(zip(self.given, x))
         var = lasagne.layers.get_output(
@@ -201,42 +206,27 @@ class Distribution_double(Distribution):
         return mean, var
 
 
-class Deterministic(Deterministic_sample, Distribution):
+class Deterministic(Distribution):
 
-    def __init__(self, network, given, seed=1):
-        Distribution.__init__(self, network, given)
-        super(Deterministic, self).__init__(seed=seed)
-        self._set_theano_func(False)
-
-    def set_seed(self, seed=1):
-        super(Deterministic, self).set_seed(seed=seed)
-        self._set_theano_func(False)
+    def __init__(self, distribution, network, given, seed=1):
+        super(Deterministic, self).__init__(distribution, network, given, seed=seed)
 
 
-class Bernoulli(Bernoulli_sample, Distribution):
+class Bernoulli(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, seed=1):
-        Distribution.__init__(self, mean_network, given)
-        super(Bernoulli, self).__init__(temp=temp, seed=seed)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Bernoulli, self).set_seed(seed=seed)
-        self._set_theano_func()
+        distribution = BernoulliSample(temp=temp, seed=seed)
+        super(Bernoulli, self).__init__(distribution, mean_network, given, seed)
 
 
-class Categorical(Categorical_sample, Distribution):
+class Categorical(Distribution):
 
     def __init__(self, mean_network, given, temp=0.1, n_dim=1, seed=1):
-        Distribution.__init__(self, mean_network, given)
-        super(Categorical, self).__init__(temp=temp, seed=seed)
+        distribution = CategoricalSample(temp=temp, seed=seed)
+        self.mean_network = mean_network
         self.n_dim = n_dim
         self.k = self.get_output_shape()[-1]
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Categorical, self).set_seed(seed=seed)
-        self._set_theano_func()
+        super(Categorical, self).__init__(distribution, mean_network, given, seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
@@ -244,7 +234,7 @@ class Categorical(Categorical_sample, Distribution):
 
         # use fprop of super class
         mean = Distribution.fprop(self, x, **kwargs)
-        output = self.sample(mean).reshape((-1, self.n_dim * self.k))
+        output = self.distribution.sample(mean).reshape((-1, self.n_dim * self.k))
         return [x, output]
 
     def fprop(self, x, *args, **kwargs):
@@ -253,69 +243,38 @@ class Categorical(Categorical_sample, Distribution):
         return mean
 
 
-class Gaussian(Gaussian_sample, Distribution_double):
+class Gaussian(DistributionDouble):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        Distribution_double.__init__(self, mean_network, var_network, given)
-        super(Gaussian, self).__init__(seed=seed)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Gaussian, self).set_seed(seed=seed)
-        self._set_theano_func()
+        distribution = GaussianSample(seed=seed)
+        super(Gaussian, self).__init__(
+            distribution, mean_network, var_network, given, seed)
 
 
-class GaussianConstantVar(Gaussian_sample, Deterministic):
+class GaussianConstantVar(Deterministic):
 
     def __init__(self, mean_network, given, var=1, seed=1):
-        Deterministic.__init__(self, mean_network, given)
-        super(GaussianConstantVar, self).__init__(seed=seed)
-        self.constant_var = var
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(GaussianConstantVar, self).set_seed(seed=seed)
-        self._set_theano_func()
-
-    def sample(self, mean):
-        return super(GaussianConstantVar,
-                     self).sample(mean,
-                                  T.ones_like(mean) * self.constant_var)
-
-    def log_likelihood(self, samples, mean):
-        return super(GaussianConstantVar,
-                     self).log_likelihood(samples, mean,
-                                          T.ones_like(samples) *
-                                          self.constant_var)
+        distribution = GaussianConstantVarSample(constant_var=var, seed=seed)
+        super(GaussianConstantVar, self).__init__(distribution, mean_network, given, seed=seed)
 
 
-class Laplace(Laplace_sample, Distribution_double):
+class Laplace(DistributionDouble):
 
     def __init__(self, mean_network, var_network, given, seed=1):
-        Distribution_double.__init__(self, mean_network, var_network, given)
-        super(Laplace, self).__init__(seed=seed)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Laplace, self).set_seed(seed=seed)
-        self._set_theano_func()
+        distribution = LaplaceSample(seed=seed)
+        super(Laplace, self).__init__(distribution, mean_network, var_network, given, seed=seed)
 
 
-class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
+class Kumaraswamy(DistributionDouble):
     """
     [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
     """
 
     def __init__(self, a_network, b_network,
                  given, stick_breaking=True, seed=1):
-        Distribution_double.__init__(self, a_network, b_network, given)
-        super(Kumaraswamy, self).__init__(seed=seed)
+        distribution = KumaraswamySample(seed=seed)
         self.stick_breaking = stick_breaking
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Kumaraswamy, self).set_seed(seed=seed)
-        self._set_theano_func()
+        super(Kumaraswamy, self).__init__(distribution, a_network, b_network, given, seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         [x, v] = super(Kumaraswamy, self).sample_given_x(x,
@@ -349,46 +308,33 @@ class Kumaraswamy(Kumaraswamy_sample, Distribution_double):
                              axis=1)
 
 
-class Gamma(Gamma_sample, Distribution_double):
+class Gamma(DistributionDouble):
 
     def __init__(self, alpha_network, beta_network, given, seed=1):
-        Distribution_double.__init__(self, alpha_network, beta_network, given)
-        super(Gamma, self).__init__(seed=seed)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Gamma, self).set_seed(seed=seed)
-        self._set_theano_func()
+        distribution = GammaSample(seed=seed)
+        super(Gamma, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
 
 
-class Beta(Beta_sample, Distribution_double):
+class Beta(DistributionDouble):
 
     def __init__(self, alpha_network, beta_network, given,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        Distribution_double.__init__(self, alpha_network, beta_network, given)
-        super(Beta, self).__init__(iter_sampling=iter_sampling,
-                                   rejection_sampling=rejection_sampling,
-                                   seed=seed)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Beta, self).set_seed(seed=seed)
-        self._set_theano_func()
+        distribution = BetaSample(
+            iter_sampling=iter_sampling,
+            rejection_sampling=rejection_sampling,
+            seed=seed)
+        super(Beta, self).__init__(distribution, alpha_network, beta_network, given, seed=seed)
 
 
-class Dirichlet(Dirichlet_sample, Distribution):
+class Dirichlet(Distribution):
 
     def __init__(self, alpha_network, given, k,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        Distribution.__init__(self, alpha_network, given)
-        super(Dirichlet, self).__init__(k, iter_sampling=iter_sampling,
-                                        rejection_sampling=rejection_sampling,
-                                        seed=seed)
-        self._set_theano_func()
-
-    def set_seed(self, seed=1):
-        super(Dirichlet, self).set_seed(seed=seed)
-        self._set_theano_func()
+        distribution = DirichletSample(k, iter_sampling=iter_sampling,
+                                       rejection_sampling=rejection_sampling,
+                                       seed=seed)
+        self.k = k
+        super(Dirichlet, self).__init__(distribution, alpha_network, given, seed=seed)
 
     def sample_given_x(self, x, repeat=1, **kwargs):
         if repeat != 1:
@@ -399,5 +345,5 @@ class Dirichlet(Dirichlet_sample, Distribution):
         _shape = mean.shape
         mean = mean.reshape((_shape[0], _shape[1] / self.k,
                              self.k))
-        output = self.sample(mean).reshape(_shape)
+        output = self.distribution.sample(mean).reshape(_shape)
         return [x, output]

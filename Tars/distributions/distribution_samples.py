@@ -4,27 +4,29 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from ..utils import epsilon
+from abc import ABCMeta, abstractmethod
 
 __all__ = [
-    'Deterministic_sample',
-    'Bernoulli_sample',
-    'Categorical_sample',
-    'Gaussian_sample',
-    'Laplace_sample',
-    'Gumbel_sample',
-    'Concrete_sample',
-    'Beta_sample',
-    'Dirichlet_sample',
-    'Kumaraswamy_sample',
-    'UnitGaussian_sample',
-    'UnitBernoulli_sample',
-    'UnitCategorical_sample',
-    'UnitBeta_sample',
-    'UnitDirichlet_sample',
+    'DeterministicSample',
+    'BernoulliSample',
+    'CategoricalSample',
+    'GaussianSample',
+    'LaplaceSample',
+    'GumbelSample',
+    'ConcreteSample',
+    'BetaSample',
+    'DirichletSample',
+    'KumaraswamySample',
+    'UnitGaussianSample',
+    'UnitBernoulliSample',
+    'UnitCategoricalSample',
+    'UnitBetaSample',
+    'UnitDirichletSample',
 ]
 
 
-class Distribution_sample(object):
+class DistributionSample(object):
+    __metaclass__ = ABCMeta
 
     def __init__(self, seed=1, **kwargs):
         self.srng = RandomStreams(seed)
@@ -32,8 +34,16 @@ class Distribution_sample(object):
     def set_seed(self, seed=1):
         self.srng = RandomStreams(seed)
 
+    @abstractmethod
+    def sample(self):
+        pass
 
-class Deterministic_sample(object):
+    @abstractmethod
+    def log_likelihood(self):
+        pass
+
+
+class DeterministicSample(object):
     """
     Deterministic function
     p(x) = f(x)
@@ -56,7 +66,7 @@ class Deterministic_sample(object):
         raise NotImplementedError
 
 
-class Gumbel_sample(Distribution_sample):
+class GumbelSample(DistributionSample):
     """
     Gumbel distribution
     """
@@ -85,7 +95,7 @@ class Gumbel_sample(Distribution_sample):
         return mean_sum_samples(loglike)
 
 
-class Concrete_sample(Gumbel_sample):
+class ConcreteSample(GumbelSample):
     """
     Concrete distribution (Gumbel-softmax)
         https://arxiv.org/abs/1611.01144
@@ -93,7 +103,7 @@ class Concrete_sample(Gumbel_sample):
     """
 
     def __init__(self, temp=0.1, seed=1):
-        super(Concrete_sample, self).__init__(seed=seed)
+        super(ConcreteSample, self).__init__(seed=seed)
         self.temp = temp
 
     def sample(self, mean):
@@ -107,8 +117,8 @@ class Concrete_sample(Gumbel_sample):
         """
 
         if self.temp != 0:
-            output = super(Concrete_sample, self).sample(T.zeros_like(mean),
-                                                         T.ones_like(mean))
+            output = super(ConcreteSample, self).sample(T.zeros_like(mean),
+                                                        T.ones_like(mean))
             output += T.log(mean + epsilon())
 
             if output.ndim == 1 or output.ndim == 2:
@@ -127,14 +137,14 @@ class Concrete_sample(Gumbel_sample):
         raise NotImplementedError
 
 
-class Bernoulli_sample(Gumbel_sample):
+class BernoulliSample(GumbelSample):
     """
     Bernoulli distribution
     p(x) = mean^x * (1-mean)^(1-x)
     """
 
     def __init__(self, temp=0.1, seed=1):
-        super(Bernoulli_sample, self).__init__(seed=seed)
+        super(BernoulliSample, self).__init__(seed=seed)
         self.temp = temp
 
     def sample(self, mean):
@@ -152,10 +162,10 @@ class Bernoulli_sample(Gumbel_sample):
         """
 
         if self.temp != 0:
-            z1 = super(Bernoulli_sample, self).sample(T.zeros_like(mean),
-                                                      T.ones_like(mean))
-            z0 = super(Bernoulli_sample, self).sample(T.zeros_like(mean),
-                                                      T.ones_like(mean))
+            z1 = super(BernoulliSample, self).sample(T.zeros_like(mean),
+                                                     T.ones_like(mean))
+            z0 = super(BernoulliSample, self).sample(T.zeros_like(mean),
+                                                     T.ones_like(mean))
             z1 += T.log(mean + epsilon())
             z0 += T.log(1 - mean + epsilon())
 
@@ -189,14 +199,14 @@ class Bernoulli_sample(Gumbel_sample):
         return mean_sum_samples(loglike)
 
 
-class Categorical_sample(Concrete_sample):
+class CategoricalSample(ConcreteSample):
     """
     Categorical distribution
     p(x) = \prod mean^x
     """
 
     def __init__(self, temp=0.1, seed=1):
-        super(Categorical_sample, self).__init__(temp=temp, seed=seed)
+        super(CategoricalSample, self).__init__(temp=temp, seed=seed)
 
     def sample(self, mean, onehot=True, flatten=True):
         """
@@ -213,7 +223,7 @@ class Categorical_sample(Concrete_sample):
         """
 
         if mean.ndim == 1 or mean.ndim == 2:
-            output = super(Categorical_sample, self).sample(mean)
+            output = super(CategoricalSample, self).sample(mean)
             if not onehot:
                 output = T.argmax(output, axis=-1)
             return output
@@ -221,7 +231,7 @@ class Categorical_sample(Concrete_sample):
         elif mean.ndim == 3:
             _shape = mean.shape
             mean = mean.reshape((_shape[0] * _shape[1], _shape[2]))
-            output = super(Categorical_sample, self).sample(
+            output = super(CategoricalSample, self).sample(
                 mean).reshape(_shape)
             if not onehot:
                 output = T.argmax(output, axis=-1)
@@ -255,11 +265,13 @@ class Categorical_sample(Concrete_sample):
         return mean_sum_samples(loglike)
 
 
-class Gaussian_sample(Distribution_sample):
+class GaussianSample(DistributionSample):
     """
     Gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
+    def __init__(self, seed=1):
+        super(GaussianSample, self).__init__(seed=seed)
 
     def sample(self, mean, var):
         """
@@ -294,7 +306,25 @@ class Gaussian_sample(Distribution_sample):
         return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
 
 
-class Laplace_sample(Distribution_sample):
+class GaussianConstantVarSample(GaussianSample):
+
+    def __init__(self, constant_var=1, seed=1):
+        self.constant_var = constant_var
+        super(GaussianConstantVarSample, self).__init__(seed=seed)
+
+    def sample(self, mean):
+        return super(GaussianConstantVarSample,
+                     self).sample(mean,
+                                  T.ones_like(mean) * self.constant_var)
+
+    def log_likelihood(self, samples, mean):
+        return super(GaussianConstantVarSample,
+                     self).log_likelihood(samples, mean,
+                                          T.ones_like(samples) *
+                                          self.constant_var)
+
+
+class LaplaceSample(DistributionSample):
     """
     Laplace distribution
     p(x) = \frac{1}{\sqrt{2*\phi}} * exp{-\frac{|x-mean|}{\phi}}
@@ -331,7 +361,7 @@ class Laplace_sample(Distribution_sample):
         return mean_sum_samples(loglike)
 
 
-class Kumaraswamy_sample(Distribution_sample):
+class KumaraswamySample(DistributionSample):
     """
     [Naelisnick+ 2016] Deep Generative Models with Stick-Breaking Priors
     Kumaraswamy distribution
@@ -367,7 +397,7 @@ class Kumaraswamy_sample(Distribution_sample):
         return mean_sum_samples(loglike)
 
 
-class Gamma_sample(Distribution_sample):
+class GammaSample(DistributionSample):
     """
     Gamma distribution
     (beta^alpha)/gamma * x^(alpha-1) * exp^(-beta*x)
@@ -379,7 +409,7 @@ class Gamma_sample(Distribution_sample):
     """
 
     def __init__(self, iter_sampling=6, rejection_sampling=True, seed=1):
-        super(Gamma_sample, self).__init__(seed=seed)
+        super(GammaSample, self).__init__(seed=seed)
         self.iter_sampling = iter_sampling
         self.rejection_sampling = rejection_sampling
 
@@ -450,23 +480,23 @@ class Gamma_sample(Distribution_sample):
         return z
 
 
-class Beta_sample(Gamma_sample):
+class BetaSample(GammaSample):
     """
     Beta distribution
     x^(alpha-1) * (1-x)^(beta-1) / B(alpha, beta)
     """
 
     def __init__(self, iter_sampling=6, rejection_sampling=True, seed=1):
-        super(Beta_sample,
+        super(BetaSample,
               self).__init__(iter_sampling=iter_sampling,
                              rejection_sampling=rejection_sampling,
                              seed=seed)
 
     def sample(self, alpha, beta):
-        z_1 = super(Beta_sample,
+        z_1 = super(BetaSample,
                     self).sample(alpha, T.ones_like(alpha))
 
-        z_2 = super(Beta_sample,
+        z_2 = super(BetaSample,
                     self).sample(beta, T.ones_like(beta))
 
         return z_1 / (z_1 + z_2)
@@ -481,14 +511,14 @@ class Beta_sample(Gamma_sample):
         return T.gammaln(alpha) + T.gammaln(beta) - T.gammaln(alpha + beta)
 
 
-class Dirichlet_sample(Gamma_sample):
+class DirichletSample(GammaSample):
     """
     Dirichlet distribution
     x^(alpha-1) * (1-x)^(beta-1) / B(alpha, beta)
     """
 
     def __init__(self, k, iter_sampling=6, rejection_sampling=True, seed=1):
-        super(Dirichlet_sample,
+        super(DirichletSample,
               self).__init__(iter_sampling=iter_sampling,
                              rejection_sampling=rejection_sampling,
                              seed=seed)
@@ -498,7 +528,7 @@ class Dirichlet_sample(Gamma_sample):
         z = T.zeros_like(alpha)
         for _k in range(self.k):
             _alpha = self._slice_last(alpha, _k)
-            _z = super(Dirichlet_sample,
+            _z = super(DirichletSample,
                        self).sample(_alpha, T.ones_like(_alpha))
             z = T.set_subtensor(self._slice_last(z, _k), _z)
         z = z / T.sum(z, axis=-1, keepdims=True)
@@ -539,7 +569,7 @@ class Dirichlet_sample(Gamma_sample):
         raise ValueError('Wrong the dimention of input.')
 
 
-class UnitGaussian_sample(Gaussian_sample):
+class UnitGaussianSample(GaussianSample):
     """
     Standard normal gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi}} * exp{-\frac{x^2}{2}}
@@ -556,50 +586,50 @@ class UnitGaussian_sample(Gaussian_sample):
         return self.srng.normal(shape)
 
     def log_likelihood(self, samples):
-        return super(UnitGaussian_sample,
+        return super(UnitGaussianSample,
                      self).log_likelihood(samples,
                                           T.zeros_like(samples),
                                           T.ones_like(samples))
 
 
-class UnitBernoulli_sample(Bernoulli_sample):
+class UnitBernoulliSample(BernoulliSample):
     """
     Unit bernoulli distribution
     """
 
     def sample(self, shape):
-        return super(UnitBernoulli_sample,
+        return super(UnitBernoulliSample,
                      self).sample(T.ones(shape) * 0.5)
 
     def log_likelihood(self, samples):
-        return super(UnitBernoulli_sample,
+        return super(UnitBernoulliSample,
                      self).log_likelihood(samples,
                                           T.ones_like(samples) * 0.5)
 
 
-class UnitCategorical_sample(Categorical_sample):
+class UnitCategoricalSample(CategoricalSample):
     """
     Unit Categorical distribution
     """
 
     def __init__(self, k=1, seed=1):
-        super(UnitCategorical_sample, self).__init__(seed=seed)
+        super(UnitCategoricalSample, self).__init__(seed=seed)
         self.k = k
 
     def sample(self, shape):
         if self.k == shape[-1]:
-            return super(UnitCategorical_sample,
+            return super(UnitCategoricalSample,
                          self).sample(T.ones(shape) / self.k)
 
         raise ValueError("self.k and shape don't match.")
 
     def log_likelihood(self, samples):
-        return super(UnitCategorical_sample,
+        return super(UnitCategoricalSample,
                      self).log_likelihood(samples,
                                           T.ones_like(samples) / self.k)
 
 
-class UnitGamma_sample(Gamma_sample):
+class UnitGammaSample(GammaSample):
 
     def sample(self, shape):
         """
@@ -609,25 +639,25 @@ class UnitGamma_sample(Gamma_sample):
            sets a shape of the output sample
         """
 
-        return super(UnitGamma_sample,
+        return super(UnitGammaSample,
                      self).sample(T.ones(shape),
                                   T.ones(shape))
 
     def log_likelihood(self, samples):
-        return super(UnitGamma_sample,
+        return super(UnitGammaSample,
                      self).log_likelihood(samples,
                                           T.ones_like(samples),
                                           T.ones_like(samples))
 
 
-class UnitBeta_sample(Beta_sample):
+class UnitBetaSample(BetaSample):
     """
     Unit Beta distribution
     """
 
     def __init__(self, alpha=1., beta=1.,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        super(UnitBeta_sample,
+        super(UnitBetaSample,
               self).__init__(iter_sampling=iter_sampling,
                              rejection_sampling=rejection_sampling,
                              seed=seed)
@@ -635,34 +665,34 @@ class UnitBeta_sample(Beta_sample):
         self.beta = beta
 
     def sample(self, shape):
-        return super(UnitBeta_sample,
+        return super(UnitBetaSample,
                      self).sample(T.ones(shape) * self.alpha,
                                   T.ones(shape) * self.beta)
 
     def log_likelihood(self, samples):
         alpha = T.ones_like(samples) * self.alpha
         beta = T.ones_like(samples) * self.beta
-        return super(UnitBeta_sample,
+        return super(UnitBetaSample,
                      self).log_likelihood(samples, alpha, beta)
 
 
-class UnitDirichlet_sample(Dirichlet_sample):
+class UnitDirichletSample(DirichletSample):
 
     def __init__(self, k, alpha=1.,
                  iter_sampling=6, rejection_sampling=True, seed=1):
-        super(UnitDirichlet_sample,
+        super(UnitDirichletSample,
               self).__init__(k, iter_sampling=iter_sampling,
                              rejection_sampling=rejection_sampling,
                              seed=seed)
         self.alpha = alpha
 
     def sample(self, shape):
-        return super(UnitDirichlet_sample,
+        return super(UnitDirichletSample,
                      self).sample(T.ones(shape) * self.alpha)
 
     def log_likelihood(self, samples):
         alpha = T.ones_like(samples) * self.alpha
-        return super(UnitDirichlet_sample,
+        return super(UnitDirichletSample,
                      self).log_likelihood(samples, alpha)
 
 

@@ -10,9 +10,9 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from theano import function
 from theano.tests import unittest_tools as utt
 from ..distributions.distribution_samples import (
-    Bernoulli_sample, Gaussian_sample, Gumbel_sample, Concrete_sample,
-    Categorical_sample, Laplace_sample, Kumaraswamy_sample,
-    Beta_sample, Gamma_sample, Dirichlet_sample
+    BernoulliSample, GaussianSample, GumbelSample, ConcreteSample,
+    CategoricalSample, LaplaceSample, KumaraswamySample,
+    BetaSample, GammaSample, DirichletSample
 )
 
 
@@ -32,7 +32,7 @@ class TestGumbelSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mu, beta = 0, 1
-        gumbel_sample = Gumbel_sample(temp=0.01, seed=1234567890)
+        gumbel_sample = GumbelSample(temp=0.01, seed=1234567890)
         actual = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
         desired = [
             1.7462246417999268,
@@ -45,14 +45,14 @@ class TestGumbelSample(TestCase):
 
     def test_mean_zero(self):
         mu, beta = 0, 0
-        gumbel_sample = Gumbel_sample(temp=0.01)
+        gumbel_sample = GumbelSample(temp=0.01)
         sample = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
         assert_equal(sample, 0)
 
 
 class TestBernoulliSample(TestCase):
     def setUp(self):
-        self.bernoulli_sample = Bernoulli_sample(temp=0.01, seed=1)
+        self.bernoulli_sample = BernoulliSample(temp=0.01, seed=1)
 
     @staticmethod
     def get_sample(mean, bernoulli, size):
@@ -66,7 +66,7 @@ class TestBernoulliSample(TestCase):
 
     def test_mean_zero(self):
         # Tests the corner case of mean == 0 for the bernoulli distribution.
-        # All elements of Bernoulli_sample.sample(mean=0) should be zero.
+        # All elements of BernoulliSample.sample(mean=0) should be zero.
         # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         zeros = np.zeros(1000, dtype='float')
         mean = 0
@@ -75,7 +75,7 @@ class TestBernoulliSample(TestCase):
 
     def test_mean_one(self):
         # Tests the corner case of mean == 1 for the bernoulli distribution.
-        # All elements of Bernoulli_sample.sample(mean=1) should be one.
+        # All elements of BernoulliSample.sample(mean=1) should be one.
         # ref: https://github.com/numpy/numpy/blob/master/numpy/random/tests/test_random.py
         ones = np.ones(1000, dtype='float')
         mean = 1
@@ -85,7 +85,7 @@ class TestBernoulliSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0.5
-        bernoulli_sample = Bernoulli_sample(temp=0.1, seed=1234567890)
+        bernoulli_sample = BernoulliSample(temp=0.1, seed=1234567890)
         actual = TestBernoulliSample.get_sample(mean, bernoulli_sample, 5)
         desired = [
             0.9999971508356551,
@@ -114,10 +114,10 @@ class TestGaussianSample(TestCase):
         return sample
 
     def test_gaussian(self):
-        # Test that Gaussian_sample.sample generates the same result as theano and numpy
+        # Test that GaussianSample.sample generates the same result as theano and numpy
         # ref: https://github.com/Theano/Theano/blob/master/theano/tensor/tests/test_shared_randomstreams.py
 
-        gaussian_sample = Gaussian_sample(seed=utt.fetch_seed())
+        gaussian_sample = GaussianSample(seed=utt.fetch_seed())
         mean, var = 0, 1
         tars_sample = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
 
@@ -129,7 +129,7 @@ class TestGaussianSample(TestCase):
         rng = np.random.RandomState(int(rng_seed))  # int() is for 32bit
         numpy_sample = rng.normal(mean, var, (5,))
 
-        # As Gaussian_sample.sample method performs reparametrization trick,
+        # As GaussianSample.sample method performs reparametrization trick,
         # the return value is slightly different from numpy result. (Reason for setting decimal=7, not 15)
         assert_array_almost_equal(tars_sample, theano_sample, decimal=7)
         assert_array_almost_equal(tars_sample, numpy_sample, decimal=7)
@@ -137,7 +137,7 @@ class TestGaussianSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean, var = 0, 1
-        gaussian_sample = Gaussian_sample(seed=1234567890)
+        gaussian_sample = GaussianSample(seed=1234567890)
         actual = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
         desired = [
             -0.1004791483283043,
@@ -150,7 +150,7 @@ class TestGaussianSample(TestCase):
 
     def test_mean_zero(self):
         mean, var = 0, 0
-        gaussian_sample = Gaussian_sample()
+        gaussian_sample = GaussianSample()
         sample = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
         assert_equal(sample, 0)
 
@@ -170,7 +170,7 @@ class TestConcreteSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0
-        concrete_sample = Concrete_sample(seed=1234567890)
+        concrete_sample = ConcreteSample(seed=1234567890)
         actual = TestConcreteSample.get_sample(mean, concrete_sample, 5)
         desired = [
             0.9994389867572965,
@@ -198,7 +198,7 @@ class TestCategoricalSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0
-        categorical_sample = Categorical_sample(seed=1234567890)
+        categorical_sample = CategoricalSample(seed=1234567890)
         actual = TestCategoricalSample.get_sample(mean, categorical_sample, 5)
         desired = [
             0.9994389867572965,
@@ -226,10 +226,10 @@ class TestLaplaceSample(TestCase):
         return sample
 
     def test_laplace(self):
-        # Test Laplace_sample.sample generates the same result as numpy
+        # Test LaplaceSample.sample generates the same result as numpy
         # ref: https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.laplace.html
 
-        laplace_sample = Laplace_sample(seed=utt.fetch_seed())
+        laplace_sample = LaplaceSample(seed=utt.fetch_seed())
         mean, b = 0, 1
         tars_sample = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
 
@@ -245,7 +245,7 @@ class TestLaplaceSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0
         b = 1
-        laplace_sample = Laplace_sample(seed=1234567890)
+        laplace_sample = LaplaceSample(seed=1234567890)
         actual = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
         desired = [
             1.1390253305435181,
@@ -258,7 +258,7 @@ class TestLaplaceSample(TestCase):
 
     def test_mean_zero(self):
         mean, b = 0, 0
-        laplace_sample = Laplace_sample()
+        laplace_sample = LaplaceSample()
         sample = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
         assert_equal(sample, 0)
 
@@ -281,7 +281,7 @@ class TestKumaraswamySample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         a = 0.5
         b = 0.5
-        kumaraswamy_sample = Kumaraswamy_sample(seed=1234567890)
+        kumaraswamy_sample = KumaraswamySample(seed=1234567890)
         actual = TestKumaraswamySample.get_sample(a, b, kumaraswamy_sample, 5)
         desired = [
             0.0867361798882484,
@@ -311,7 +311,7 @@ class TestBetaSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         a = 0.5
         b = 0.5
-        beta_sample = Beta_sample(seed=1234567890)
+        beta_sample = BetaSample(seed=1234567890)
         actual = TestBetaSample.get_sample(a, b, beta_sample, 5)
         desired = [
             0.1251193732023239,
@@ -341,7 +341,7 @@ class TestGammaSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         a = 0.5
         b = 0.5
-        gamma_sample = Gamma_sample(seed=1234567890)
+        gamma_sample = GammaSample(seed=1234567890)
         actual = TestGammaSample.get_sample(a, b, gamma_sample, 5)
         desired = [
             0.0402308329939842,
@@ -368,7 +368,7 @@ class TestDirichletSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         alpha = 0.5
-        dirichlet_sample = Dirichlet_sample(k=2, seed=1234567890)
+        dirichlet_sample = DirichletSample(k=2, seed=1234567890)
         actual = TestDirichletSample.get_sample(alpha, dirichlet_sample, 5)
         desired = [
             0.1251193732023239,
