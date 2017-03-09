@@ -32,6 +32,18 @@ from Tars.distributions import Gaussian
 from lasagne.nonlinearities import rectify,linear,softplus
 
 
+class TestDistribution(TestCase):
+    @staticmethod
+    def get_samples(mean, size=10):
+        return np.ones(size).astype("float32") * mean
+
+    @staticmethod
+    def get_sample_given_x(model, mean_sample):
+        t_mean = model.inputs
+        sample = model.sample_given_x(t_mean)[-1]
+        f = theano.function(inputs=t_mean, outputs=sample)
+        return f([mean_sample])[0]
+
 class TestDistributionDouble(TestCase):
     @staticmethod
     def get_samples(mean, var, size=10):
@@ -43,6 +55,41 @@ class TestDistributionDouble(TestCase):
         sample = model.sample_given_x([t_mean])[-1]
         f = theano.function(inputs = [t_mean, t_var], outputs=sample)
         return f([mean_sample], [var_sample])[0]
+
+
+class TestBernoulli(TestCase):
+    @staticmethod
+    def get_model(seed=1):
+        mean_layer = InputLayer((1, None))
+        return Bernoulli(mean_layer, given=[mean_layer], seed=seed)
+
+    def test_sample_given_x_consistency(self):
+        # Ensure that returned values stay the same with a fixed seed.
+        seed = 1234567890
+        mean = 0
+        mean_sample = TestDistribution.get_samples(mean)
+
+        model = TestBernoulli.get_model(seed=seed)
+        model.set_seed(seed)
+
+        actual = TestDistribution.get_sample_given_x(
+            model,
+            mean_sample,
+        )
+        desired = [
+            2.0341405545125100e-64,
+            5.8691140929553508e-69,
+            1.4748223782549935e-71,
+            3.1732629817326694e-70,
+            1.1169115108701376e-70,
+            3.5682764041735962e-58,
+            1.0438842879901357e-59,
+            9.4375179159552933e-73,
+            2.0604359778275096e-64,
+            1.8783024095913569e-63
+        ]
+        assert_array_almost_equal(actual, desired, decimal=15)
+
 
 class TestGaussian(TestCase):
     @staticmethod
