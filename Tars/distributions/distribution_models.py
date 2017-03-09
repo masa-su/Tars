@@ -115,6 +115,9 @@ class Distribution(object):
         """
         if repeat != 1:
             x = [T.extra_ops.repeat(_x, repeat, axis=0) for _x in x]
+
+        # Feedforward the inputs. The output corresponds to the mean of a distribution,
+        # or the mean and the variance if executed from DistributionDouble.
         output = self.fprop(x, **kwargs)
         return [x, self.distribution.sample(*tolist(output))]
 
