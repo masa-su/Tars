@@ -27,6 +27,18 @@ from Tars.distributions.distribution_models import (
     Beta,
     Dirichlet,
 )
+from Tars.tests.test_distribution_samples import (
+    TestBernoulliSample,
+    TestGaussianSample,
+    TestGumbelSample,
+    TestConcreteSample,
+    TestCategoricalSample,
+    TestLaplaceSample,
+    TestKumaraswamySample,
+    TestBetaSample,
+    TestGammaSample,
+    TestDirichletSample
+)
 from lasagne.layers import InputLayer,DenseLayer
 from Tars.distributions import Gaussian
 from lasagne.nonlinearities import rectify,linear,softplus
@@ -44,6 +56,7 @@ class TestDistribution(TestCase):
         f = theano.function(inputs=t_mean, outputs=sample)
         return f([mean_sample])[0]
 
+
 class TestDistributionDouble(TestCase):
     @staticmethod
     def get_samples(mean, var, size=10):
@@ -58,6 +71,14 @@ class TestDistributionDouble(TestCase):
 
 
 class TestBernoulli(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
+        self.mean = 0
+        self.size = 10
+        self.mean_sample = TestDistribution.get_samples(self.mean)
+        self.model = TestBernoulli.get_model(seed=self.seed)
+        self.model.set_seed(self.seed)
+
     @staticmethod
     def get_model(seed=1):
         mean_layer = InputLayer((1, None))
@@ -65,16 +86,9 @@ class TestBernoulli(TestCase):
 
     def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
-        seed = 1234567890
-        mean = 0
-        mean_sample = TestDistribution.get_samples(mean)
-
-        model = TestBernoulli.get_model(seed=seed)
-        model.set_seed(seed)
-
         actual = TestDistribution.get_sample_given_x(
-            model,
-            mean_sample,
+            self.model,
+            self.mean_sample,
         )
         desired = [
             2.0341405545125100e-64,
@@ -89,6 +103,21 @@ class TestBernoulli(TestCase):
             1.8783024095913569e-63
         ]
         assert_array_almost_equal(actual, desired, decimal=15)
+
+    def test_sample_given_x(self):
+        # The output should be the same as BernoulliSample.sample when given equals to the input.
+        sample_given_x = TestDistribution.get_sample_given_x(
+            self.model,
+            self.mean_sample,
+        )
+        # Generate samples from BernoulliSample with the same seed as the model
+        bernoulli_sample = BernoulliSample(seed=self.seed)
+        sample = TestBernoulliSample.get_sample(self.mean, bernoulli_sample, self.size)
+        assert_array_almost_equal(sample_given_x, sample, decimal=15)
+
+    def test_np_sample_given_x(self):
+        # The output should be the same as sample_given_x
+        pass
 
 
 class TestCategorical(TestCase):
