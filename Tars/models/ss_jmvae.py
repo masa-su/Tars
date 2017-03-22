@@ -7,15 +7,13 @@ import numpy as np
 from progressbar import ProgressBar
 
 from ..utils import tolist, log_mean_exp
-from ..distributions.estimate_kl import analytical_kl
 from . import VAE
 
 
 class SS_JMVAE(VAE):
 
     def __init__(self, q, p, f, s_q, prior=None,
-                 n_batch=100, n_batch_u=10000,
-                 discriminate_rate=0.1,
+                 n_batch=100, n_batch_u=100,
                  optimizer=lasagne.updates.adam,
                  optimizer_params={},
                  clip_grad=None, max_norm_constraint=None,
@@ -23,7 +21,6 @@ class SS_JMVAE(VAE):
         self.s_q = s_q
         self.f = f
         self.n_batch_u = n_batch_u
-        self.discriminate_rate = discriminate_rate
 
         super(SS_JMVAE,
               self).__init__(q, p, prior=prior,
@@ -35,7 +32,7 @@ class SS_JMVAE(VAE):
                              train_iw=True, test_iw=True,
                              iw_alpha=0, seed=seed)
 
-        # set inputs
+        # inputs
         x_u = self.q.inputs
         x_l = deepcopy(self.q.inputs)
         y = T.fmatrix("y")
@@ -43,20 +40,17 @@ class SS_JMVAE(VAE):
         k = T.iscalar("k")
 
         # training
-        if self.train_iw:
-            inputs = x_u + x_l + [y, l, k]
-            lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
-            lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False, tolist(y))
-            lower_bound_y, loss_y = self._discriminate(x_l, tolist(y), False)
-        else:
-            raise NotImplementedError
+        rate = T.fscalar("rate")
+        inputs = x_u + x_l + [y, l, k, rate]
+        lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
+                                                  tolist(y))
+        lower_bound_y, loss_y, _ = self._discriminate(x_l, tolist(y), False)
 
-        rate = self.discriminate_rate * (self.n_batch + self.n_batch_u) / self.n_batch
-        loss = loss_u + loss_l + rate * loss_y
+        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l),
+                       T.mean(lower_bound_y)]
 
-        lower_bound = T.stack([lower_bound_u, lower_bound_l, lower_bound_y], axis=-1)
-        lower_bound = T.mean(lower_bound, axis=0)
-
+        loss = loss_u + loss_l + rate*loss_y
         updates = self._get_updates(loss, params, optimizer, optimizer_params,
                                     clip_grad, max_norm_constraint)
 
@@ -66,24 +60,26 @@ class SS_JMVAE(VAE):
                                                  on_unused_input='ignore')
 
         # test
-        if self.test_iw:
-            inputs = x_u + x_l + [y, l, k]
-            lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, True)
-            lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True, tolist(y))
-            lower_bound_y, loss_y = self._discriminate(x_l, tolist(y), True)
-        else:
-            raise NotImplementedError
+        inputs = x_u + x_l + [y, l, k]
+        lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True,
+                                                  tolist(y))
 
-        lower_bound = T.stack([lower_bound_u, lower_bound_l, lower_bound_y], axis=-1)
-        lower_bound = T.mean(lower_bound, axis=0)
+        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
 
         self.lower_bound_test = theano.function(inputs=inputs,
                                                 outputs=lower_bound,
                                                 on_unused_input='ignore')
+        # test (classification)
+        inputs = x_l + [y]
+        lower_bound_y, _, _ = self._discriminate(x_l, tolist(y), True)
+        self.classifier_test = theano.function(inputs=inputs,
+                                               outputs=T.mean(lower_bound_y),
+                                               on_unused_input='ignore')
 
-    def train(self, train_set_u, train_set_l, l=1, k=1, verbose=False):
-        n_x = train_set_l[0].shape[0]
-        nbatches = n_x // self.n_batch
+    def train(self, train_set_u, train_set_l, l=1, k=1,
+              nbatches=2000, get_batch_samples=None,
+              discriminate_rate=1, verbose=False):
         lower_bound_all = []
 
         if verbose:
@@ -91,17 +87,15 @@ class SS_JMVAE(VAE):
 
         for i in range(nbatches):
             # unlabel
-            start = i * self.n_batch_u
-            end = start + self.n_batch_u
-            batch_x_u = [_x[start:end] for _x in train_set_u]
-
+            batch_set_u = get_batch_samples(train_set_u,
+                                            n_batch=self.n_batch_u)
             # label
-            start = i * self.n_batch
-            end = start + self.n_batch
-            batch_x_l = [_x[start:end] for _x in train_set_l]
+            batch_set_l = get_batch_samples(train_set_l,
+                                            n_batch=self.n_batch)
 
-            _x = batch_x_u + batch_x_l + [l, k]
+            _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
             lower_bound = self.lower_bound_train(*_x)
+
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -110,7 +104,8 @@ class SS_JMVAE(VAE):
         lower_bound_all = np.mean(lower_bound_all, axis=0)
         return lower_bound_all
 
-    def test(self, test_set_u, test_set_l, l=1, k=1, n_batch=None, verbose=True):
+    def test(self, test_set_u, test_set_l, l=1, k=1,
+             n_batch=None, verbose=True):
         if n_batch is None:
             n_batch = self.n_batch
 
@@ -133,6 +128,10 @@ class SS_JMVAE(VAE):
 
             _x = batch_x_u + batch_x_l + [l, k]
             lower_bound = self.lower_bound_test(*_x)
+
+            classifier = self.classifier_test(*batch_x_l)
+            lower_bound.append(classifier)
+
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -143,13 +142,13 @@ class SS_JMVAE(VAE):
     def _discriminate(self, x, y, deterministic=False):
         # log q(y|x0,...xn)
         # _samples : [[x0,...,xn],y]
-        _samples = [x]+y
+        _samples = [x] + y
         log_likelihood = self.f.log_likelihood_given_x(
-            _samples, deterministic=deterministic,
-            last_layer=True)
+            _samples, deterministic=deterministic)
         loss = -T.mean(log_likelihood)
+        params = self.f.get_params()
 
-        return log_likelihood, loss
+        return log_likelihood, loss, params
 
     def _elbo(self, x, l, annealing_beta, deterministic=False):
         raise NotImplementedError
@@ -160,23 +159,26 @@ class SS_JMVAE(VAE):
             supervised = False
         else:
             supervised = True
+        rep_x = [T.extra_ops.repeat(_x, l * k, axis=0) for _x in x]
 
         if supervised is False:
             # y ~ q(y|x)
-            y = self.f.sample_given_x(x, repeat=l * k,
-                                      deterministic=deterministic)[-1:]
+            rep_y = self.f.sample_given_x(rep_x,
+                                          deterministic=deterministic)[-1:]
+        else:
+            rep_y = [T.extra_ops.repeat(_y, l * k,
+                                        axis=0) for _y in y]
 
-        # x,z1,..,zL ~ q(z|x)
-        z = self.q.sample_given_x(x, repeat=l * k,
-                                  deterministic=deterministic)
-        # s ~ q(s|zL,y)
-        s = self.s_q.sample_given_x(z[-1:]+y, repeat=l * k,
+        # x,a1,..,aL ~ q(a|x)
+        a = self.q.sample_given_x(rep_x, deterministic=deterministic)
+        # z ~ q(z|a,y)
+        z = self.s_q.sample_given_x(a[-1:]+rep_y,
                                     deterministic=deterministic)[-1:]
-        # q_samples = [z1,...,zL,s]
-        q_samples = z+s
+        # q_samples = [a1,...,aL,z]
+        q_samples = a+z
 
         # importance weighted
-        log_iw = self._log_importance_weight(q_samples, y,
+        log_iw = self._log_importance_weight(q_samples, rep_y,
                                              supervised=supervised,
                                              deterministic=deterministic)
 
@@ -191,8 +193,9 @@ class SS_JMVAE(VAE):
         p_params = []
         for i, p in enumerate(self.p):
             p_params += self.p[i].get_params()
-        s_q_params = self.s_q.get_params()
-        params = s_q_params + p_params
+        q_params = self.q.get_params()
+        q_params += self.s_q.get_params()
+        params = q_params + p_params
 
         if supervised is False:
             params += self.f.get_params()
@@ -209,7 +212,7 @@ class SS_JMVAE(VAE):
         Paramaters
         ----------
         samples : list
-           [[x0,..,xn],z1,z2,...,zL,s]
+           [[x0,..,xn],a1,a2,...,aL,z]
 
         samples : y
            [y]
@@ -218,20 +221,23 @@ class SS_JMVAE(VAE):
         -------
         log_iw : array, shape (n_samples)
            Estimated log likelihood.
-           log p(x0,...xn,z1,z2,...,zL,y)/q(z1,z2,...,zL,y|x0,...xn)
+           supervised=True:
+             log p(x0,...xn,a1,a2,...,aL,y,z)/q(a1,a2,...,aL,y,z|x0,...xn)
+           supervised=False:
+             log p(x0,...xn,a1,a2,...,aL,y,z)/q(a1,a2,...,aL,z|x0,...xn,y)
         """
 
-        # samples : [[x0,..,xn],z1,z2,...,zL,s]
+        # samples : [[x0,..,xn],a1,a2,...,aL,z]
         log_iw = 0
 
-        # log q(z1,z2,...,zL|x0,...xn)
-        # _samples : [[x0,..,xn],z1,z2,...,zL]
+        # log q(a1,a2,...,aL|x0,...xn)
+        # _samples : [[x0,..,xn],a1,a2,...,aL]
         _samples = samples[:-1]
         q_log_likelihood = self.q.log_likelihood_given_x(
             _samples, deterministic=deterministic)
 
-        # log q(s|zL,y)
-        # _samples : [[zL,y],s]
+        # log q(z|aL,y)
+        # _samples : [[aL,y],z]
         _samples = [tolist(samples[-2])+y, samples[-1]]
         q_log_likelihood += self.s_q.log_likelihood_given_x(
             _samples, deterministic=deterministic)
@@ -241,11 +247,10 @@ class SS_JMVAE(VAE):
             # _samples : [[x0,...,xn],y]
             _samples = [samples[0]]+y
             q_log_likelihood += self.f.log_likelihood_given_x(
-                _samples, deterministic=deterministic,
-                last_layer=True)
+                _samples, deterministic=deterministic)
 
-        # log p(x0,...,xn|z1)
-        # samples : [[x1,...,xn],z1...,zL,s]
+        # log p(x0,...,xn|a1)
+        # samples : [[x1,...,xn],a1...,aL,z]
         p_log_likelihood_all = []
         for i, p in enumerate(self.p):
             p_samples, _ = self._inverse_samples(
@@ -255,11 +260,11 @@ class SS_JMVAE(VAE):
             p_log_likelihood_all.append(p_log_likelihood)
         log_iw += sum(p_log_likelihood_all) - q_log_likelihood
 
-        # log p(z1,..,zL|s,y)
-        # prior_samples : [[s],zL,...,z1]
+        # log p(a1,..,aL|z,y)
+        # prior_samples : [[z],aL,...,a1]
         _, prior_samples = self._inverse_samples(
             self._select_input(samples, [0]), return_prior=True)
-        
+
         prior_samples = self._select_input(prior_samples,
                                            inputs=prior_samples[0]+y)
 
@@ -267,6 +272,7 @@ class SS_JMVAE(VAE):
             log_iw += self.prior.log_likelihood_given_x(prior_samples)
         else:
             log_iw += self.prior.log_likelihood(prior_samples)
+        log_iw += 1 / 2.  # Bernoulli prior distribution
 
         return log_iw
 

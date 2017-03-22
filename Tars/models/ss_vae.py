@@ -7,7 +7,6 @@ import numpy as np
 from progressbar import ProgressBar
 
 from ..utils import tolist, log_mean_exp
-from ..distributions.estimate_kl import analytical_kl
 from . import VAE
 
 
@@ -18,6 +17,7 @@ class SS_VAE(VAE):
                  optimizer=lasagne.updates.adam,
                  optimizer_params={},
                  clip_grad=None, max_norm_constraint=None,
+                 regularization_penalty=None,
                  seed=1234):
         self.f = f
         self.n_batch_u = n_batch_u
@@ -33,20 +33,26 @@ class SS_VAE(VAE):
                              iw_alpha=0, seed=seed)
 
         # inputs
-        x_u = self.q.inputs[:1]
-        x_l = deepcopy(self.q.inputs[:1])
+        x_u = self.q.inputs[:-1]
+        x_l = deepcopy(self.q.inputs[:-1])
         y = T.fmatrix("y")
         l = T.iscalar("l")
         k = T.iscalar("k")
 
         # training
-        inputs = x_u + x_l + [y, l, k]
+        rate = T.fscalar("rate")
+        inputs = x_u + x_l + [y, l, k, rate]
         lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False, tolist(y))
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
+                                                  tolist(y))
+        lower_bound_y, loss_y, _ = self._discriminate(x_l, tolist(y), False)
 
-        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
+        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l),
+                       T.mean(lower_bound_y)]
 
-        loss = loss_u + loss_l
+        loss = loss_u + loss_l + rate*loss_y
+        if regularization_penalty:
+            loss += regularization_penalty
         updates = self._get_updates(loss, params, optimizer, optimizer_params,
                                     clip_grad, max_norm_constraint)
 
@@ -55,23 +61,11 @@ class SS_VAE(VAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-        # training (classification)
-        rate = T.fscalar("rate")
-        inputs = x_l + [y, rate]
-        lower_bound_y, loss_y, params = self._discriminate(x_l, tolist(y), False)
-
-        loss = rate * loss_y
-        updates = self._get_updates(loss, params, optimizer, optimizer_params,
-                                    clip_grad, max_norm_constraint)
-        self.classifier_train = theano.function(inputs=inputs,
-                                                outputs=T.mean(lower_bound_y),
-                                                updates=updates,
-                                                on_unused_input='ignore')
-
         # test
         inputs = x_u + x_l + [y, l, k]
         lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True, tolist(y))
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True,
+                                                  tolist(y))
 
         lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
 
@@ -95,15 +89,14 @@ class SS_VAE(VAE):
 
         for i in range(nbatches):
             # unlabel
-            batch_set_u = get_batch_samples(train_set_u, n_batch=self.n_batch_u)
+            batch_set_u = get_batch_samples(train_set_u,
+                                            n_batch=self.n_batch_u)
             # label
-            batch_set_l = get_batch_samples(train_set_l, n_batch=self.n_batch)
-            
-            _x = batch_set_u + batch_set_l + [l, k]
+            batch_set_l = get_batch_samples(train_set_l,
+                                            n_batch=self.n_batch)
+
+            _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
             lower_bound = self.lower_bound_train(*_x)
-            _x = batch_set_l + [discriminate_rate]
-            classifier = self.classifier_train(*_x)
-            lower_bound.append(classifier)
 
             lower_bound_all.append(np.array(lower_bound))
 
@@ -113,7 +106,8 @@ class SS_VAE(VAE):
         lower_bound_all = np.mean(lower_bound_all, axis=0)
         return lower_bound_all
 
-    def test(self, test_set_u, test_set_l, l=1, k=1, n_batch=None, verbose=True):
+    def test(self, test_set_u, test_set_l, l=1, k=1,
+             n_batch=None, verbose=True):
         if n_batch is None:
             n_batch = self.n_batch
 
@@ -136,7 +130,7 @@ class SS_VAE(VAE):
 
             _x = batch_x_u + batch_x_l + [l, k]
             lower_bound = self.lower_bound_test(*_x)
-            
+
             classifier = self.classifier_test(*batch_x_l)
             lower_bound.append(classifier)
 
@@ -171,12 +165,15 @@ class SS_VAE(VAE):
 
         if supervised is False:
             # y ~ q(y|x)
-            rep_y = self.f.sample_given_x(rep_x, deterministic=deterministic)[-1:]
+            rep_y = self.f.sample_given_x(rep_x,
+                                          deterministic=deterministic)[-1:]
         else:
-            rep_y = [T.extra_ops.repeat(_y, l * k, axis=0) for _y in y]            
+            rep_y = [T.extra_ops.repeat(_y, l * k,
+                                        axis=0) for _y in y]
 
         # z ~ q(z|x,y)
-        z = self.q.sample_given_x(rep_x+rep_y, deterministic=deterministic)[-1:]
+        z = self.q.sample_given_x(rep_x+rep_y,
+                                  deterministic=deterministic)[-1:]
         # q_samples = [[x],z]
         q_samples = [rep_x]+z
 
@@ -222,9 +219,9 @@ class SS_VAE(VAE):
         -------
         log_iw : array, shape (n_samples)
            Estimated log likelihood.
-           supervised=True: 
+           supervised=True:
              log p(x,y,z)/q(y,z|x)
-           supervised=False: 
+           supervised=False:
              log p(x,y,z)/q(z|x,y)
         """
 
@@ -256,7 +253,7 @@ class SS_VAE(VAE):
             log_iw += self.prior.log_likelihood_given_x(prior_samples)
         else:
             log_iw += self.prior.log_likelihood(prior_samples)
-        log_iw += 1. / np.float32(10) #Categorical prior distribution
+        log_iw += 1. / np.float32(10)  # Categorical prior distribution
 
         return log_iw
 
