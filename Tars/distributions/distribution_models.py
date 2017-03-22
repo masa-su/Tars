@@ -175,7 +175,7 @@ class Distribution(object):
             samples = self.log_likelihood_given_x([x, sample],
                                                   deterministic=True)
             self.np_log_liklihood_given_x = theano.function(
-                inputs=x + [sample], outputs=samples[-1],
+                inputs=x + [sample], outputs=samples,
                 on_unused_input='ignore')
 
 
