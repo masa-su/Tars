@@ -41,7 +41,7 @@ class VAE(Model):
         self.clip_grad = clip_grad
         self.max_norm_constraint = max_norm_constraint
         self.iw_alpha = iw_alpha
-        """
+
         # set inputs
         x = self.q.inputs
         l = T.iscalar("l")
@@ -78,7 +78,7 @@ class VAE(Model):
         self.lower_bound_test = theano.function(inputs=inputs,
                                                 outputs=lower_bound,
                                                 on_unused_input='ignore')
-        """
+
     def train(self, train_set, l=1, k=1, annealing_beta=1,
               verbose=False):
         n_x = train_set[0].shape[0]
