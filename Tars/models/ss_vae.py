@@ -246,7 +246,7 @@ class SS_VAE(VAE):
         p_samples, prior_samples = self._inverse_samples(samples_y,
                                                          return_prior=True)
         p_log_likelihood = self.p.log_likelihood_given_x(
-                p_samples, deterministic=deterministic)
+            p_samples, deterministic=deterministic)
         log_iw += p_log_likelihood - q_log_likelihood
 
         if self.prior_mode == "MultiPrior":
