@@ -1,4 +1,5 @@
 from unittest import TestCase
+import mock
 
 import numpy as np
 from numpy.testing import (
@@ -121,23 +122,24 @@ class TestBernoulli(TestCase):
 
 
 class TestCategorical(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
+        self.mean = 0
+        self.size = 10
+        self.mean_sample = TestDistribution.get_samples(self.mean)
+        self.model = TestCategorical.get_model((1, self.size), seed=self.seed)
+        self.model.set_seed(self.seed)
+
     @staticmethod
-    def get_model(seed=1):
-        mean_layer = InputLayer((1, 10))
+    def get_model(input_size, seed=1):
+        mean_layer = InputLayer(input_size)
         return Categorical(mean_layer, given=[mean_layer], seed=seed)
 
     def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
-        seed = 1234567890
-        mean = 0
-        mean_sample = TestDistribution.get_samples(mean)
-
-        model = TestCategorical.get_model(seed=seed)
-        model.set_seed(seed)
-
         actual = TestDistribution.get_sample_given_x(
-            model,
-            mean_sample,
+            self.model,
+            self.mean_sample,
         )
         desired = [
             2.9662526142361950e-09,
@@ -151,13 +153,40 @@ class TestCategorical(TestCase):
             1.3480502321912626e-15,
             3.1816204529416427e-15
         ]
+
         assert_array_almost_equal(actual, desired, decimal=15)
+
+    @mock.patch.object(Distribution, 'fprop')
+    def test_sample_given_x(self, mock_fprop):
+        # The output should be the same as CategoricalSample.sample,
+        # when the shape of inputs is the same.
+
+        # Generate samples from CategoricalSample with the same seed as the model
+        categorical_sample = CategoricalSample(seed=self.seed)
+        mean_vector = np.ones(self.size).astype("float32") * self.mean
+        t_mean = T.fvector("mean")
+        t_sample = categorical_sample.sample(t_mean)
+        f = theano.function(inputs=[t_mean], outputs=t_sample)
+        sample = f(mean_vector)
+
+        # Force Categorical.fprop to return the same value as the input to categorical_sample.sample
+        # as the difference of input shape/type affect the output of sampling.
+        mock_fprop.return_value = t_mean
+        with mock.patch.object(self.model, '_set_theano_func') as mock_set_theano:
+            mock_set_theano.return_value = None
+            self.model.set_seed(self.seed)
+
+            t_sample = self.model.sample_given_x(t_mean)[-1]
+            f = theano.function(inputs=[t_mean], outputs=t_sample)
+            sample_given_x = f(mean_vector)[0]
+
+        assert_array_almost_equal(sample_given_x, sample[0], decimal=15)
 
 
 class TestGaussian(TestCase):
     @staticmethod
     def get_model(seed=1):
-        mean_layer, var_layer = InputLayer((1,None)),InputLayer((1,None))
+        mean_layer, var_layer = InputLayer((1, None)), InputLayer((1, None))
         return Gaussian(mean_layer, var_layer, given=[mean_layer, var_layer], seed=seed)
 
     def test_sample_given_x_consistency(self):
