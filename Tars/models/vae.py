@@ -28,13 +28,20 @@ class VAE(Model):
 
         # set prior distribution mode
         if self.prior.__class__.__name__ == "MultiPriorDistributions":
-            self.prior.prior = get_prior(self.q.distributions[-1])
+            if self.prior.prior is None:
+                self.prior.prior = get_prior(self.q.distributions[-1])
             self.prior_mode = "MultiPrior"
         else:
             self.prior_mode = "Normal"
 
         self.train_iw = train_iw
         self.test_iw = test_iw
+
+        self.optimizer = optimizer
+        self.optimizer_params = optimizer_params
+        self.clip_grad = clip_grad
+        self.max_norm_constraint = max_norm_constraint
+        self.iw_alpha = iw_alpha
 
         # set inputs
         x = self.q.inputs
@@ -46,13 +53,14 @@ class VAE(Model):
         if self.train_iw:
             inputs = x + [l, k]
             lower_bound, loss, params = self._vr_bound(x, l, k,
-                                                       iw_alpha, False)
+                                                       self.iw_alpha, False)
         else:
             inputs = x + [l, annealing_beta]
             lower_bound, loss, params = self._elbo(x, l, annealing_beta, False)
         lower_bound = T.mean(lower_bound, axis=0)
-        updates = self._get_updates(loss, params, optimizer, optimizer_params,
-                                    clip_grad, max_norm_constraint)
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
 
         self.lower_bound_train = theano.function(inputs=inputs,
                                                  outputs=lower_bound,

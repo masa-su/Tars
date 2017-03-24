@@ -301,12 +301,12 @@ class MultiDistributions(object):
            log_likelihood (q) : log_q(z1|[x,y,...])+...+log_q(zn|zn-1)
            log_likelihood (p) : log_p(zn-1|[zn,y,...])+...+log_p(x|z1)
         """
-
         all_log_likelihood = 0
         for x, sample, d in zip(samples, samples[1:], self.distributions):
             log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
                                                       **kwargs)
             all_log_likelihood += log_likelihood
+
         return all_log_likelihood
 
     def _set_theano_func(self):
@@ -327,7 +327,7 @@ class MultiDistributions(object):
 
 class MultiPriorDistributions(MultiDistributions):
     """
-    p(z|y) = p(zn)p(zn-1|zn,y)...p(z1|z2).
+    p(z) = p(zn,z'n)p(zn-1|zn,z'n)...p(z1|z2).
 
     Samples
     -------
@@ -344,7 +344,7 @@ class MultiPriorDistributions(MultiDistributions):
     """
 
     def __init__(self, distributions, prior=None):
-        self.prior = prior
+        self.prior = tolist(prior)
         super(MultiPriorDistributions,
               self).__init__(distributions, approximate=False)
 
@@ -360,10 +360,9 @@ class MultiPriorDistributions(MultiDistributions):
         --------
         Theano variable, shape (n_samples,)
            log_likelihood :
-             add_prior=True : log_p(zn)+log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
-             add_prior=False : log_p(zn-1|zn,y,...)+...+log_p(z2|z1)
+             add_prior=True : log_p(zn,z'n)+log_p(zn-1|zn,z'n)+...+log_p(z2|z1)
+             add_prior=False : log_p(zn-1|zn,z'n)+...+log_p(z2|z1)
         """
-
         all_log_likelihood = 0
         for x, sample, d in zip(samples, samples[1:], self.distributions):
             log_likelihood = d.log_likelihood_given_x([tolist(x), sample],
@@ -371,6 +370,8 @@ class MultiPriorDistributions(MultiDistributions):
             all_log_likelihood += log_likelihood
 
         if add_prior:
-            prior_samples = samples[0][0]
-            all_log_likelihood += self.prior.log_likelihood(prior_samples)
+            for i, prior in enumerate(self.prior):
+                prior_samples = samples[0][i]
+                all_log_likelihood += prior.log_likelihood(prior_samples)
+
         return all_log_likelihood

@@ -70,10 +70,10 @@ class JMVAE(VAE):
         p_params = []
         for i, p in enumerate(self.p):
             inverse_z = self._inverse_samples(self._select_input(z, [i]))
-            log_likelihood = self.p[i].log_likelihood_given_x(
+            log_likelihood = p.log_likelihood_given_x(
                 inverse_z, deterministic=deterministic)
             log_likelihood_all.append(log_likelihood)
-            p_params += self.p[i].get_params()
+            p_params += p.get_params()
 
         lower_bound = T.stack([-kl_divergence] + log_likelihood_all, axis=-1)
         loss = -T.mean(sum(log_likelihood_all) -
@@ -102,9 +102,12 @@ class JMVAE(VAE):
 
         p_params = []
         for i, p in enumerate(self.p):
-            p_params += self.p[i].get_params()
+            p_params += p.get_params()
         q_params = self.q.get_params()
         params = q_params + p_params
+
+        if self.prior_mode == "MultiPrior":
+            params += self.prior.get_params()
 
         return log_likelihood, loss, params
 
@@ -204,7 +207,7 @@ class JMVAE(VAE):
         for i, p in enumerate(self.p):
             p_samples, prior_samples = self._inverse_samples(
                 self._select_input(samples, [i]), return_prior=True)
-            p_log_likelihood = self.p[i].log_likelihood_given_x(
+            p_log_likelihood = p.log_likelihood_given_x(
                 p_samples, deterministic=deterministic)
             p_log_likelihood_all.append(p_log_likelihood)
 
