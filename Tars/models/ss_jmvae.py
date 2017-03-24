@@ -192,7 +192,7 @@ class SS_JMVAE(VAE):
 
         p_params = []
         for i, p in enumerate(self.p):
-            p_params += self.p[i].get_params()
+            p_params += p.get_params()
         q_params = self.q.get_params()
         q_params += self.s_q.get_params()
         params = q_params + p_params
