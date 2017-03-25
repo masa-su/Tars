@@ -29,6 +29,7 @@ from Tars.distributions.distribution_models import (
     Dirichlet,
 )
 from Tars.tests.test_distribution_samples import (
+    get_sample, get_sample_double,
     TestBernoulliSample,
     TestGaussianSample,
     TestGumbelSample,
@@ -56,7 +57,6 @@ class TestDistribution(TestCase):
         t_sample = model.sample_given_x(t_mean)[-1]
         f = theano.function(inputs=t_mean, outputs=t_sample)
         return f([mean_sample])[0]
-        #return f(mean_sample)
 
 
 class TestDistributionDouble(TestCase):
@@ -79,13 +79,13 @@ class TestBernoulli(TestCase):
         self.mean = 0
         self.size = 10
         self.mean_sample = TestDistribution.get_samples(self.mean)
-        self.model = TestBernoulli.get_model(seed=self.seed)
+        self.mean_layer = InputLayer((1, None))
+        self.model = Bernoulli(self.mean_layer, given=[self.mean_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
     def get_model(seed=1):
         mean_layer = InputLayer((1, None))
-        #mean_layer = InputLayer((None,))
         return Bernoulli(mean_layer, given=[mean_layer], seed=seed)
 
     def test_sample_given_x_consistency(self):
@@ -94,7 +94,6 @@ class TestBernoulli(TestCase):
             self.model,
             self.mean_sample,
         )
-
         desired = [
             2.0341405545125100e-64,
             5.8691140929553508e-69,
@@ -110,27 +109,18 @@ class TestBernoulli(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as BernoulliSample.sample when given equals to the input.
-        # Generate samples from BernoulliSample with the same seed as the model
-        #mean_layer = InputLayer((None,)) # ndim==1
-        mean_layer = InputLayer((1, None)) # ndim==2
-        self.model = Bernoulli(mean_layer, given=[mean_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Bernoulli.sample_given_x should be the same as BernoulliSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistribution.get_sample_given_x(
             self.model,
             self.mean_sample,
         )
-        bernoulli_sample = BernoulliSample(seed=self.seed)
-        #sample = TestBernoulliSample.get_sample(self.mean, bernoulli_sample, self.size)
         display_samples(sample_given_x)
 
         # Pass the same theano variable to BernoulliSample.sample
-        t_mean = mean_layer.input_var
-        mean_vector = np.ones(self.size).astype("float32") * self.mean
-        t_sample = bernoulli_sample.sample(t_mean)
-        f = theano.function(inputs=[t_mean], outputs=t_sample)
-        #sample = f(mean_vector)
-        sample = f([mean_vector])[0]
+        bernoulli_sample = BernoulliSample(seed=self.seed)
+        #sample = TestBernoulliSample.get_sample(self.mean, bernoulli_sample, self.size, self.mean_layer.input_var)
+        sample = get_sample(self.mean, bernoulli_sample, self.size, self.mean_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -146,7 +136,8 @@ class TestCategorical(TestCase):
         self.mean = 0
         self.size = 10
         self.mean_sample = TestDistribution.get_samples(self.mean)
-        self.model = TestCategorical.get_model((1, self.size), seed=self.seed)
+        self.mean_layer = InputLayer( (1, self.size) )
+        self.model = Categorical(self.mean_layer, given=[self.mean_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -172,30 +163,21 @@ class TestCategorical(TestCase):
             1.3480502321912626e-15,
             3.1816204529416427e-15
         ]
-
         assert_array_almost_equal(actual, desired, decimal=15)
 
 
     def test_sample_given_x(self):
-        # The output should be the same as CategoricalSample.sample,
-        # when the shape of inputs is the same.
-        mean_layer = InputLayer((1, self.size)) # ndim==2
-        self.model = Categorical(mean_layer, given=[mean_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Categorical.sample_given_x should be the same as CategoricalSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistribution.get_sample_given_x(
             self.model,
             self.mean_sample,
         )
-        categorical_sample = CategoricalSample(seed=self.seed)
         display_samples(sample_given_x)
 
-        # Pass the same theano variable to BernoulliSample.sample
-        t_mean = mean_layer.input_var
-        mean_vector = np.ones(self.size).astype("float32") * self.mean
-        t_sample = categorical_sample.sample(t_mean)
-        f = theano.function(inputs=[t_mean], outputs=t_sample)
-        #sample = f(mean_vector)
-        sample = f([mean_vector])[0]
+        # Pass the same theano variable to CategoricalSample.sample
+        categorical_sample = CategoricalSample(seed=self.seed)
+        sample = get_sample(self.mean, categorical_sample, self.size, self.mean_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -207,7 +189,8 @@ class TestGaussian(TestCase):
         self.mean, self.var = 0, 1
         self.size = 10
         self.mean_sample, self.var_sample = TestDistributionDouble.get_samples(self.mean, self.var)
-        self.model = TestGaussian.get_model((1, None), seed=self.seed)
+        self.mean_layer, self.var_layer = InputLayer((1, None)), InputLayer((1, None))
+        self.model = Gaussian(self.mean_layer, self.var_layer, given=[self.mean_layer, self.var_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -239,11 +222,8 @@ class TestGaussian(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as GaussianSample.sample when given equals to the input.
-        mean_layer = InputLayer((1, None)) # ndim==2
-        var_layer = InputLayer((1, None))
-        self.model = Gaussian(mean_layer, var_layer, given=[mean_layer, var_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Gaussian.sample_given_x should be the same as GaussianSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistributionDouble.get_sample_given_x(
             self.model,
             self.mean_sample,
@@ -251,15 +231,9 @@ class TestGaussian(TestCase):
         )
         display_samples(sample_given_x)
 
+        # Pass the same theano variable to BernoulliSample.sample
         gaussian_sample = GaussianSample(seed=self.seed)
-        t_mean = mean_layer.input_var                       # Pass the same theano variable to BernoulliSample.sample
-        t_var = var_layer.input_var
-        mean_vector = np.ones(self.size).astype("float32") * self.mean
-        var_vector = np.ones(self.size).astype("float32") * self.var
-        t_sample = gaussian_sample.sample(t_mean, t_var)
-        f = theano.function(inputs=[t_mean, t_var], outputs=t_sample)
-        #sample = f(mean_vector)
-        sample = f([mean_vector], [var_vector])[0]
+        sample = get_sample_double(self.mean, self.var, gaussian_sample, self.size, self.mean_layer.input_var, self.var_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -276,7 +250,8 @@ class TestGaussianConstantVar(TestCase):
         self.mean = 0
         self.size = 10
         self.mean_sample = TestDistribution.get_samples(self.mean)
-        self.model = TestGaussianConstantVar.get_model((1, None), seed=self.seed)
+        self.mean_layer = InputLayer((1, None))
+        self.model = GaussianConstantVar(self.mean_layer, given=[self.mean_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -305,24 +280,17 @@ class TestGaussianConstantVar(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as CategoricalSample.sample,
-        # when the shape of inputs is the same.
-        mean_layer = InputLayer((1, self.size)) # ndim==2
-        self.model = GaussianConstantVar(mean_layer, given=[mean_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of GaussianConstantVar.sample_given_x should be the same as GaussianConstantVarSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistribution.get_sample_given_x(
             self.model,
             self.mean_sample,
         )
-        g_constant_var_sample = GaussianConstantVarSample(seed=self.seed)
         display_samples(sample_given_x)
 
-        # Pass the same theano variable to BernoulliSample.sample
-        t_mean = mean_layer.input_var
-        mean_vector = np.ones(self.size).astype("float32") * self.mean
-        t_sample = g_constant_var_sample.sample(t_mean)
-        f = theano.function(inputs=[t_mean], outputs=t_sample)
-        sample = f([mean_vector])[0]
+        # Pass the same theano variable to GaussianConstantVarSample.sample
+        g_constant_var_sample = GaussianConstantVarSample(seed=self.seed)
+        sample = get_sample(self.mean, g_constant_var_sample, self.size, self.mean_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -334,7 +302,9 @@ class TestLaplace(TestCase):
         self.mean, self.var = 0, 1
         self.size = 10
         self.mean_sample, self.var_sample = TestDistributionDouble.get_samples(self.mean, self.var)
-        self.model = TestLaplace.get_model((1, None), seed=self.seed)
+        self.input_size = (1, self.size)
+        self.mean_layer, self.var_layer = InputLayer(self.input_size), InputLayer(self.input_size)
+        self.model = Laplace(self.mean_layer, self.var_layer, given=[self.mean_layer, self.var_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -344,17 +314,10 @@ class TestLaplace(TestCase):
 
     def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
-        seed = 1234567890
-        mean, var = 0, 1
-        mean_sample, var_sample = TestDistributionDouble.get_samples(mean, var)
-
-        model = TestLaplace.get_model(seed=seed)
-        model.set_seed(seed)
-
         actual = TestDistributionDouble.get_sample_given_x(
-            model,
-            mean_sample,
-            var_sample
+            self.model,
+            self.mean_sample,
+            self.var_sample
         )
         desired = [
             1.1390253664399406e+00,
@@ -371,11 +334,8 @@ class TestLaplace(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as GaussianSample.sample when given equals to the input.
-        mean_layer = InputLayer((1, None)) # ndim==2
-        var_layer = InputLayer((1, None))
-        self.model = Laplace(mean_layer, var_layer, given=[mean_layer, var_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Laplace.sample_given_x should be the same as LaplaceSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistributionDouble.get_sample_given_x(
             self.model,
             self.mean_sample,
@@ -383,14 +343,9 @@ class TestLaplace(TestCase):
         )
         display_samples(sample_given_x)
 
+        # Pass the same theano variable to LaplaceSample.sample
         laplace_sample = LaplaceSample(seed=self.seed)
-        t_mean = mean_layer.input_var                       # Pass the same theano variable to BernoulliSample.sample
-        t_var = var_layer.input_var
-        mean_vector = np.ones(self.size).astype("float32") * self.mean
-        var_vector = np.ones(self.size).astype("float32") * self.var
-        t_sample = laplace_sample.sample(t_mean, t_var)
-        f = theano.function(inputs=[t_mean, t_var], outputs=t_sample)
-        sample = f([mean_vector], [var_vector])[0]
+        sample = get_sample_double(self.mean, self.var, laplace_sample, self.size, self.mean_layer.input_var, self.var_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -402,7 +357,8 @@ class TestGamma(TestCase):
         self.alpha, self.beta = 0.5, 0.5
         self.size = 10
         self.alpha_sample, self.beta_sample = TestDistributionDouble.get_samples(self.alpha, self.beta)
-        self.model = TestGamma.get_model((1, None), seed=self.seed)
+        self.alpha_layer, self.beta_layer = InputLayer((1, None)), InputLayer((1, None))
+        self.model = Gamma(self.alpha_layer, self.beta_layer, given=[self.alpha_layer, self.beta_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -432,11 +388,8 @@ class TestGamma(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as GaussianSample.sample when given equals to the input.
-        alpha_layer = InputLayer((1, None)) # ndim==2
-        beta_layer = InputLayer((1, None))
-        self.model = Gamma(alpha_layer, beta_layer, given=[alpha_layer, beta_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Gamma.sample_given_x should be the same as GammaSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistributionDouble.get_sample_given_x(
             self.model,
             self.alpha_sample,
@@ -444,14 +397,9 @@ class TestGamma(TestCase):
         )
         display_samples(sample_given_x)
 
+        # Pass the same theano variable to GammaSample.sample
         gamma_sample = GammaSample(seed=self.seed)
-        t_alpha = alpha_layer.input_var                       # Pass the same theano betaiable to BernoulliSample.sample
-        t_beta = beta_layer.input_var
-        alpha_vector = np.ones(self.size).astype("float32") * self.alpha
-        beta_vector = np.ones(self.size).astype("float32") * self.beta
-        t_sample = gamma_sample.sample(t_alpha, t_beta)
-        f = theano.function(inputs=[t_alpha, t_beta], outputs=t_sample)
-        sample = f([alpha_vector], [beta_vector])[0]
+        sample = get_sample_double(self.alpha, self.beta, gamma_sample, self.size, self.alpha_layer.input_var, self.beta_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -463,7 +411,8 @@ class TestBeta(TestCase):
         self.alpha, self.beta = 0.5, 0.5
         self.size = 10
         self.alpha_sample, self.beta_sample = TestDistributionDouble.get_samples(self.alpha, self.beta)
-        self.model = TestBeta.get_model((1, None), seed=self.seed)
+        self.alpha_layer, self.beta_layer = InputLayer((1, None)),InputLayer((1, None))
+        self.model = Beta(self.alpha_layer, self.beta_layer, given=[self.alpha_layer, self.beta_layer], seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -493,11 +442,8 @@ class TestBeta(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as GaussianSample.sample when given equals to the input.
-        alpha_layer = InputLayer((1, None)) # ndim==2
-        beta_layer = InputLayer((1, None))
-        self.model = Beta(alpha_layer, beta_layer, given=[alpha_layer, beta_layer], seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Beta.sample_given_x should be the same as BetaSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistributionDouble.get_sample_given_x(
             self.model,
             self.alpha_sample,
@@ -505,14 +451,9 @@ class TestBeta(TestCase):
         )
         display_samples(sample_given_x)
 
+        # Pass the same theano variable to GammaSample.sample
         beta_dist_sample = BetaSample(seed=self.seed)
-        t_alpha = alpha_layer.input_var                       # Pass the same theano betaiable to BernoulliSample.sample
-        t_beta = beta_layer.input_var
-        alpha_vector = np.ones(self.size).astype("float32") * self.alpha
-        beta_vector = np.ones(self.size).astype("float32") * self.beta
-        t_sample = beta_dist_sample.sample(t_alpha, t_beta)
-        f = theano.function(inputs=[t_alpha, t_beta], outputs=t_sample)
-        sample = f([alpha_vector], [beta_vector])[0]
+        sample = get_sample_double(self.alpha, self.beta, beta_dist_sample, self.size, self.alpha_layer.input_var, self.beta_layer.input_var)
         display_samples(sample)
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
@@ -524,8 +465,9 @@ class TestDirichlet(TestCase):
         self.alpha = 0.5
         self.size = 3
         self.k = 3
-        self.alpha_sample = TestDistribution.get_samples(self.alpha, self.size)
-        self.model = TestDirichlet.get_model((1, self.size), k=self.k, seed=self.seed)
+        self.alpha_sample = TestDistribution.get_samples(self.alpha, self.size) # k and the length of samples must be the same
+        self.alpha_layer = InputLayer((1, self.size))
+        self.model = Dirichlet(self.alpha_layer, given=[self.alpha_layer], k=self.k, seed=self.seed)
         self.model.set_seed(self.seed)
 
     @staticmethod
@@ -554,27 +496,18 @@ class TestDirichlet(TestCase):
         assert_array_almost_equal(actual, desired, decimal=15)
 
     def test_sample_given_x(self):
-        # The output should be the same as DirichletSample.sample when given equals to the input.
-        # Generate samples from DirichletSample with the same seed as the model
-        alpha_layer = InputLayer((1, self.size)) # ndim==2
-        self.model = Dirichlet(alpha_layer, given=[alpha_layer], k=self.k, seed=self.seed)
-        self.model.set_seed(self.seed)
+        # The output of Dirichletsample_given_x should be the same as DirichletSample.sample
+        # when the input is the same, as sample_given_x calls sample inside.
         sample_given_x = TestDistribution.get_sample_given_x(
             self.model,
             self.alpha_sample,
         )
         display_samples(sample_given_x)
 
-        dirichlet_sample = DirichletSample(self.k, seed=self.seed)
         # Pass the same theano variable to DirichletSample.sample
-        t_alpha = alpha_layer.input_var
-        alpha_vector = np.ones(self.size).astype("float32") * self.alpha
-        t_sample = dirichlet_sample.sample(t_alpha)
-        f = theano.function(inputs=[t_alpha], outputs=t_sample)
-        sample = f([alpha_vector])[0]
+        dirichlet_sample = DirichletSample(self.k, seed=self.seed)
+        sample = get_sample(self.alpha, dirichlet_sample, self.size, self.alpha_layer.input_var)
         display_samples(sample)
-
-
 
         assert_array_almost_equal(sample_given_x, sample, decimal=15)
 
