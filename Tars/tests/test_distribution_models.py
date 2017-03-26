@@ -18,6 +18,8 @@ from Tars.distributions.distribution_models import (
 from Tars.tests.test_distribution_samples import (
     get_sample,
     get_sample_double,
+)
+from Tars.distributions.distribution_samples import (
     BernoulliSample,
     CategoricalSample,
     GaussianSample,
@@ -45,8 +47,7 @@ class TestDistribution(TestCase):
 class TestDistributionDouble(TestCase):
     @staticmethod
     def get_samples(mean, var, size):
-        return np.ones(size).astype("float32") * mean,
-        np.ones(size).astype("float32") * var
+        return np.ones(size).astype("float32") * mean, np.ones(size).astype("float32") * var
 
     @staticmethod
     def get_sample_given_x(model, mean_sample, var_sample, t_mean=None, t_var=None):
@@ -481,7 +482,7 @@ class TestDirichlet(TestCase):
         self.model.set_seed(self.seed)
 
     @staticmethod
-    def get_model(input_size, k=2, seed=1):
+    def get_model(input_size, k=3, seed=1):
         alpha_layer = InputLayer(input_size)
         return Dirichlet(alpha_layer, given=[alpha_layer], k=k, seed=seed)
 
@@ -508,7 +509,7 @@ class TestDirichlet(TestCase):
         )
 
         # Pass the same theano variable to DirichletSample.sample
-        dirichlet_sample = DirichletSample(self.k, seed=self.seed)
+        dirichlet_sample = DirichletSample(self.k, iter_sampling=1, seed=self.seed)
         sample = get_sample(self.alpha, dirichlet_sample,
                             self.size, self.alpha_layer.input_var)
 
