@@ -15,6 +15,7 @@ from ..distributions.distribution_samples import (
     BetaSample, GammaSample, DirichletSample
 )
 
+
 def get_sample(mean, distribution_sample, size, t_mean=None):
     if t_mean is None:
         t_mean = T.fvector("mean")
@@ -27,6 +28,7 @@ def get_sample(mean, distribution_sample, size, t_mean=None):
         return f(mean_vector)
     elif t_mean.ndim == 2:
         return f([mean_vector])[0]
+
 
 def get_sample_double(mean, var, distribution_sample_double, size, t_mean=None, t_var=None):
     if t_mean is None or t_var is None:
@@ -127,7 +129,6 @@ class TestBernoulliSample(TestCase):
             0.3538078165724645,
             0.1615775890919983
         ]
-        display_samples(actual)
         assert_array_almost_equal(actual, desired, decimal=6)
 
 
@@ -188,59 +189,6 @@ class TestGaussianSample(TestCase):
         sample = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
         assert_equal(sample, 0)
 
-    def test_log_likelihood(self):
-        import lasagne
-        from lasagne.layers import InputLayer,DenseLayer
-        from Tars.distributions.distribution_models import Gaussian
-
-        seed = utt.fetch_seed()
-        print seed
-        mean, var = 0, 1
-        size = 5
-        mean_vector = np.ones(size).astype("float32") * mean
-        var_vector = np.ones(size).astype("float32") * var
-
-        gaussian_sample = GaussianSample(seed=seed)
-        t_mean = T.fvector("mean")  # A theano symbolic variable
-        t_var = T.fvector("var")
-        t_sample = T.fvector("sample")
-        print t_sample.ndim
-
-        #t_sample = gaussian_sample.sample(t_mean, t_var)
-        #f = theano.function(inputs=[t_mean, t_var], outputs=t_sample)#
-        #sample = f(mean_vector, var_vector)
-        #print sample.shape, sample
-
-        mean_layer, var_layer = InputLayer((1, None)), InputLayer((1, None))
-        model = Gaussian(mean_layer, var_layer, given=[mean_layer, var_layer], seed=seed)
-        t_output = model.fprop(model.inputs)
-        print model.get_input_shape()
-        print model.get_output_shape()
-        #mean_vector = mean_vector.reshape(mean_vector.shape[0],1)
-        #var_vector = var_vector.reshape(var_vector.shape[0],1)
-
-        f_output = theano.function(inputs=list(model.inputs), outputs=t_output)
-        output = f_output([mean_vector], [var_vector])
-        print output
-        print output[0].ndim
-        print output[1].ndim
-
-
-        t_ll = gaussian_sample.log_likelihood(t_sample, t_output[0], t_output[1])
-        print t_ll
-
-        f_ll = theano.function(inputs=[t_sample, t_output[0], t_output[1]], outputs=t_ll)
-        ll = f_ll([0,0,0,0,0], [mean_vector], [var_vector])
-        print ll
-        for i in ll:
-            print '{0:.16f}'.format(i)
-        print '='*10
-
-        from scipy.stats import norm
-        lh = norm(mean, var).pdf([0,0,0,0,0])
-        scipy_ll = np.log(lh).sum()
-        print '{0:.16f}'.format(scipy_ll)
-
 
 class TestConcreteSample(TestCase):
 
@@ -290,22 +238,15 @@ class TestCategoricalSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0
         categorical_sample = CategoricalSample(seed=1234567890)
-        actual = TestCategoricalSample.get_sample(mean, categorical_sample, 10)
-        print actual
+        actual = TestCategoricalSample.get_sample(mean, categorical_sample, 5)
         desired = [
-            0.9994389867572965,
-            0.0000004618787093,
-            0.0005598514063278,
-            0.0000006999567125,
-            0.0000000000009540
+            9.9943900108337402e-01,
+            4.6187869884306565e-07,
+            5.5985356448218226e-04,
+            6.9996337970223976e-07,
+            9.5402939020994282e-13
         ]
-        for i in actual[0]:
-            print '{0:.16e}'.format(i)
-        # TODO: Avoid returning a nested array?
-        assert_array_almost_equal(actual, desired, decimal=15)
-
-    def test_consistency2(self):
-        mean = 0
+        assert_array_almost_equal(actual[0], desired, decimal=15)
 
 
 class TestLaplaceSample(TestCase):
@@ -464,7 +405,7 @@ class TestDirichletSample(TestCase):
 
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
-        alpha = 100
+        alpha = 0.5
         dirichlet_sample = DirichletSample(k=2, seed=1234567890)
         actual = TestDirichletSample.get_sample(alpha, dirichlet_sample, 5)
         desired = [
@@ -475,9 +416,3 @@ class TestDirichletSample(TestCase):
             0.0000000000000000
         ]
         assert_array_almost_equal(actual, desired, decimal=6)
-
-
-def display_samples(samples, format=''):
-    for i in samples:
-        #print '{0:.16f}'.format(i)
-        print '{0:.16e}'.format(i)

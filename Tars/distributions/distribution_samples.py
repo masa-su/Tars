@@ -11,6 +11,7 @@ __all__ = [
     'BernoulliSample',
     'CategoricalSample',
     'GaussianSample',
+    'GaussianConstantVarSample',
     'LaplaceSample',
     'GumbelSample',
     'ConcreteSample',
