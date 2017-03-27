@@ -11,6 +11,7 @@ __all__ = [
     'BernoulliSample',
     'CategoricalSample',
     'GaussianSample',
+    'GaussianConstantVarSample',
     'LaplaceSample',
     'GumbelSample',
     'ConcreteSample',
@@ -104,7 +105,7 @@ class ConcreteSample(GumbelSample):
 
     def __init__(self, temp=0.1, seed=1):
         super(ConcreteSample, self).__init__(seed=seed)
-        self.temp = temp
+        self.temp = np.float32(temp)
 
     def sample(self, mean):
         """
@@ -145,7 +146,7 @@ class BernoulliSample(GumbelSample):
 
     def __init__(self, temp=0.1, seed=1):
         super(BernoulliSample, self).__init__(seed=seed)
-        self.temp = temp
+        self.temp = np.float32(temp)
 
     def sample(self, mean):
         """
@@ -160,7 +161,6 @@ class BernoulliSample(GumbelSample):
            This variable is sampled from this distribution.
            i.e. sample ~ p(x|mean)
         """
-
         if self.temp != 0:
             z1 = super(BernoulliSample, self).sample(T.zeros_like(mean),
                                                      T.ones_like(mean))

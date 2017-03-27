@@ -16,6 +16,37 @@ from ..distributions.distribution_samples import (
 )
 
 
+def get_sample(mean, distribution_sample, size, t_mean=None):
+    if t_mean is None:
+        t_mean = T.fvector("mean")
+    # get a sample from given distribution in ndarray
+    mean_vector = np.ones(size).astype("float32") * mean
+    t_sample = distribution_sample.sample(t_mean)
+    f = theano.function(inputs=[t_mean], outputs=t_sample)
+
+    if t_mean.ndim == 1:
+        return f(mean_vector)
+    elif t_mean.ndim == 2:
+        return f([mean_vector])[0]
+
+
+def get_sample_double(mean, var, distribution_sample_double, size, t_mean=None, t_var=None):
+    if t_mean is None or t_var is None:
+        t_mean = T.fvector("mean")
+        t_var = T.fvector("var")
+    # get a sample from given gaussian distribution in ndarray
+    mean_vector = np.ones(size).astype("float32") * mean
+    var_vector = np.ones(size).astype("float32") * var
+
+    t_sample = distribution_sample_double.sample(t_mean, t_var)
+    f = theano.function(inputs=[t_mean, t_var], outputs=t_sample)
+
+    if t_mean.ndim == 1:
+        return f(mean_vector, var_vector)
+    elif t_mean.ndim == 2:
+        return f([mean_vector], [var_vector])[0]
+
+
 class TestGumbelSample(TestCase):
     @staticmethod
     def get_sample(mu, beta, gumbel, size):
@@ -55,14 +86,18 @@ class TestBernoulliSample(TestCase):
         self.bernoulli_sample = BernoulliSample(temp=0.01, seed=1)
 
     @staticmethod
-    def get_sample(mean, bernoulli, size):
+    def get_sample(mean, bernoulli, size, t_mean=None):
+        if t_mean is None:
+            t_mean = T.fvector("mean")
         # get a sample from given bernoulli distribution in ndarray
         mean_vector = np.ones(size).astype("float32") * mean
-        t_mean = T.fvector("mean")
         t_sample = bernoulli.sample(t_mean)
         f = theano.function(inputs=[t_mean], outputs=t_sample)
-        sample = f(mean_vector)
-        return sample
+
+        if t_mean.ndim == 1:
+            return f(mean_vector)
+        elif t_mean.ndim == 2:
+            return f([mean_vector])[0]
 
     def test_mean_zero(self):
         # Tests the corner case of mean == 0 for the bernoulli distribution.
@@ -186,14 +221,18 @@ class TestConcreteSample(TestCase):
 class TestCategoricalSample(TestCase):
 
     @staticmethod
-    def get_sample(mean, categorical, size):
+    def get_sample(mean, categorical, size, t_mean=None):
+        if t_mean is None:
+            t_mean = T.fvector("mean")
         # get a sample from given categorical distribution in ndarray
         mean_vector = np.ones(size).astype("float32") * mean
-        t_mean = T.fvector("mean")  # A theano symbolic variable
         t_sample = categorical.sample(t_mean)
         f = theano.function(inputs=[t_mean], outputs=t_sample)
-        sample = f(mean_vector)
-        return sample
+
+        if t_mean.ndim == 1:
+            return f(mean_vector)
+        elif t_mean.ndim == 2:
+            return f([mean_vector])[0]
 
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
@@ -201,14 +240,13 @@ class TestCategoricalSample(TestCase):
         categorical_sample = CategoricalSample(seed=1234567890)
         actual = TestCategoricalSample.get_sample(mean, categorical_sample, 5)
         desired = [
-            0.9994389867572965,
-            0.0000004618787093,
-            0.0005598514063278,
-            0.0000006999567125,
-            0.0000000000009540
+            9.9943900108337402e-01,
+            4.6187869884306565e-07,
+            5.5985356448218226e-04,
+            6.9996337970223976e-07,
+            9.5402939020994282e-13
         ]
-        # TODO: Avoid returning a nested array?
-        assert_array_almost_equal(actual[0], desired, decimal=6)
+        assert_array_almost_equal(actual[0], desired, decimal=15)
 
 
 class TestLaplaceSample(TestCase):
