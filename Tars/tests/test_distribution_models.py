@@ -450,7 +450,7 @@ class TestBeta(TestCase):
             self.beta_sample
         )
 
-        # Pass the same theano variable to GammaSample.sample
+        # Pass the same theano variable to BetaSample.sample
         beta_dist_sample = BetaSample(seed=self.seed)
         sample = get_sample_double(self.alpha, self.beta, beta_dist_sample,
                                    self.size, self.alpha_layer.input_var, self.beta_layer.input_var)
