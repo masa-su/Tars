@@ -254,7 +254,7 @@ class Gaussian(DistributionDouble):
             distribution, mean_network, var_network, given, seed)
 
 
-class GaussianConstantVar(Deterministic):
+class GaussianConstantVar(Distribution):
 
     def __init__(self, mean_network, given, var=1, seed=1):
         distribution = GaussianConstantVarSample(constant_var=var, seed=seed)
