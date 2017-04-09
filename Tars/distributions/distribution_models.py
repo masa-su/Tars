@@ -5,6 +5,7 @@ import lasagne
 
 from ..utils import tolist
 from .distribution_samples import (
+    DeterministicSample,
     BernoulliSample,
     CategoricalSample,
     GaussianSample,
@@ -208,8 +209,10 @@ class DistributionDouble(Distribution):
 
 class Deterministic(Distribution):
 
-    def __init__(self, distribution, network, given, seed=1):
-        super(Deterministic, self).__init__(distribution, network, given, seed=seed)
+    def __init__(self, network, given, seed=1):
+        distribution = DeterministicSample()
+        super(Deterministic, self).__init__(distribution, network, given, seed=seed,
+                                            set_log_likelihood=False)
 
 
 class Bernoulli(Distribution):
