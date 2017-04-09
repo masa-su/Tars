@@ -44,7 +44,7 @@ class DistributionSample(object):
         pass
 
 
-class DeterministicSample(object):
+class DeterministicSample(DistributionSample):
     """
     Deterministic function
     p(x) = f(x)
