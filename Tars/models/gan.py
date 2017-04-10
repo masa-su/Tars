@@ -5,7 +5,8 @@ import lasagne
 from progressbar import ProgressBar
 
 from ..models.model import Model
-
+from ..distributions.distribution_samples import mean_sum_samples
+from ..utils import epsilon
 
 class GAN(Model):
 
@@ -15,12 +16,14 @@ class GAN(Model):
                  p_optimizer_params={},
                  d_optimizer_params={},
                  clip_grad=None, max_norm_constraint=None,
-                 seed=1234):
+                 l1_lambda=0, seed=1234):
         super(GAN, self).__init__(n_batch=n_batch, seed=seed)
 
         self.p = p
         self.d = d
-        self.hidden_dim = self.p.get_input_shape()[0][-1]
+        self.hidden_dim = self.p.get_input_shape()[0][1:]
+
+        self.l1_lambda = l1_lambda #pix2pix
 
         # set inputs
         z = self.p.inputs
@@ -50,11 +53,7 @@ class GAN(Model):
         self.test = theano.function(inputs=inputs, outputs=loss,
                                     on_unused_input='ignore')
 
-    def _loss(self, z, x, deterministic=False):
-
-        # gx~p(x|z,y,...)
-        gx = self.p.sample_mean_given_x(
-            z, deterministic=deterministic)[-1]
+    def _critic(self, x, gx, deterministic=False):
         # t~d(t|x,y,...)
         t = self.d.sample_mean_given_x(
             x, deterministic=deterministic)[-1]
@@ -62,14 +61,22 @@ class GAN(Model):
         gt = self.d.sample_mean_given_x(
             [gx] + x[1:], deterministic=deterministic)[-1]
 
-        # -log(t)
-        d_loss = -self.d.log_likelihood(T.ones_like(t), t).mean()
-        # -log(1-gt)
-        d_g_loss = -self.d.log_likelihood(T.zeros_like(gt), gt).mean()
         # -log(gt)
-        p_loss = -self.d.log_likelihood(T.ones_like(gt), gt).mean()
+        p_loss = -T.log(gt+epsilon())
         # -log(t)-log(1-gt)
-        d_loss = d_loss + d_g_loss
+        d_loss = -T.log(t+epsilon()) -T.log(1-gt+epsilon())
+
+        return mean_sum_samples(p_loss).mean(), mean_sum_samples(d_loss).mean()
+
+    def _loss(self, z, x, deterministic=False):
+        # gx~p(x|z,y,...)
+        gx = self.p.sample_mean_given_x(
+            z, deterministic=deterministic)[-1]
+
+        p_loss, d_loss = self._critic(x, gx, deterministic)
+
+        if deterministic is False and len(z)>1:
+            p_loss += self.l1_lambda * mean_sum_samples(T.abs_(x[0]-gx)).mean()
 
         p_params = self.p.get_params()
         d_params = self.d.get_params()
@@ -77,7 +84,7 @@ class GAN(Model):
         return [p_loss, d_loss], [p_params, d_params]
 
     def train(self, train_set, freq=1, verbose=False):
-        n_x = train_set[0].shape[0]
+        n_x = len(train_set[0])
         nbatches = n_x // self.n_batch
         loss_all = []
 
@@ -88,14 +95,11 @@ class GAN(Model):
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in train_set]
             batch_z = self.rng.uniform(-1., 1.,
-                                       size=(len(batch_x[0]),
-                                             self.hidden_dim)
+                                       size=(len(batch_x[0]),) + self.hidden_dim
                                        ).astype(batch_x[0].dtype)
             _x = [batch_z] + batch_x
-            if i % (freq + 1) == 0:
-                loss = self.p_train(*_x)
-            else:
-                loss = self.d_train(*_x)
+            loss = self.p_train(*_x)
+            loss = self.d_train(*_x)
             loss_all.append(np.array(loss))
 
             if verbose:
@@ -119,9 +123,9 @@ class GAN(Model):
             end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
             batch_z = self.rng.uniform(-1., 1.,
-                                       size=(len(batch_x[0]),
-                                             self.hidden_dim)
+                                       size=(len(batch_x[0]),) + self.hidden_dim
                                        ).astype(batch_x[0].dtype)
+
             _x = [batch_z] + batch_x
             loss = self.test(*_x)
             loss_all.append(np.array(loss))
