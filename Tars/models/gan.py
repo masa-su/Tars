@@ -8,6 +8,7 @@ from ..models.model import Model
 from ..distributions.distribution_samples import mean_sum_samples
 from ..utils import epsilon
 
+
 class GAN(Model):
 
     def __init__(self, p, d, n_batch=100,
@@ -23,7 +24,7 @@ class GAN(Model):
         self.d = d
         self.hidden_dim = self.p.get_input_shape()[0][1:]
 
-        self.l1_lambda = l1_lambda #pix2pix
+        self.l1_lambda = l1_lambda  # for pix2pix
 
         # set inputs
         z = self.p.inputs
@@ -64,7 +65,7 @@ class GAN(Model):
         # -log(gt)
         p_loss = -T.log(gt+epsilon())
         # -log(t)-log(1-gt)
-        d_loss = -T.log(t+epsilon()) -T.log(1-gt+epsilon())
+        d_loss = -T.log(t+epsilon()) - T.log(1-gt+epsilon())
 
         return mean_sum_samples(p_loss).mean(), mean_sum_samples(d_loss).mean()
 
@@ -75,8 +76,9 @@ class GAN(Model):
 
         p_loss, d_loss = self._critic(x, gx, deterministic)
 
-        if deterministic is False and len(z)>1:
-            p_loss += self.l1_lambda * mean_sum_samples(T.abs_(x[0]-gx)).mean()
+        if deterministic is False and len(z) > 1:
+            p_loss += self.l1_lambda *\
+                      mean_sum_samples(T.abs_(x[0]-gx)).mean()
 
         p_params = self.p.get_params()
         d_params = self.d.get_params()
@@ -86,6 +88,7 @@ class GAN(Model):
     def train(self, train_set, freq=1, verbose=False):
         n_x = len(train_set[0])
         nbatches = n_x // self.n_batch
+        z_dim = (self.n_batch,) + self.hidden_dim
         loss_all = []
 
         if verbose:
@@ -94,9 +97,9 @@ class GAN(Model):
             start = i * self.n_batch
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z = self.rng.uniform(-1., 1.,
-                                       size=(len(batch_x[0]),) + self.hidden_dim
-                                       ).astype(batch_x[0].dtype)
+            batch_z =\
+                self.rng.uniform(-1., 1.,
+                                 size=z_dim).astype(batch_x[0].dtype)
             _x = [batch_z] + batch_x
             loss = self.p_train(*_x)
             loss = self.d_train(*_x)
@@ -114,6 +117,7 @@ class GAN(Model):
 
         n_x = test_set[0].shape[0]
         nbatches = n_x // n_batch
+        z_dim = (n_batch,) + self.hidden_dim
         loss_all = []
 
         if verbose:
@@ -122,9 +126,9 @@ class GAN(Model):
             start = i * n_batch
             end = start + n_batch
             batch_x = [_x[start:end] for _x in test_set]
-            batch_z = self.rng.uniform(-1., 1.,
-                                       size=(len(batch_x[0]),) + self.hidden_dim
-                                       ).astype(batch_x[0].dtype)
+            batch_z =\
+                self.rng.uniform(-1., 1.,
+                                 size=z_dim).astype(batch_x[0].dtype)
 
             _x = [batch_z] + batch_x
             loss = self.test(*_x)

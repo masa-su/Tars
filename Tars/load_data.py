@@ -378,56 +378,60 @@ def flickr(datapath):
 
     return load, shuffle, plot
 
+
 def facade(datapath):
-    def load(label=True,test=True,crop=True):
-        # Ref to https://github.com/pfnet-research/chainer-pix2pix/blob/master/facade_dataset.py
+    def load(label=True, test=True, crop=True):
+        # Ref to https://github.com/pfnet-research/chainer-pix2pix
+        # /blob/master/facade_dataset.py
         x = []
         y = []
         MAX_ITER = 378
         IMAGE_SHAPE = 256
-        for i in range(1, MAX_ITER+1):
-            img = Image.open(datapath+"facade/base/cmp_b%04d.jpg"%i)
-            label = Image.open(datapath+"facade/base/cmp_b%04d.png"%i)
-            w,h = img.size
-            r = 286./min(w,h)
-            img = img.resize((int(r*w), int(r*h)), Image.BILINEAR)
-            label = label.resize((int(r*w), int(r*h)), Image.NEAREST)
+        for i in range(1, MAX_ITER + 1):
+            img = Image.open(datapath + "facade/base/cmp_b%04d.jpg" % i)
+            label = Image.open(datapath + "facade/base/cmp_b%04d.png" % i)
+            w, h = img.size
+            r = 286. / min(w, h)
+            img = img.resize((int(r * w), int(r * h)), Image.BILINEAR)
+            label = label.resize((int(r * w), int(r * h)), Image.NEAREST)
 
-            img = np.asarray(img).astype("float32").transpose(2,0,1)/128.0-1.0
-            label_ = np.asarray(label)-1
+            img = np.asarray(img).astype(
+                "float32").transpose(2, 0, 1) / 128.0 - 1.0
+            label_ = np.asarray(label) - 1
             label = np.zeros((12, img.shape[1], img.shape[2])).astype("int32")
             for j in range(12):
-                label[j,:] = label_==j
+                label[j, :] = label_ == j
 
             # crop images
-            img = img[:,:IMAGE_SHAPE,:IMAGE_SHAPE]
-            label = label[:,:IMAGE_SHAPE,:IMAGE_SHAPE]
+            img = img[:, :IMAGE_SHAPE, :IMAGE_SHAPE]
+            label = label[:, :IMAGE_SHAPE, :IMAGE_SHAPE]
             x.append(img)
             y.append(label)
-        
+
         x = np.asarray(x).astype("float32")
         y = np.asarray(y).astype("float32")
 
         train_x, train_y = x[:300], y[:300]
         test_x, test_y = x[300:], y[300:]
-        
+
         if test:
             return train_x, train_y, test_x, test_y
 
         else:
-            return train_x, train_y        
+            return train_x, train_y
 
     def plot(img):
-        if img.shape[1]==3:
-            x = np.asarray(np.clip(img * 128 + 128, 0.0, 255.0), dtype=np.uint8)
-            x = x.transpose(0,2,3,1)
+        if img.shape[1] == 3:
+            x = np.asarray(np.clip(img * 128 + 128, 0.0, 255.0),
+                           dtype=np.uint8)
+            x = x.transpose(0, 2, 3, 1)
             return x
 
-        elif img.shape[1]==12:
+        elif img.shape[1] == 12:
             x = np.ones((len(img), 3, 256, 256)).astype(np.uint8)
             for i in range(12):
-                x[:,0,:,:] += np.uint8(15*i*img[:,i,:,:])
-            x = x.transpose(0,2,3,1)
+                x[:, 0, :, :] += np.uint8(15 * i * img[:, i, :, :])
+            x = x.transpose(0, 2, 3, 1)
             return x
 
         else:
