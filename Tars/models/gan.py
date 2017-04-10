@@ -77,8 +77,8 @@ class GAN(Model):
         p_loss, d_loss = self._critic(x, gx, deterministic)
 
         if deterministic is False and len(z) > 1:
-            p_loss += self.l1_lambda *\
-                      mean_sum_samples(T.abs_(x[0]-gx)).mean()
+            p_loss +=\
+                self.l1_lambda * mean_sum_samples(T.abs_(x[0]-gx)).mean()
 
         p_params = self.p.get_params()
         d_params = self.d.get_params()
