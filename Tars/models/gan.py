@@ -16,7 +16,12 @@ class GAN(Model):
                  d_optimizer=lasagne.updates.adam,
                  p_optimizer_params={},
                  d_optimizer_params={},
-                 clip_grad=None, max_norm_constraint=None,
+                 p_critic=lambda gt: -T.log(gt+epsilon()),
+                 d_critic=lambda t, gt: -T.log(t+epsilon()) -T.log(1-gt+epsilon()),
+                 p_clip_grad=None,
+                 d_clip_grad=None,
+                 p_max_norm_constraint=None,
+                 d_max_norm_constraint=None,
                  l1_lambda=0, seed=1234):
         super(GAN, self).__init__(n_batch=n_batch, seed=seed)
 
@@ -30,16 +35,20 @@ class GAN(Model):
         z = self.p.inputs
         x = self.d.inputs
 
+        # set critic
+        self.p_critic = p_critic
+        self.d_critic = d_critic
+
         # training
         inputs = z[:1] + x
         loss, params = self._loss(z, x, False)
 
         p_updates = self._get_updates(loss[0], params[0],
                                       p_optimizer, p_optimizer_params,
-                                      clip_grad, max_norm_constraint)
+                                      p_clip_grad, p_max_norm_constraint)
         d_updates = self._get_updates(loss[1], params[1],
                                       d_optimizer, d_optimizer_params,
-                                      clip_grad, max_norm_constraint)
+                                      d_clip_grad, d_max_norm_constraint)
 
         self.p_train = theano.function(inputs=inputs, outputs=loss,
                                        updates=p_updates,
@@ -54,7 +63,11 @@ class GAN(Model):
         self.test = theano.function(inputs=inputs, outputs=loss,
                                     on_unused_input='ignore')
 
-    def _critic(self, x, gx, deterministic=False):
+    def _loss(self, z, x, deterministic=False):
+        # gx~p(x|z,y,...)
+        gx = self.p.sample_mean_given_x(
+            z, deterministic=deterministic)[-1]
+
         # t~d(t|x,y,...)
         t = self.d.sample_mean_given_x(
             x, deterministic=deterministic)[-1]
@@ -62,19 +75,8 @@ class GAN(Model):
         gt = self.d.sample_mean_given_x(
             [gx] + x[1:], deterministic=deterministic)[-1]
 
-        # -log(gt)
-        p_loss = -T.log(gt+epsilon())
-        # -log(t)-log(1-gt)
-        d_loss = -T.log(t+epsilon()) - T.log(1-gt+epsilon())
-
-        return mean_sum_samples(p_loss).mean(), mean_sum_samples(d_loss).mean()
-
-    def _loss(self, z, x, deterministic=False):
-        # gx~p(x|z,y,...)
-        gx = self.p.sample_mean_given_x(
-            z, deterministic=deterministic)[-1]
-
-        p_loss, d_loss = self._critic(x, gx, deterministic)
+        p_loss = mean_sum_samples(self.p_critic(gt)).mean()
+        d_loss = mean_sum_samples(self.d_critic(t, gt)).mean()
 
         if deterministic is False and len(z) > 1:
             p_loss +=\
