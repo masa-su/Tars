@@ -69,8 +69,10 @@ class WGAN(GAN):
 
         # Gradient penalty
         if deterministic is False: 
-            epsilon = self.random_number_eps.sample((x[0].shape[0])) # 2-D
+            epsilon = self.random_number_eps.sample((x[0].shape[0], 1)) # 2-D
             """
+            epsilon = self.random_number_eps.sample((x[0].shape[0])) # 1-D
+
             def _iter(i, epsilon, gx, x, *args):
                 y = [_y[i][np.newaxis,:] for y in args]
                 x_hat = x[i]*epsilon + gx[i]*(1-epsilon)  #1-D
