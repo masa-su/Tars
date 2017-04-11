@@ -33,16 +33,16 @@ class GAN(Model):
         self.l1_lambda = l1_lambda  # for pix2pix
 
         # Set inputs
-        x = self.d.inputs # x=[x,y,...]
+        x = self.d.inputs  # x=[x,y,...]
 
         # Check inputs are correct.
-        # We assume d.inputs=[x,y,...] and p_inputs=[y,...] or 
+        # We assume d.inputs=[x,y,...] and p_inputs=[y,...] or
         # d.inputs=[x,y,...] and p_inputs=[z,y,...]
         if prior is None:
-            p_inputs=self.p.inputs
+            p_inputs = self.p.inputs
         else:
-            p_inputs=self.p.inputs[1:]
-        if x[1:]!=p_inputs:
+            p_inputs = self.p.inputs[1:]
+        if x[1:] != p_inputs:
             raise ValueError('You should set same conditional variables on '
                              'both the generator and discriminator')
         self.z_shape = (x[0].shape[0],) + self.p.get_input_shape()[0][1:]
@@ -71,14 +71,13 @@ class GAN(Model):
                                        on_unused_input='ignore')
 
         # test
-        inputs = x
         loss, _ = self._loss(x, True)
         self.test = theano.function(inputs=x, outputs=loss,
                                     on_unused_input='ignore')
 
     def _loss(self, x, deterministic=False):
         # z~p(z)
-        z=[]
+        z = []
         if self.prior is not None:
             z.append(self.prior.sample(self.z_shape))
 
