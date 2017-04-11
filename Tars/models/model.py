@@ -22,7 +22,11 @@ class Model(object):
         self.srng = RandomStreams(seed)
 
     def _get_updates(self, loss, params, optimizer, optimizer_params={},
-                     clip_grad=None, max_norm_constraint=None):
+                     clip_grad=None, clip_param=None,
+                     max_norm_constraint=None):
+        if clip_param:
+            params = [T.clip(p, -clip_param, clip_param) for p in params]
+
         grads = T.grad(loss, params)
         if max_norm_constraint:
             grads =\
