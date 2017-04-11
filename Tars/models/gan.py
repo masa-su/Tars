@@ -5,13 +5,14 @@ import lasagne
 from progressbar import ProgressBar
 
 from ..models.model import Model
-from ..distributions.distribution_samples import mean_sum_samples
+from ..distributions.distribution_samples import UnitUniformSample, mean_sum_samples
 from ..utils import epsilon
 
 
 class GAN(Model):
 
-    def __init__(self, p, d, n_batch=100,
+    def __init__(self, p, d, prior=UnitUniformSample,
+                 n_batch=100,
                  p_optimizer=lasagne.updates.adam,
                  d_optimizer=lasagne.updates.adam,
                  p_optimizer_params={},
@@ -91,7 +92,8 @@ class GAN(Model):
 
         return [p_loss, d_loss], [p_params, d_params]
 
-    def train(self, train_set, freq=1, verbose=False):
+    def train(self, train_set, freq=1, verbose=False,
+              gaussian_z=True):
         n_x = len(train_set[0])
         nbatches = n_x // self.n_batch
         z_dim = (self.n_batch,) + self.hidden_dim
@@ -107,7 +109,8 @@ class GAN(Model):
                 self.rng.uniform(-1., 1.,
                                  size=z_dim).astype(batch_x[0].dtype)
             _x = [batch_z] + batch_x
-            loss = self.p_train(*_x)
+            for _ in range(freq):
+                loss = self.p_train(*_x)
             loss = self.d_train(*_x)
             loss_all.append(np.array(loss))
 
