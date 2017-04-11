@@ -9,6 +9,9 @@ from .jmvae_kl import JMVAE_KL
 from .cmma import CMMA
 from .cvae import CVAE
 
+from .wgan import WGAN
+from .cycle_gan import CycleGAN
+
 __all__ = [
     'AE',
     'VAE',
@@ -17,4 +20,6 @@ __all__ = [
     'JMVAE_KL',
     'CMMA',
     'CVAE',
+    'WGAN',
+    'CycleGAN',
 ]
