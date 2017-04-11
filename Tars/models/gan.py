@@ -11,7 +11,7 @@ from ..utils import epsilon
 
 class GAN(Model):
 
-    def __init__(self, p, d, prior=UnitUniformSample,
+    def __init__(self, p, d, prior=UnitUniformSample(),
                  n_batch=100,
                  p_optimizer=lasagne.updates.adam,
                  d_optimizer=lasagne.updates.adam,
@@ -29,21 +29,30 @@ class GAN(Model):
         self.p = p
         self.d = d
         self.prior = prior
-        self.hidden_dim = self.p.get_input_shape()[0][1:]
 
         self.l1_lambda = l1_lambda  # for pix2pix
 
-        # set inputs
-        z = self.p.inputs
-        x = self.d.inputs
+        # Set inputs
+        x = self.d.inputs # x=[x,y,...]
+
+        # Check inputs are correct.
+        # We assume d.inputs=[x,y,...] and p_inputs=[y,...] or 
+        # d.inputs=[x,y,...] and p_inputs=[z,y,...]
+        if prior is None:
+            p_inputs=self.p.inputs
+        else:
+            p_inputs=self.p.inputs[1:]
+        if x[1:]!=p_inputs:
+            raise ValueError('You should set same conditional variables on '
+                             'both the generator and discriminator')
+        self.z_shape = (x[0].shape[0],) + self.p.get_input_shape()[0][1:]
 
         # set critic
         self.p_critic = p_critic
         self.d_critic = d_critic
 
         # training
-        inputs = z[:1] + x
-        loss, params = self._loss(z, x, False)
+        loss, params = self._loss(x, False)
 
         p_updates = self._get_updates(loss[0], params[0],
                                       p_optimizer, p_optimizer_params,
@@ -54,23 +63,28 @@ class GAN(Model):
                                       d_clip_param, d_clip_grad,
                                       d_max_norm_constraint)
 
-        self.p_train = theano.function(inputs=inputs, outputs=loss,
+        self.p_train = theano.function(inputs=x, outputs=loss,
                                        updates=p_updates,
                                        on_unused_input='ignore')
-        self.d_train = theano.function(inputs=inputs, outputs=loss,
+        self.d_train = theano.function(inputs=x, outputs=loss,
                                        updates=d_updates,
                                        on_unused_input='ignore')
 
         # test
-        inputs = z[:1] + x
-        loss, _ = self._loss(z, x, True)
-        self.test = theano.function(inputs=inputs, outputs=loss,
+        inputs = x
+        loss, _ = self._loss(x, True)
+        self.test = theano.function(inputs=x, outputs=loss,
                                     on_unused_input='ignore')
 
-    def _loss(self, z, x, deterministic=False):
+    def _loss(self, x, deterministic=False):
+        # z~p(z)
+        z=[]
+        if self.prior is not None:
+            z.append(self.prior.sample(self.z_shape))
+
         # gx~p(x|z,y,...)
         gx = self.p.sample_mean_given_x(
-            z, deterministic=deterministic)[-1]
+            z+x[1:], deterministic=deterministic)[-1]
 
         # t~d(t|x,y,...)
         t = self.d.sample_mean_given_x(
@@ -91,11 +105,9 @@ class GAN(Model):
 
         return [p_loss, d_loss], [p_params, d_params]
 
-    def train(self, train_set, freq=1, verbose=False,
-              gaussian_z=True):
+    def train(self, train_set, freq=1, verbose=False):
         n_x = len(train_set[0])
         nbatches = n_x // self.n_batch
-        z_dim = (self.n_batch,) + self.hidden_dim
         loss_all = []
 
         if verbose:
@@ -106,13 +118,8 @@ class GAN(Model):
             batch_x = [_x[start:end] for _x in train_set]
 
             for _ in range(freq):
-                batch_z = self.prior.sample(z_dim)
-                inputs = [batch_z] + batch_x
-                loss = self.d_train(*inputs)
-
-            batch_z = self.prior.sample(z_dim)
-            inputs = [batch_z] + batch_x
-            loss = self.p_train(*inputs)
+                loss = self.d_train(*batch_x)
+            loss = self.p_train(*batch_x)
             loss_all.append(np.array(loss))
 
             if verbose:
@@ -127,7 +134,6 @@ class GAN(Model):
 
         n_x = test_set[0].shape[0]
         nbatches = n_x // n_batch
-        z_dim = (n_batch,) + self.hidden_dim
         loss_all = []
 
         if verbose:
@@ -135,10 +141,9 @@ class GAN(Model):
         for i in range(nbatches):
             start = i * n_batch
             end = start + n_batch
+            batch_x = [_x[start:end] for _x in test_set]
 
-            batch_z = self.prior.sample(z_dim)
-            inputs = [batch_z] + batch_x
-            loss = self.test(*inputs)
+            loss = self.test(*batch_x)
             loss_all.append(np.array(loss))
 
             if verbose:
