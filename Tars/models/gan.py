@@ -17,7 +17,9 @@ class GAN(Model):
                  p_optimizer_params={},
                  d_optimizer_params={},
                  p_critic=lambda gt: -T.log(gt+epsilon()),
-                 d_critic=lambda t, gt: -T.log(t+epsilon()) -T.log(1-gt+epsilon()),
+                 d_critic=lambda t, gt: -T.log(t+epsilon()) - T.log(1-gt+epsilon()),
+                 p_clip_param=None,
+                 d_clip_param=None,
                  p_clip_grad=None,
                  d_clip_grad=None,
                  p_max_norm_constraint=None,
@@ -45,10 +47,12 @@ class GAN(Model):
 
         p_updates = self._get_updates(loss[0], params[0],
                                       p_optimizer, p_optimizer_params,
-                                      p_clip_grad, p_max_norm_constraint)
+                                      p_clip_param, p_clip_grad,
+                                      p_max_norm_constraint)
         d_updates = self._get_updates(loss[1], params[1],
                                       d_optimizer, d_optimizer_params,
-                                      d_clip_grad, d_max_norm_constraint)
+                                      d_clip_param, d_clip_grad,
+                                      d_max_norm_constraint)
 
         self.p_train = theano.function(inputs=inputs, outputs=loss,
                                        updates=p_updates,
