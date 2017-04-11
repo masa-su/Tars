@@ -18,11 +18,13 @@ __all__ = [
     'BetaSample',
     'DirichletSample',
     'KumaraswamySample',
+    'UniformSample',
     'UnitGaussianSample',
     'UnitBernoulliSample',
     'UnitCategoricalSample',
     'UnitBetaSample',
     'UnitDirichletSample',
+    'UnitUniformSample',
 ]
 
 
@@ -569,6 +571,41 @@ class DirichletSample(GammaSample):
         raise ValueError('Wrong the dimention of input.')
 
 
+class UniformSample(DistributionSample):
+    """
+    Uniform distribution
+    p(x) = 1/(b-a)
+    """
+
+    def __init__(self, seed=1):
+        super(UniformSample, self).__init__(seed=seed)
+
+    def sample(self, a, b):
+        """
+        Paramaters
+        ----------
+
+        a : Theano variable, the output of a fully connected layer
+
+        b : Theano variable, the output of a fully connected layer
+        """
+
+        return self.srng.uniform(a.shape,
+                                 low=a, high=b, dtype=a.dtype)
+
+    def log_likelihood(self, samples, a, b):
+        """
+        Paramaters
+        --------
+        sample : Theano variable
+
+        a : Theano variable, the output of a fully connected layer (Linear)
+
+        b : Theano variable, the output of a fully connected layer (Softplus)
+        """
+        NotImplementedError
+
+
 class UnitGaussianSample(GaussianSample):
     """
     Standard normal gaussian distribution
@@ -694,6 +731,25 @@ class UnitDirichletSample(DirichletSample):
         alpha = T.ones_like(samples) * self.alpha
         return super(UnitDirichletSample,
                      self).log_likelihood(samples, alpha)
+
+
+class UnitUniformSample(UniformSample):
+    """
+    Standard uniform distribution
+    """
+
+    def sample(self, shape):
+        """
+        Paramaters
+        --------
+        shape : tuple
+           sets a shape of the output sample
+        """
+
+        return self.srng.uniform(shape, low=-1, high=1)
+
+    def log_likelihood(self, samples):
+        NotImplementedError
 
 
 def mean_sum_samples(samples):
