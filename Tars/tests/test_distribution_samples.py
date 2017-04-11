@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+import scipy
 import numpy as np
 from numpy.testing import (
     assert_, assert_equal, assert_array_almost_equal
@@ -14,6 +15,7 @@ from ..distributions.distribution_samples import (
     CategoricalSample, LaplaceSample, KumaraswamySample,
     BetaSample, GammaSample, DirichletSample
 )
+from helpers import display_samples
 
 
 def get_sample(mean, distribution_sample, size, t_mean=None):
@@ -188,6 +190,31 @@ class TestGaussianSample(TestCase):
         gaussian_sample = GaussianSample()
         sample = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
         assert_equal(sample, 0)
+
+    def test_log_likelihood(self):
+        seed = utt.fetch_seed()
+        mean, var = 0, 1
+        size = 5
+        mean_vector = np.ones(size).astype("float32") * mean
+        var_vector = np.ones(size).astype("float32") * var
+        sample = np.zeros(size).astype("float32")
+        gaussian_sample = GaussianSample(seed=seed)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_mean = T.matrix("mean")
+        t_var = T.matrix("var")
+        t_sample = T.fvector("sample")
+
+        t_log_likelihood = gaussian_sample.log_likelihood(t_sample, t_mean, t_var)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mean, t_var], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood(sample, [mean_vector], [var_vector])
+        display_samples(log_likelihood)
+
+        scipy_likelihood = scipy.stats.norm(mean, var).pdf(sample)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+        print scipy_log_likelihood
+
+        assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=6)
 
 
 class TestConcreteSample(TestCase):
