@@ -603,7 +603,7 @@ class UniformSample(DistributionSample):
 
         b : Theano variable, the output of a fully connected layer (Softplus)
         """
-        NotImplementedError
+        raise NotImplementedError
 
 
 class UnitGaussianSample(GaussianSample):
@@ -737,6 +737,11 @@ class UnitUniformSample(UniformSample):
     """
     Standard uniform distribution
     """
+    def __init__(self, seed=1, a=-1, b=1):
+        self.a = a
+        self.b = b
+        super(UnitUniformSample, self).__init__(seed=seed)
+
 
     def sample(self, shape):
         """
@@ -746,10 +751,10 @@ class UnitUniformSample(UniformSample):
            sets a shape of the output sample
         """
 
-        return self.srng.uniform(shape, low=-1, high=1)
+        return self.srng.uniform(shape, low=self.a, high=self.b)
 
     def log_likelihood(self, samples):
-        NotImplementedError
+        raise NotImplementedError
 
 
 def mean_sum_samples(samples):
