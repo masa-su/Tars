@@ -19,10 +19,8 @@ class GAN(Model):
                  d_optimizer_params={},
                  p_critic=lambda gt: -T.log(gt+epsilon()),
                  d_critic=lambda t, gt: -T.log(t+epsilon()) - T.log(1-gt+epsilon()),
-                 p_clip_param=None,
-                 d_clip_param=None,
-                 p_clip_grad=None,
-                 d_clip_grad=None,
+                 p_clip_param=None, d_clip_param=None,
+                 p_clip_grad=None, d_clip_grad=None,
                  p_max_norm_constraint=None,
                  d_max_norm_constraint=None,
                  l1_lambda=0, seed=1234):
@@ -30,6 +28,7 @@ class GAN(Model):
 
         self.p = p
         self.d = d
+        self.prior = prior
         self.hidden_dim = self.p.get_input_shape()[0][1:]
 
         self.l1_lambda = l1_lambda  # for pix2pix
@@ -105,13 +104,15 @@ class GAN(Model):
             start = i * self.n_batch
             end = start + self.n_batch
             batch_x = [_x[start:end] for _x in train_set]
-            batch_z =\
-                self.rng.uniform(-1., 1.,
-                                 size=z_dim).astype(batch_x[0].dtype)
-            _x = [batch_z] + batch_x
+
             for _ in range(freq):
-                loss = self.p_train(*_x)
-            loss = self.d_train(*_x)
+                batch_z = self.prior.sample(z_dim)
+                inputs = [batch_z] + batch_x
+                loss = self.d_train(*inputs)
+
+            batch_z = self.prior.sample(z_dim)
+            inputs = [batch_z] + batch_x
+            loss = self.p_train(*inputs)
             loss_all.append(np.array(loss))
 
             if verbose:
@@ -134,13 +135,10 @@ class GAN(Model):
         for i in range(nbatches):
             start = i * n_batch
             end = start + n_batch
-            batch_x = [_x[start:end] for _x in test_set]
-            batch_z =\
-                self.rng.uniform(-1., 1.,
-                                 size=z_dim).astype(batch_x[0].dtype)
 
-            _x = [batch_z] + batch_x
-            loss = self.test(*_x)
+            batch_z = self.prior.sample(z_dim)
+            inputs = [batch_z] + batch_x
+            loss = self.test(*inputs)
             loss_all.append(np.array(loss))
 
             if verbose:
