@@ -69,10 +69,8 @@ class WGAN(GAN):
 
         # Gradient penalty
         if deterministic is False: 
-            epsilon = self.random_number_eps.sample((x[0].shape[0], 1)) # 2-D
-            """
-            epsilon = self.random_number_eps.sample((x[0].shape[0])) # 1-D
-
+            epsilon = self.random_number_eps.sample((x[0].shape[0],)) # 1-D
+            
             def _iter(i, epsilon, gx, x, *args):
                 y = [_y[i][np.newaxis,:] for y in args]
                 x_hat = x[i]*epsilon + gx[i]*(1-epsilon)  #1-D
@@ -87,6 +85,8 @@ class WGAN(GAN):
             l2_delta_t_hat = T.sum(delta_t_hat, axis=-1)**2  # 1-D
 
             """
+            epsilon = self.random_number_eps.sample((x[0].shape[0], 1)) # 2-D
+
             x_hat = x[0]*epsilon + gx*(1-epsilon)  # 2-D
             t_hat = self.d.sample_mean_given_x(
                 [x_hat] + x[1:], deterministic=deterministic)[-1]  # 2-D
@@ -97,6 +97,7 @@ class WGAN(GAN):
                             sequences=T.arange(x_hat.shape[0]),
                             non_sequences=[t_hat, x_hat])  # 2-D
             l2_delta_t_hat = T.sum(delta_t_hat, axis=-1)**2  # 1-D
+            """
 
             grad_penalty = l2_delta_t_hat - 1
             d_loss += self.gradient_penalty_lambda * grad_penalty**2
