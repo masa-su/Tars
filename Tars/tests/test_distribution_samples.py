@@ -50,6 +50,9 @@ def get_sample_double(mean, var, distribution_sample_double, size, t_mean=None, 
 
 
 class TestGumbelSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
+
     @staticmethod
     def get_sample(mu, beta, gumbel, size):
         # get a sample from given gumbel distribution in ndarray
@@ -65,7 +68,7 @@ class TestGumbelSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mu, beta = 0, 1
-        gumbel_sample = GumbelSample(temp=0.01, seed=1234567890)
+        gumbel_sample = GumbelSample(temp=0.01, seed=self.seed)
         actual = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
         desired = [
             1.7462246417999268,
@@ -82,9 +85,32 @@ class TestGumbelSample(TestCase):
         sample = TestGumbelSample.get_sample(mu, beta, gumbel_sample, 5)
         assert_equal(sample, 0)
 
+    def test_log_likelihood(self):
+        mu, beta = 0, 1
+        size = 5
+        mu_vector = np.ones(size).astype("float32") * mu
+        beta_vector = np.ones(size).astype("float32") * beta
+        sample = np.zeros(size).astype("float32")
+        gumbel_sample = GumbelSample(seed=self.seed, temp=0.1)
+
+        # Directly create theano betaiables instead of using InputLayer.input_beta
+        t_mu = T.matrix("mu")
+        t_beta = T.matrix("beta")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = gumbel_sample.log_likelihood(t_sample, t_mu, t_beta)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mu, t_beta], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mu_vector], [beta_vector])
+
+        scipy_likelihood = scipy.stats.gumbel_r(mu, beta).pdf(sample)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+
+        assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=6)
+
 
 class TestBernoulliSample(TestCase):
     def setUp(self):
+        self.seed = 1234567890
         self.bernoulli_sample = BernoulliSample(temp=0.01, seed=1)
 
     @staticmethod
@@ -122,7 +148,7 @@ class TestBernoulliSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0.5
-        bernoulli_sample = BernoulliSample(temp=0.1, seed=1234567890)
+        bernoulli_sample = BernoulliSample(temp=0.1, seed=self.seed)
         actual = TestBernoulliSample.get_sample(mean, bernoulli_sample, 5)
         desired = [
             0.9999971508356551,
@@ -133,10 +159,30 @@ class TestBernoulliSample(TestCase):
         ]
         assert_array_almost_equal(actual, desired, decimal=6)
 
+    def test_log_likelihood(self):
+        mean = 0.5
+        size = 5
+        mean_vector = np.ones(size).astype("float32") * mean
+        sample = np.zeros(size).astype("float32")
+        bernoulli_sample = BernoulliSample(seed=self.seed, temp=0.01)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_mean = T.matrix("mean")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = bernoulli_sample.log_likelihood(t_sample, t_mean)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mean], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector])
+
+        scipy_likelihood = scipy.stats.bernoulli(mean).pmf(sample)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+
+        assert_array_almost_equal(log_likelihood[0], scipy_log_likelihood, decimal=6)
+
 
 class TestGaussianSample(TestCase):
     def setUp(self):
-        pass
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(mean, var, gaussian, size):
@@ -174,7 +220,7 @@ class TestGaussianSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean, var = 0, 1
-        gaussian_sample = GaussianSample(seed=1234567890)
+        gaussian_sample = GaussianSample(seed=self.seed)
         actual = TestGaussianSample.get_sample(mean, var, gaussian_sample, 5)
         desired = [
             -0.1004791483283043,
@@ -192,32 +238,31 @@ class TestGaussianSample(TestCase):
         assert_equal(sample, 0)
 
     def test_log_likelihood(self):
-        seed = utt.fetch_seed()
         mean, var = 0, 1
         size = 5
         mean_vector = np.ones(size).astype("float32") * mean
         var_vector = np.ones(size).astype("float32") * var
         sample = np.zeros(size).astype("float32")
-        gaussian_sample = GaussianSample(seed=seed)
+        gaussian_sample = GaussianSample(seed=self.seed)
 
         # Directly create theano variables instead of using InputLayer.input_var
         t_mean = T.matrix("mean")
         t_var = T.matrix("var")
-        t_sample = T.fvector("sample")
+        t_sample = T.matrix("sample")
 
         t_log_likelihood = gaussian_sample.log_likelihood(t_sample, t_mean, t_var)
         f_log_likelihood = theano.function(inputs=[t_sample, t_mean, t_var], outputs=t_log_likelihood)
-        log_likelihood = f_log_likelihood(sample, [mean_vector], [var_vector])
-        display_samples(log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector], [var_vector])
 
         scipy_likelihood = scipy.stats.norm(mean, var).pdf(sample)
         scipy_log_likelihood = np.log(scipy_likelihood).sum()
-        print scipy_log_likelihood
 
         assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=6)
 
 
 class TestConcreteSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(mean, concrete, size):
@@ -232,7 +277,7 @@ class TestConcreteSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0
-        concrete_sample = ConcreteSample(seed=1234567890)
+        concrete_sample = ConcreteSample(seed=self.seed)
         actual = TestConcreteSample.get_sample(mean, concrete_sample, 5)
         desired = [
             0.9994389867572965,
@@ -244,8 +289,14 @@ class TestConcreteSample(TestCase):
         # TODO: Avoid returning a nested array?
         assert_array_almost_equal(actual[0], desired, decimal=6)
 
+    def test_log_likelihood(self):
+        concrete_sample = ConcreteSample()
+        self.assertRaises(NotImplementedError, concrete_sample.log_likelihood)
+
 
 class TestCategoricalSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(mean, categorical, size, t_mean=None):
@@ -275,8 +326,29 @@ class TestCategoricalSample(TestCase):
         ]
         assert_array_almost_equal(actual[0], desired, decimal=15)
 
+    def test_log_likelihood(self):
+        mean_vector = [0.25]*4
+        sample = [0,1,0,0]
+        size = len(mean_vector)
+        categorical_sample = CategoricalSample(seed=self.seed)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_mean = T.matrix("mean")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = categorical_sample.log_likelihood(t_sample, t_mean)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mean], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector])
+
+        scipy_likelihood = scipy.stats.multinomial.pmf(sample, n=1, p=mean_vector)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+
+        assert_array_almost_equal(log_likelihood[0], scipy_log_likelihood, decimal=6)
+
 
 class TestLaplaceSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(mean, b, laplace, size):
@@ -310,7 +382,7 @@ class TestLaplaceSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         mean = 0
         b = 1
-        laplace_sample = LaplaceSample(seed=1234567890)
+        laplace_sample = LaplaceSample(seed=self.seed)
         actual = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
         desired = [
             1.1390253305435181,
@@ -327,8 +399,32 @@ class TestLaplaceSample(TestCase):
         sample = TestLaplaceSample.get_sample(mean, b, laplace_sample, 5)
         assert_equal(sample, 0)
 
+    def test_log_likelihood(self):
+        mean, b = 0, 1
+        size = 5
+        mean_vector = np.ones(size).astype("float32") * mean
+        b_vector = np.ones(size).astype("float32") * b
+        sample = np.zeros(size).astype("float32")
+        laplace_sample = LaplaceSample(seed=self.seed)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_mean = T.matrix("mean")
+        t_b = T.matrix("var")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = laplace_sample.log_likelihood(t_sample, t_mean, t_b)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mean, t_b], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector], [b_vector])
+
+        scipy_likelihood = scipy.stats.laplace(mean, b).pdf(sample)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+
+        assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=6)
+
 
 class TestKumaraswamySample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(a, b, kumaraswamy, size):
@@ -346,7 +442,7 @@ class TestKumaraswamySample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         a = 0.5
         b = 0.5
-        kumaraswamy_sample = KumaraswamySample(seed=1234567890)
+        kumaraswamy_sample = KumaraswamySample(seed=self.seed)
         actual = TestKumaraswamySample.get_sample(a, b, kumaraswamy_sample, 5)
         desired = [
             0.0867361798882484,
@@ -359,6 +455,8 @@ class TestKumaraswamySample(TestCase):
 
 
 class TestBetaSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(a, b, beta, size):
@@ -376,7 +474,7 @@ class TestBetaSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         a = 0.5
         b = 0.5
-        beta_sample = BetaSample(seed=1234567890)
+        beta_sample = BetaSample(seed=self.seed)
         actual = TestBetaSample.get_sample(a, b, beta_sample, 5)
         desired = [
             0.1251193732023239,
@@ -387,8 +485,32 @@ class TestBetaSample(TestCase):
         ]
         assert_array_almost_equal(actual, desired, decimal=6)
 
+    def test_log_likelihood(self):
+        a, b = 0.5, 0.5
+        size = 1
+        mean_vector = np.ones(size).astype("float32") * a
+        var_vector = np.ones(size).astype("float32") * b
+        sample = np.ones(size).astype("float32") * 0.5
+        beta_sample = BetaSample(seed=self.seed)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_a = T.matrix("a")
+        t_b = T.matrix("b")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = beta_sample.log_likelihood(t_sample, t_a, t_b)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_a, t_b], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector], [var_vector])
+
+        scipy_likelihood = scipy.stats.beta(a, b).pdf(sample)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+
+        assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=6)
+
 
 class TestGammaSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(a, b, gamma, size):
@@ -406,7 +528,7 @@ class TestGammaSample(TestCase):
         # Ensure that returned values stay the same when setting a fixed seed.
         a = 0.5
         b = 0.5
-        gamma_sample = GammaSample(seed=1234567890)
+        gamma_sample = GammaSample(seed=self.seed)
         actual = TestGammaSample.get_sample(a, b, gamma_sample, 5)
         desired = [
             0.0402308329939842,
@@ -418,7 +540,32 @@ class TestGammaSample(TestCase):
         assert_array_almost_equal(actual, desired, decimal=6)
 
 
+    def test_log_likelihood(self):
+        a, b = 0.5, 0.5
+        size = 1
+        a_vector = np.ones(size).astype("float32") * a
+        b_vector = np.ones(size).astype("float32") * b
+        sample = np.ones(size).astype("float32")
+        gamma_sample = GammaSample(seed=self.seed)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_a = T.matrix("a")
+        t_b = T.matrix("b")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = gamma_sample.log_likelihood(t_sample, t_a, t_b)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_a, t_b], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [a_vector], [b_vector])
+
+        scipy_likelihood = scipy.stats.gamma(a).pdf(sample)
+        scipy_log_likelihood = (np.log(scipy_likelihood) + a * np.log(b) + sample - b*sample).sum()
+
+        assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=6)
+
+
 class TestDirichletSample(TestCase):
+    def setUp(self):
+        self.seed = 1234567890
 
     @staticmethod
     def get_sample(alpha, dirichlet, size):
@@ -433,7 +580,7 @@ class TestDirichletSample(TestCase):
     def test_consistency(self):
         # Ensure that returned values stay the same when setting a fixed seed.
         alpha = 0.5
-        dirichlet_sample = DirichletSample(k=2, seed=1234567890)
+        dirichlet_sample = DirichletSample(k=2, seed=self.seed)
         actual = TestDirichletSample.get_sample(alpha, dirichlet_sample, 5)
         desired = [
             0.1251193732023239,
@@ -443,3 +590,24 @@ class TestDirichletSample(TestCase):
             0.0000000000000000
         ]
         assert_array_almost_equal(actual, desired, decimal=6)
+
+    def test_log_likelihood(self):
+        # size and k need to be the same
+        a = 1.2
+        size = 2
+        a_vector = np.ones(size).astype("float32") * a
+        sample = np.ones(size).astype("float32") * 0.5
+        dirichlet_sample = DirichletSample(k=2, seed=self.seed)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_a = T.fmatrix("a")
+        t_sample = T.fmatrix("sample")
+        t_log_likelihood = dirichlet_sample.log_likelihood(t_sample, t_a)
+
+        f_log_likelihood = theano.function(inputs=[t_sample, t_a], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [a_vector])
+
+        scipy_likelihood = scipy.stats.dirichlet(a_vector).pdf(sample)
+        scipy_log_likelihood = np.log(scipy_likelihood).sum()
+
+        assert_array_almost_equal(log_likelihood, scipy_log_likelihood, decimal=7)
