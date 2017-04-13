@@ -441,7 +441,6 @@ class TestGammaSample(TestCase):
         ]
         assert_array_almost_equal(actual, desired, decimal=6)
 
-
     def test_log_likelihood(self):
         a, b = 0.5, 0.5
         size = 1
