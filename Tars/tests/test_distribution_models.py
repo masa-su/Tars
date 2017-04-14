@@ -1,11 +1,14 @@
 import numpy as np
 import theano
-from lasagne.layers import InputLayer
+import lasagne
+from lasagne.layers import InputLayer, DenseLayer
 from unittest import TestCase
 from numpy.testing import (
     assert_array_almost_equal
 )
 from Tars.distributions.distribution_models import (
+    Distribution,
+    DistributionDouble,
     Bernoulli,
     Categorical,
     Gaussian,
@@ -20,6 +23,7 @@ from Tars.tests.test_distribution_samples import (
     get_sample_double,
 )
 from Tars.distributions.distribution_samples import (
+    DistributionSample,
     BernoulliSample,
     CategoricalSample,
     GaussianSample,
@@ -43,6 +47,19 @@ class TestDistribution(TestCase):
         f = theano.function(inputs=t_mean, outputs=t_sample)
         return f([mean_sample])[0]
 
+    def test_get_params(self):
+        # Use BernoulliSample as DistributionSample is an abstract class and cannot instantiate
+        distribution_sample = BernoulliSample()
+        mean_layer = InputLayer((1, None))
+        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
+        self.assertEqual(distribution_model.get_params(), [])
+
+        distribution_sample = BernoulliSample()
+        x = InputLayer((1, 5))
+        mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
+        distribution_model = Distribution(distribution_sample, mean_layer, given=[x])
+        params = distribution_model.get_params()
+        self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b])
 
 class TestDistributionDouble(TestCase):
     @staticmethod
