@@ -54,12 +54,20 @@ class TestDistribution(TestCase):
         distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
         self.assertEqual(distribution_model.get_params(), [])
 
-        distribution_sample = BernoulliSample()
         x = InputLayer((1, 5))
         mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
         distribution_model = Distribution(distribution_sample, mean_layer, given=[x])
         params = distribution_model.get_params()
         self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b])
+
+    def test_fprop(self):
+        distribution_sample = BernoulliSample()
+        mean_layer = InputLayer((1, None))
+        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
+        output = distribution_model.fprop(distribution_model.inputs)
+        self.assertEqual(output, mean_layer.input_var)
+        self.assertEqual(isinstance(output, theano.tensor.TensorVariable), True)
+
 
 class TestDistributionDouble(TestCase):
     @staticmethod
