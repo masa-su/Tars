@@ -15,7 +15,6 @@ from ..distributions.distribution_samples import (
     CategoricalSample, LaplaceSample, KumaraswamySample,
     BetaSample, GammaSample, DirichletSample
 )
-from helpers import display_samples
 
 
 def get_sample(mean, distribution_sample, size, t_mean=None):
@@ -278,8 +277,7 @@ class TestCategoricalSample(TestCase):
 
     def test_log_likelihood(self):
         mean_vector = [0.25]*4
-        sample = [0,1,0,0]
-        size = len(mean_vector)
+        sample = [0, 1, 0, 0]
         categorical_sample = CategoricalSample(seed=self.seed)
 
         # Directly create theano variables instead of using InputLayer.input_var
