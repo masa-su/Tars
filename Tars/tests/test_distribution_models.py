@@ -68,6 +68,25 @@ class TestDistribution(TestCase):
         self.assertEqual(output, mean_layer.input_var)
         self.assertEqual(isinstance(output, theano.tensor.TensorVariable), True)
 
+    def test_get_input_shape(self):
+        distribution_sample = BernoulliSample()
+        mean_layer = InputLayer((1, None))
+        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
+        self.assertEqual(distribution_model.get_input_shape(), [(1, None)])
+
+    def test_get_output_shape(self):
+        distribution_sample = BernoulliSample()
+        mean_layer = InputLayer((1, None))
+        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
+        self.assertEqual(distribution_model.get_output_shape(), (1, None))
+
+    def test_sample_mean_given_x(self):
+        distribution_sample = BernoulliSample()
+        mean_layer = InputLayer((1, None))
+        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
+        mean = distribution_model.sample_mean_given_x(distribution_model.inputs)
+        self.assertEqual(mean[1], mean_layer.input_var)
+
 
 class TestDistributionDouble(TestCase):
     @staticmethod
