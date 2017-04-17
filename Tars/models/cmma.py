@@ -124,7 +124,10 @@ class CMMA(VAE):
         rep_x = [T.extra_ops.repeat(_x, l * k, axis=0) for _x in x]
 
         if missing:
-            NotImplementedError
+            samples = self.p[0].sample_given_x([rep_x[1]], deterministic=True)
+            samples = self._select_input(samples, inputs=rep_x)
+            log_iw = self._log_cd_importance_weight(samples,
+                                                     deterministic=True)
 
         else:
             samples = self.q.sample_given_x(rep_x, deterministic=True)
@@ -155,7 +158,7 @@ class CMMA(VAE):
 
         """
         log p(z1,z2,...,zn|y)
-        inverse_samples : [y,zn,,zn-1,...,x]
+        inverse_samples : [y,zn,,zn-1,...,z1]
         """
         samples_0 = self._select_input(samples, [1])
         p0_log_likelihood =\
@@ -203,6 +206,37 @@ class CMMA(VAE):
         if self.prior_mode == "MultiPrior":
             log_iw += self.prior.log_likelihood_given_x(prior_samples,
                                                         add_prior=False)
+
+        return log_iw
+
+    def _log_cd_importance_weight(self, samples, deterministic=True):
+        """
+        Paramaters
+        ----------
+        samples : list
+           [[x0,x1,...],z1,z2,...,zn]
+
+        Returns
+        -------
+        log_iw : array, shape (n_samples*k)
+           Estimated log likelihood.
+           log p(x0|z,x1)
+        """
+
+        log_iw = 0
+
+        """
+        log p(x|z1,z2,...,zn)
+        inverse_samples : [zn,zn-1,...,x]
+        """
+        samples_1 = self._select_input(samples, [0])
+        p_samples = self._inverse_samples(samples_1)
+
+        p1_log_likelihood =\
+            self.p[1].log_likelihood_given_x(p_samples,
+                                             deterministic=deterministic)
+
+        log_iw += p1_log_likelihood
 
         return log_iw
 
