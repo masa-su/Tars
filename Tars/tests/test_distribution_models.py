@@ -523,9 +523,3 @@ class TestDirichlet(TestCase):
         )
         np_sample_given_x = self.model.np_sample_given_x([self.alpha_sample])[0]
         assert_array_almost_equal(sample_given_x, np_sample_given_x, decimal=15)
-
-
-def display_samples(samples, format='e'):
-    for i in samples:
-        print ('{0:.16%s}' % format).format(i)
-    print '='*20
