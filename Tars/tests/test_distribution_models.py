@@ -145,6 +145,35 @@ class TestDistributionDouble(TestCase):
         f = theano.function(inputs=[t_mean, t_var], outputs=sample)
         return f([mean_sample], [var_sample])[0]
 
+    def setUp(self):
+        self.distribution_sample = GaussianSample()
+        self.mean_layer = InputLayer((1, None))
+        self.var_layer = InputLayer((1, None))
+        self.distribution_model = DistributionDouble(
+            self.distribution_sample,
+            self.mean_layer,
+            self.var_layer,
+            given=[self.mean_layer, self.var_layer]
+        )
+
+    def test_fprop(self):
+        output_mean, output_var = self.distribution_model.fprop(self.distribution_model.inputs)
+
+        self.assertEqual(output_mean, self.mean_layer.input_var)
+        self.assertEqual(output_var, self.var_layer.input_var)
+        self.assertEqual(isinstance(output_mean, theano.tensor.TensorVariable), True)
+        self.assertEqual(isinstance(output_var, theano.tensor.TensorVariable), True)
+
+    def test_get_params(self):
+        self.assertEqual(self.distribution_model.get_params(), [])
+
+        x = InputLayer((1, 5))
+        mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
+        var_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
+        distribution_model = DistributionDouble(self.distribution_sample, mean_layer, var_layer, given=[x])
+        params = distribution_model.get_params()
+        self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b, var_layer.W, var_layer.b])
+
 
 class TestBernoulli(TestCase):
     def setUp(self):
