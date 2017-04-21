@@ -24,7 +24,6 @@ from Tars.tests.test_distribution_samples import (
     get_sample_double,
 )
 from Tars.distributions.distribution_samples import (
-    DistributionSample,
     BernoulliSample,
     CategoricalSample,
     GaussianSample,
@@ -62,7 +61,6 @@ class TestDistribution(TestCase):
         x = InputLayer((1, 5))
         mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
         distribution_model = Distribution(distribution_sample, mean_layer, given=[x])
-        params = distribution_model.get_params()
         self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b])
 
     def test_fprop(self):
@@ -123,7 +121,7 @@ class TestDistribution(TestCase):
         distribution_model = Distribution(bernoulli_sample, mean_layer, given=[mean_layer])
         distribution_model.set_seed(self.seed)
 
-        t_log_likelihood_given_x = distribution_model.log_likelihood_given_x([ [t_x], t_sample ])
+        t_log_likelihood_given_x = distribution_model.log_likelihood_given_x([[t_x], t_sample])
         f_log_likelihood_given_x = theano.function(inputs=[mean_layer.input_var, t_sample], outputs=t_log_likelihood_given_x)
         log_likelihood_given_x = f_log_likelihood_given_x([x], [sample])
 
@@ -171,7 +169,6 @@ class TestDistributionDouble(TestCase):
         mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
         var_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
         distribution_model = DistributionDouble(self.distribution_sample, mean_layer, var_layer, given=[x])
-        params = distribution_model.get_params()
         self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b, var_layer.W, var_layer.b])
 
 
