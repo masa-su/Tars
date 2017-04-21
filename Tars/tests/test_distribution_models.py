@@ -246,6 +246,13 @@ class TestCategorical(TestCase):
         mean_layer = InputLayer(input_size)
         return Categorical(mean_layer, given=[mean_layer], seed=seed)
 
+    def test_fprop(self):
+        t_x = [self.mean_layer.input_var]
+        t_output = self.model.fprop(t_x)
+        f_output = theano.function(inputs=[t_x[0]], outputs=t_output)
+        output = f_output([self.mean_sample])
+        self.assertEqual(output[0], self.mean_sample)
+
     def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
         actual = TestDistribution.get_sample_given_x(
