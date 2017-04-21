@@ -43,7 +43,7 @@ class TestDistribution(TestCase):
         self.distribution_sample = BernoulliSample()
         self.mean_layer = InputLayer((1, None))
         self.distribution_model = Distribution(
-            self.istribution_sample,
+            self.distribution_sample,
             self.mean_layer,
             given=[self.mean_layer]
         )
@@ -240,7 +240,7 @@ class TestCategorical(TestCase):
         t_output = self.model.fprop(t_x)
         f_output = theano.function(inputs=[t_x[0]], outputs=t_output)
         output = f_output([self.mean_sample])
-        self.assertEqual(output[0], self.mean_sample)
+        self.assertEqual((output[0] == self.mean_sample).all(), True)
 
     def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
