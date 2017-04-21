@@ -39,6 +39,14 @@ class TestDistribution(TestCase):
 
     def setUp(self):
         self.seed = 1234568790
+        # Use BernoulliSample as DistributionSample is an abstract class and cannot instantiate
+        self.distribution_sample = BernoulliSample()
+        self.mean_layer = InputLayer((1, None))
+        self.distribution_model = Distribution(
+            self.istribution_sample,
+            self.mean_layer,
+            given=[self.mean_layer]
+        )
 
     @staticmethod
     def get_samples(mean, size):
@@ -52,43 +60,27 @@ class TestDistribution(TestCase):
         return f([mean_sample])[0]
 
     def test_get_params(self):
-        # Use BernoulliSample as DistributionSample is an abstract class and cannot instantiate
-        distribution_sample = BernoulliSample()
-        mean_layer = InputLayer((1, None))
-        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
-        self.assertEqual(distribution_model.get_params(), [])
+        self.assertEqual(self.distribution_model.get_params(), [])
 
         x = InputLayer((1, 5))
         mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
-        distribution_model = Distribution(distribution_sample, mean_layer, given=[x])
+        distribution_model = Distribution(self.distribution_sample, mean_layer, given=[x])
         self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b])
 
     def test_fprop(self):
-        distribution_sample = BernoulliSample()
-        mean_layer = InputLayer((1, None))
-        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
-        output = distribution_model.fprop(distribution_model.inputs)
-        self.assertEqual(output, mean_layer.input_var)
+        output = self.distribution_model.fprop(self.distribution_model.inputs)
+        self.assertEqual(output, self.mean_layer.input_var)
         self.assertEqual(isinstance(output, theano.tensor.TensorVariable), True)
 
     def test_get_input_shape(self):
-        distribution_sample = BernoulliSample()
-        mean_layer = InputLayer((1, None))
-        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
-        self.assertEqual(distribution_model.get_input_shape(), [(1, None)])
+        self.assertEqual(self.distribution_model.get_input_shape(), [(1, None)])
 
     def test_get_output_shape(self):
-        distribution_sample = BernoulliSample()
-        mean_layer = InputLayer((1, None))
-        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
-        self.assertEqual(distribution_model.get_output_shape(), (1, None))
+        self.assertEqual(self.distribution_model.get_output_shape(), (1, None))
 
     def test_sample_mean_given_x(self):
-        distribution_sample = BernoulliSample()
-        mean_layer = InputLayer((1, None))
-        distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
-        mean = distribution_model.sample_mean_given_x(distribution_model.inputs)
-        self.assertEqual(mean[1], mean_layer.input_var)
+        mean = self.distribution_model.sample_mean_given_x(self.distribution_model.inputs)
+        self.assertEqual(mean[1], self.mean_layer.input_var)
 
     @staticmethod
     def get_log_likelihood(seed, mean, size):
