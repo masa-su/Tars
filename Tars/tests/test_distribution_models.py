@@ -1,5 +1,6 @@
 import numpy as np
 import theano
+import theano.tensor as T
 import lasagne
 from lasagne.layers import InputLayer, DenseLayer
 from unittest import TestCase
@@ -36,6 +37,10 @@ from Tars.distributions.distribution_samples import (
 
 
 class TestDistribution(TestCase):
+
+    def setUp(self):
+        self.seed = 1234568790
+
     @staticmethod
     def get_samples(mean, size):
         return np.ones(size).astype("float32") * mean
@@ -86,6 +91,45 @@ class TestDistribution(TestCase):
         distribution_model = Distribution(distribution_sample, mean_layer, given=[mean_layer])
         mean = distribution_model.sample_mean_given_x(distribution_model.inputs)
         self.assertEqual(mean[1], mean_layer.input_var)
+
+    @staticmethod
+    def get_log_likelihood(seed, mean, size):
+        mean_vector = np.ones(size).astype("float32") * mean
+        sample = np.zeros(size).astype("float32")
+        bernoulli_sample = BernoulliSample(seed=seed, temp=0.01)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_mean = T.matrix("mean")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = bernoulli_sample.log_likelihood(t_sample, t_mean)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mean], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector])
+        return log_likelihood
+
+    def test_log_likelihood_given_x(self):
+        # log_likelihood_given_x and log_likelihood should be the same result
+        # when InputLayer is given as x
+        mean = 0.5
+        size = 5
+        mean_layer = InputLayer((1, None))
+
+        t_x = mean_layer.input_var
+        t_sample = T.matrix("sample")
+        x = np.ones(size).astype("float32") * mean
+        sample = np.zeros(size).astype("float32")
+
+        bernoulli_sample = BernoulliSample(seed=self.seed)
+        distribution_model = Distribution(bernoulli_sample, mean_layer, given=[mean_layer])
+        distribution_model.set_seed(self.seed)
+
+        t_log_likelihood_given_x = distribution_model.log_likelihood_given_x([ [t_x], t_sample ])
+        f_log_likelihood_given_x = theano.function(inputs=[mean_layer.input_var, t_sample], outputs=t_log_likelihood_given_x)
+        log_likelihood_given_x = f_log_likelihood_given_x([x], [sample])
+
+        log_likelihood = TestDistribution.get_log_likelihood(self.seed, mean, size)
+
+        self.assertEqual(log_likelihood_given_x, log_likelihood)
 
 
 class TestDistributionDouble(TestCase):
