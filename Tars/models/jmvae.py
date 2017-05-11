@@ -153,6 +153,11 @@ class JMVAE(VAE):
                     for _ in range(sampling_n - 1):
                         samples = self.q.sample_given_x(_rep_x,
                                                         deterministic=True)[-1]
+
+                        if self.prior_mode == "MultiPrior":
+                            samples = self.prior.sample_given_x([samples],
+                                                                deterministic=True)[-1]
+                        
                         for j in index:
                             _rep_x[j] = self.p[j].sample_given_x([samples])[-1]
 
@@ -314,10 +319,17 @@ class JMVAE(VAE):
         -------
         log_iw : array, shape (n_samples*k)
            Estimated log likelihood.
-           log p(x[index]|z1,z2,...,zn)
+           log p(x[index]|z1)
         """
 
         log_iw = 0
+
+        # z1~p(z1|z2)
+        if self.prior_mode == "MultiPrior":
+            samples_z = self.prior.sample_given_x([samples[-1]],
+                                                  deterministic=True)[-1]
+            samples = [samples[0], samples_z]
+
         # log p(x[index]|z1)
         p_log_likelihood_all = []
         for i in index:
@@ -328,10 +340,12 @@ class JMVAE(VAE):
             p_log_likelihood_all.append(p_log_likelihood)
 
         log_iw += sum(p_log_likelihood_all)
+        """
         # log p(z1,,z2,...|zn)
         if self.prior_mode == "MultiPrior":
             log_iw += self.prior.log_likelihood_given_x(prior_samples,
                                                         add_prior=False)
+        """
 
         return log_iw
 
