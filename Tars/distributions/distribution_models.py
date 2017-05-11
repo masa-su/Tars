@@ -163,7 +163,7 @@ class Distribution(object):
             samples = self.log_likelihood_given_x([x, sample],
                                                   deterministic=True)
             self.np_log_liklihood_given_x = theano.function(
-                inputs=x + [sample], outputs=samples[-1],
+                inputs=x + [sample], outputs=samples,
                 on_unused_input='ignore')
 
     @abstractmethod
@@ -265,10 +265,10 @@ class Gaussian(Gaussian_sample, Distribution_double):
         self._set_theano_func()
 
 
-class GaussianConstantVar(Gaussian_sample, Deterministic):
+class GaussianConstantVar(Gaussian_sample, Distribution):
 
     def __init__(self, mean_network, given, var=1, seed=1):
-        Deterministic.__init__(self, mean_network, given)
+        Distribution.__init__(self, mean_network, given)
         super(GaussianConstantVar, self).__init__(seed=seed)
         self.constant_var = var
         self._set_theano_func()
