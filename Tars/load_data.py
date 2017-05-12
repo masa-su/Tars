@@ -275,7 +275,7 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
 
 
 def flickr(datapath):
-    def load(version=1, label=True, toFloat=True):
+    def load(version=1, label=True, toFloat=True, raw_image=True):
         if label:
             train_indices = np.load(
                 datapath + "flickr/splits/train_indices_%d.npy" % version)
@@ -284,11 +284,16 @@ def flickr(datapath):
             test_indices = np.load(
                 datapath + "flickr/splits/test_indices_%d.npy" % version)
 
-            x_labelled_path = glob.glob(datapath + "flickr/image/labelled/*")
-            x_labelled_path.sort()
-            x_labelled = np.load(x_labelled_path[0])
-            for path in x_labelled_path[1:]:
-                x_labelled = np.r_[x_labelled, np.load(path)]
+            if raw_image:
+                x_labelled = np.load(
+                    datapath + "flickr/image/labelled/images.npy")
+
+            else:
+                x_labelled_path = glob.glob(datapath + "flickr/image/labelled/combined-*")
+                x_labelled_path.sort()
+                x_labelled = np.load(x_labelled_path[0])
+                for path in x_labelled_path[1:]:
+                    x_labelled = np.r_[x_labelled, np.load(path)]
 
             trn = []
             val = []
