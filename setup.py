@@ -34,7 +34,7 @@ setup(
         'Lasagne==0.2.dev1',
         'matplotlib',
         'progressbar2',
-        'Theano',
+        'Theano==0.8.2',
         'sklearn',
         'six',
         'nose_parameterized',
