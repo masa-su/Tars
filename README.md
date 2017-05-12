@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.com/masa-su/Tars.svg?branch=master&token=Tzd7hmaLjunaLnEja81y)](https://travis-ci.com/masa-su/Tars)
 [![Python Version](https://img.shields.io/badge/python-2.7-blue.svg)](https://github.com/masa-su/Tars)
+[![Documentation Status](https://readthedocs.org/projects/tars-generative-models/badge/?version=latest)](http://tars-generative-models.readthedocs.io/en/latest/?badge=latest)
 
 Tars is a deep generative models library. It has the following features:
 * Various distributions
