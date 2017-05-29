@@ -32,6 +32,37 @@ class SS_VAE(VAE):
                              train_iw=True, test_iw=True,
                              iw_alpha=0, seed=seed)
 
+        self.regularization_penalty = regularization_penalty
+
+        # inputs
+        x_u = self.q.inputs[:-1]
+        x_l = deepcopy(self.q.inputs[:-1])
+        y = T.fmatrix("y")
+        l = T.iscalar("l")
+        k = T.iscalar("k")
+
+        # train
+        self._set_train(self.optimizer_params)
+
+        # test
+        inputs = x_u + x_l + [y, l, k]
+        lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True,
+                                                  tolist(y))
+
+        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
+
+        self.lower_bound_test = theano.function(inputs=inputs,
+                                                outputs=lower_bound,
+                                                on_unused_input='ignore')
+        # test (classification)
+        inputs = x_l + [y]
+        lower_bound_y, _, _ = self._discriminate(x_l, tolist(y), True)
+        self.classifier_test = theano.function(inputs=inputs,
+                                               outputs=T.mean(lower_bound_y),
+                                               on_unused_input='ignore')
+    
+    def _set_train(self, optimizer_params):
         # inputs
         x_u = self.q.inputs[:-1]
         x_l = deepcopy(self.q.inputs[:-1])
@@ -51,33 +82,28 @@ class SS_VAE(VAE):
                        T.mean(lower_bound_y)]
 
         loss = loss_u + loss_l + rate*loss_y
-        if regularization_penalty:
-            loss += regularization_penalty
-        updates = self._get_updates(loss, params, optimizer, optimizer_params,
-                                    clip_grad, max_norm_constraint)
+        if self.regularization_penalty:
+            loss += self.regularization_penalty
+        updates = self._get_updates(loss, params, self.optimizer, self.optimizer_params,
+                                    self.clip_grad, self.max_norm_constraint)
 
         self.lower_bound_train = theano.function(inputs=inputs,
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-        # test
-        inputs = x_u + x_l + [y, l, k]
-        lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True,
-                                                  tolist(y))
-
-        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
-
-        self.lower_bound_test = theano.function(inputs=inputs,
-                                                outputs=lower_bound,
-                                                on_unused_input='ignore')
-        # test (classification)
+        # training (classification)
         inputs = x_l + [y]
-        lower_bound_y, _, _ = self._discriminate(x_l, tolist(y), True)
-        self.classifier_test = theano.function(inputs=inputs,
-                                               outputs=T.mean(lower_bound_y),
-                                               on_unused_input='ignore')
+        lower_bound_y, loss, params = self._discriminate(x_l, tolist(y), False)
+        if self.regularization_penalty:
+            loss += self.regularization_penalty
+        updates = self._get_updates(loss, params, self.optimizer, optimizer_params,
+                                    self.clip_grad, self.max_norm_constraint)
+
+        self.classifier_train = theano.function(inputs=inputs,
+                                                outputs=T.mean(lower_bound_y),
+                                                updates=updates,
+                                                on_unused_input='ignore')
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
               nbatches=2000, get_batch_samples=None,
@@ -98,6 +124,28 @@ class SS_VAE(VAE):
             _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
             lower_bound = self.lower_bound_train(*_x)
 
+            lower_bound_all.append(np.array(lower_bound))
+
+            if verbose:
+                pbar.update(i)
+
+        lower_bound_all = np.mean(lower_bound_all, axis=0)
+        return lower_bound_all
+
+    def train_classifier(self, train_set_l, nbatches=2000,
+                         get_batch_samples=None, verbose=False):
+
+        lower_bound_all = []
+
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
+
+        for i in range(nbatches):
+            # label
+            batch_set_l = get_batch_samples(train_set_l,
+                                            n_batch=self.n_batch)
+
+            lower_bound = self.classifier_train(*batch_set_l)
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -135,6 +183,30 @@ class SS_VAE(VAE):
             lower_bound.append(classifier)
 
             lower_bound_all.append(np.array(lower_bound))
+
+            if verbose:
+                pbar.update(i)
+
+        return lower_bound_all
+
+    def test_classifier(self, test_set_l, n_batch=None, verbose=True):
+        if n_batch is None:
+            n_batch = self.n_batch
+
+        n_x = test_set_l[0].shape[0]
+        nbatches = n_x // n_batch
+        lower_bound_all = []
+
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
+        for i in range(nbatches):
+            # label
+            start = i * self.n_batch
+            end = start + self.n_batch
+            batch_x_l = [_x[start:end] for _x in test_set_l]
+
+            classifier = self.classifier_test(*batch_x_l)
+            lower_bound_all.append(np.array(classifier))
 
             if verbose:
                 pbar.update(i)
