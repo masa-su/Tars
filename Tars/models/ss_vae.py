@@ -61,7 +61,7 @@ class SS_VAE(VAE):
         self.classifier_test = theano.function(inputs=inputs,
                                                outputs=T.mean(lower_bound_y),
                                                on_unused_input='ignore')
-    
+
     def _set_train(self, optimizer_params):
         # inputs
         x_u = self.q.inputs[:-1]
@@ -81,11 +81,12 @@ class SS_VAE(VAE):
         lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l),
                        T.mean(lower_bound_y)]
 
-        loss = loss_u + loss_l + rate*loss_y
+        loss = loss_u + loss_l + rate * loss_y
         if self.regularization_penalty:
             loss += self.regularization_penalty
-        updates = self._get_updates(loss, params, self.optimizer, self.optimizer_params,
-                                    self.clip_grad, self.max_norm_constraint)
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
 
         self.lower_bound_train = theano.function(inputs=inputs,
                                                  outputs=lower_bound,
@@ -97,8 +98,9 @@ class SS_VAE(VAE):
         lower_bound_y, loss, params = self._discriminate(x_l, tolist(y), False)
         if self.regularization_penalty:
             loss += self.regularization_penalty
-        updates = self._get_updates(loss, params, self.optimizer, optimizer_params,
-                                    self.clip_grad, self.max_norm_constraint)
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
 
         self.classifier_train = theano.function(inputs=inputs,
                                                 outputs=T.mean(lower_bound_y),
@@ -244,10 +246,10 @@ class SS_VAE(VAE):
                                         axis=0) for _y in y]
 
         # z ~ q(z|x,y)
-        z = self.q.sample_given_x(rep_x+rep_y,
+        z = self.q.sample_given_x(rep_x + rep_y,
                                   deterministic=deterministic)[-1:]
         # q_samples = [[x],z]
-        q_samples = [rep_x]+z
+        q_samples = [rep_x] + z
 
         # importance weighted
         log_iw = self._log_importance_weight(q_samples, rep_y,
@@ -302,14 +304,14 @@ class SS_VAE(VAE):
 
         # log q(z|x,y)
         # samples_y : [[x,y],z]
-        samples_y = [tolist(samples[0])+y, samples[-1]]
+        samples_y = [tolist(samples[0]) + y, samples[-1]]
         q_log_likelihood = self.q.log_likelihood_given_x(
             samples_y, deterministic=deterministic)
 
         if supervised is False:
             # log q(y|x)
             # _samples : [[x],y]
-            _samples = [tolist(samples[0])]+y
+            _samples = [tolist(samples[0])] + y
             q_log_likelihood += self.f.log_likelihood_given_x(
                 _samples, deterministic=deterministic)
 
