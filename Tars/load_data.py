@@ -274,8 +274,10 @@ def celeba(datapath, toFloat=True, gray=False, rate=0.001, rseed=0):
     return load, plot, preprocess
 
 
-def flickr(datapath):
-    def load(version=1, label=True, toFloat=True, raw_image=True):
+def flickr(datapath, toFloat=True):
+    p = paramaters()
+
+    def load(version=1, label=True, raw_image=False):
         if label:
             train_indices = np.load(
                 datapath + "flickr/splits/train_indices_%d.npy" % version)
@@ -287,6 +289,7 @@ def flickr(datapath):
             if raw_image:
                 x_labelled = np.load(
                     datapath + "flickr/image/labelled/images.npy")
+                x_labelled = np.rollaxis(x_labelled, 3, 1)
 
             else:
                 x_labelled_path = glob.glob(datapath + "flickr/image/labelled/combined-*")
@@ -315,33 +318,34 @@ def flickr(datapath):
             val.append(w_labelled[valid_indices])
             tst.append(w_labelled[test_indices])
 
-            xw_labelled = np.c_[x_labelled, w_labelled]
-            trn.append(xw_labelled[train_indices])
-            val.append(xw_labelled[valid_indices])
-            tst.append(xw_labelled[test_indices])
+            if raw_image is False:
+                xw_labelled = np.c_[x_labelled, w_labelled]
+                trn.append(xw_labelled[train_indices])
+                val.append(xw_labelled[valid_indices])
+                tst.append(xw_labelled[test_indices])
 
             if toFloat:
-                mean = np.mean(trn[1], axis=0)
-                std = np.sqrt(
-                    np.mean((trn[1] - mean[np.newaxis, :])**2, axis=0))
-                trn[1] = ((trn[1] - mean[np.newaxis, :]) /
-                          std[np.newaxis, :]).astype(np.float32)
-                val[1] = ((val[1] - mean[np.newaxis, :]) /
-                          std[np.newaxis, :]).astype(np.float32)
-                tst[1] = ((tst[1] - mean[np.newaxis, :]) /
-                          std[np.newaxis, :]).astype(np.float32)
+                if raw_image:
+                    p.mean = np.mean(trn[1], axis=0)
+                    p.std = np.sqrt(np.mean((trn[1] - p.mean[np.newaxis])**2, axis=0))
+                    trn[1] = ((trn[1] - p.mean[np.newaxis]) /
+                              p.std[np.newaxis]).astype(np.float32)
+                    val[1] = ((val[1] - p.mean[np.newaxis]) /
+                              p.std[np.newaxis]).astype(np.float32)
+                    tst[1] = ((tst[1] - p.mean[np.newaxis]) /
+                              p.std[np.newaxis]).astype(np.float32)
 
-                """
-                mean = np.mean(trn[3], axis=0)
-                std = np.sqrt(
-                    np.mean((trn[3] - mean[np.newaxis, :])**2, axis=0))
-                trn[3] = ((trn[3] - mean[np.newaxis, :]) /
-                          std[np.newaxis, :]).astype(np.float32)
-                val[3] = ((val[3] - mean[np.newaxis, :]) /
-                          std[np.newaxis, :]).astype(np.float32)
-                tst[3] = ((tst[3] - mean[np.newaxis, :]) /
-                          std[np.newaxis, :]).astype(np.float32)
-                """
+                else:
+                    mean = np.mean(trn[1], axis=0)
+                    std = np.sqrt(
+                        np.mean((trn[1] - mean[np.newaxis, :])**2, axis=0))
+                    trn[1] = ((trn[1] - mean[np.newaxis, :]) /
+                              std[np.newaxis, :]).astype(np.float32)
+                    val[1] = ((val[1] - mean[np.newaxis, :]) /
+                              std[np.newaxis, :]).astype(np.float32)
+                    tst[1] = ((tst[1] - mean[np.newaxis, :]) /
+                              std[np.newaxis, :]).astype(np.float32)
+
             return trn, val, tst
 
         else:
@@ -355,8 +359,20 @@ def flickr(datapath):
 
             return unlabel_trn, unlabel_tst
 
-    def plot():
-        pass
+    def preprocess(X):
+        X = np.rollaxis(X, 3, 1)
+        X = ((X - p.mean[np.newaxis]) / p.std[np.newaxis]).astype(np.float32)
+        return X
+
+    def plot(X):
+        X = X.reshape((-1, 3, 128, 128))
+        if toFloat:
+            X = (X * p.std[np.newaxis]) + p.mean[np.newaxis]
+            X = X / 255.
+        X = np.rollaxis(X, 1, 4)
+        X[X < 0] = 0
+        X[X > 1] = 1
+        return X, None
 
     def LoadSparse(inputfile, verbose=False):
         """Loads a sparse matrix stored as npz file."""
@@ -381,7 +397,7 @@ def flickr(datapath):
 
         return trn
 
-    return load, shuffle, plot
+    return load, shuffle, plot, preprocess
 
 
 def facade(datapath):
