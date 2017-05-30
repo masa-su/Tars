@@ -1,11 +1,15 @@
 import numpy as np
 import theano
-from lasagne.layers import InputLayer
+import theano.tensor as T
+import lasagne
+from lasagne.layers import InputLayer, DenseLayer
 from unittest import TestCase
 from numpy.testing import (
     assert_array_almost_equal
 )
 from Tars.distributions.distribution_models import (
+    Distribution,
+    DistributionDouble,
     Bernoulli,
     Categorical,
     Gaussian,
@@ -32,6 +36,18 @@ from Tars.distributions.distribution_samples import (
 
 
 class TestDistribution(TestCase):
+
+    def setUp(self):
+        self.seed = 1234568790
+        # Use BernoulliSample as DistributionSample is an abstract class and cannot instantiate
+        self.distribution_sample = BernoulliSample()
+        self.mean_layer = InputLayer((1, None))
+        self.distribution_model = Distribution(
+            self.distribution_sample,
+            self.mean_layer,
+            given=[self.mean_layer]
+        )
+
     @staticmethod
     def get_samples(mean, size):
         return np.ones(size).astype("float32") * mean
@@ -42,6 +58,68 @@ class TestDistribution(TestCase):
         t_sample = model.sample_given_x(t_mean)[-1]
         f = theano.function(inputs=t_mean, outputs=t_sample)
         return f([mean_sample])[0]
+
+    def test_get_params(self):
+        self.assertEqual(self.distribution_model.get_params(), [])
+
+        x = InputLayer((1, 5))
+        mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
+        distribution_model = Distribution(self.distribution_sample, mean_layer, given=[x])
+        self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b])
+
+    def test_fprop(self):
+        output = self.distribution_model.fprop(self.distribution_model.inputs)
+        self.assertEqual(output, self.mean_layer.input_var)
+        self.assertEqual(isinstance(output, theano.tensor.TensorVariable), True)
+
+    def test_get_input_shape(self):
+        self.assertEqual(self.distribution_model.get_input_shape(), [(1, None)])
+
+    def test_get_output_shape(self):
+        self.assertEqual(self.distribution_model.get_output_shape(), (1, None))
+
+    def test_sample_mean_given_x(self):
+        mean = self.distribution_model.sample_mean_given_x(self.distribution_model.inputs)
+        self.assertEqual(mean[1], self.mean_layer.input_var)
+
+    @staticmethod
+    def get_log_likelihood(seed, mean, size):
+        mean_vector = np.ones(size).astype("float32") * mean
+        sample = np.zeros(size).astype("float32")
+        bernoulli_sample = BernoulliSample(seed=seed, temp=0.01)
+
+        # Directly create theano variables instead of using InputLayer.input_var
+        t_mean = T.matrix("mean")
+        t_sample = T.matrix("sample")
+
+        t_log_likelihood = bernoulli_sample.log_likelihood(t_sample, t_mean)
+        f_log_likelihood = theano.function(inputs=[t_sample, t_mean], outputs=t_log_likelihood)
+        log_likelihood = f_log_likelihood([sample], [mean_vector])
+        return log_likelihood
+
+    def test_log_likelihood_given_x(self):
+        # log_likelihood_given_x and log_likelihood should be the same result
+        # when InputLayer is given as x
+        mean = 0.5
+        size = 5
+        mean_layer = InputLayer((1, None))
+
+        t_x = mean_layer.input_var
+        t_sample = T.matrix("sample")
+        x = np.ones(size).astype("float32") * mean
+        sample = np.zeros(size).astype("float32")
+
+        bernoulli_sample = BernoulliSample(seed=self.seed)
+        distribution_model = Distribution(bernoulli_sample, mean_layer, given=[mean_layer])
+        distribution_model.set_seed(self.seed)
+
+        t_log_likelihood_given_x = distribution_model.log_likelihood_given_x([[t_x], t_sample])
+        f_log_likelihood_given_x = theano.function(inputs=[mean_layer.input_var, t_sample], outputs=t_log_likelihood_given_x)
+        log_likelihood_given_x = f_log_likelihood_given_x([x], [sample])
+
+        log_likelihood = TestDistribution.get_log_likelihood(self.seed, mean, size)
+
+        self.assertEqual(log_likelihood_given_x, log_likelihood)
 
 
 class TestDistributionDouble(TestCase):
@@ -56,6 +134,34 @@ class TestDistributionDouble(TestCase):
         sample = model.sample_given_x([t_mean, t_var])[-1]
         f = theano.function(inputs=[t_mean, t_var], outputs=sample)
         return f([mean_sample], [var_sample])[0]
+
+    def setUp(self):
+        self.distribution_sample = GaussianSample()
+        self.mean_layer = InputLayer((1, None))
+        self.var_layer = InputLayer((1, None))
+        self.distribution_model = DistributionDouble(
+            self.distribution_sample,
+            self.mean_layer,
+            self.var_layer,
+            given=[self.mean_layer, self.var_layer]
+        )
+
+    def test_fprop(self):
+        output_mean, output_var = self.distribution_model.fprop(self.distribution_model.inputs)
+
+        self.assertEqual(output_mean, self.mean_layer.input_var)
+        self.assertEqual(output_var, self.var_layer.input_var)
+        self.assertEqual(isinstance(output_mean, theano.tensor.TensorVariable), True)
+        self.assertEqual(isinstance(output_var, theano.tensor.TensorVariable), True)
+
+    def test_get_params(self):
+        self.assertEqual(self.distribution_model.get_params(), [])
+
+        x = InputLayer((1, 5))
+        mean_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
+        var_layer = DenseLayer(x, num_units=5, nonlinearity=lasagne.nonlinearities.rectify)
+        distribution_model = DistributionDouble(self.distribution_sample, mean_layer, var_layer, given=[x])
+        self.assertEqual(distribution_model.get_params(), [mean_layer.W, mean_layer.b, var_layer.W, var_layer.b])
 
 
 class TestBernoulli(TestCase):
@@ -128,6 +234,13 @@ class TestCategorical(TestCase):
     def get_model(input_size, seed=1):
         mean_layer = InputLayer(input_size)
         return Categorical(mean_layer, given=[mean_layer], seed=seed)
+
+    def test_fprop(self):
+        t_x = [self.mean_layer.input_var]
+        t_output = self.model.fprop(t_x)
+        f_output = theano.function(inputs=[t_x[0]], outputs=t_output)
+        output = f_output([self.mean_sample])
+        self.assertEqual((output[0] == self.mean_sample).all(), True)
 
     def test_sample_given_x_consistency(self):
         # Ensure that returned values stay the same with a fixed seed.
