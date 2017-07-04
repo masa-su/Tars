@@ -59,6 +59,18 @@ class SS_HMVAE(VAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
+        # training (classification)
+        inputs = x_l + [y]
+        lower_bound_y, loss, params = self._discriminate(x_l, tolist(y), False)
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.classifier_train = theano.function(inputs=inputs,
+                                                outputs=T.mean(lower_bound_y),
+                                                updates=updates,
+                                                on_unused_input='ignore')
+
         # test
         inputs = x_u + x_l + [y, l, k]
         lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
@@ -104,6 +116,28 @@ class SS_HMVAE(VAE):
         lower_bound_all = np.mean(lower_bound_all, axis=0)
         return lower_bound_all
 
+    def train_classifier(self, train_set_l, nbatches=2000,
+                         get_batch_samples=None, verbose=False):
+
+        lower_bound_all = []
+
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
+
+        for i in range(nbatches):
+            # label
+            batch_set_l = get_batch_samples(train_set_l,
+                                            n_batch=self.n_batch)
+
+            lower_bound = self.classifier_train(*batch_set_l)
+            lower_bound_all.append(np.array(lower_bound))
+
+            if verbose:
+                pbar.update(i)
+
+        lower_bound_all = np.mean(lower_bound_all, axis=0)
+        return lower_bound_all
+
     def test(self, test_set_u, test_set_l, l=1, k=1,
              n_batch=None, verbose=True):
         if n_batch is None:
@@ -133,6 +167,30 @@ class SS_HMVAE(VAE):
             lower_bound.append(classifier)
 
             lower_bound_all.append(np.array(lower_bound))
+
+            if verbose:
+                pbar.update(i)
+
+        return lower_bound_all
+
+    def test_classifier(self, test_set_l, n_batch=None, verbose=True):
+        if n_batch is None:
+            n_batch = self.n_batch
+
+        n_x = test_set_l[0].shape[0]
+        nbatches = n_x // n_batch
+        lower_bound_all = []
+
+        if verbose:
+            pbar = ProgressBar(maxval=nbatches).start()
+        for i in range(nbatches):
+            # label
+            start = i * self.n_batch
+            end = start + self.n_batch
+            batch_x_l = [_x[start:end] for _x in test_set_l]
+
+            classifier = self.classifier_test(*batch_x_l)
+            lower_bound_all.append(np.array(classifier))
 
             if verbose:
                 pbar.update(i)
@@ -270,7 +328,7 @@ class SS_HMVAE(VAE):
             log_iw += self.prior.log_likelihood_given_x(prior_samples)
         else:
             log_iw += self.prior.log_likelihood(prior_samples)
-        log_iw += 1 / 2.  # Bernoulli prior distribution
+        #log_iw += 1 / 2.  # Bernoulli prior distribution
 
         return log_iw
 

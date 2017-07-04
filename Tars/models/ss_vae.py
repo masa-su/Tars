@@ -115,13 +115,27 @@ class SS_VAE(VAE):
         if verbose:
             pbar = ProgressBar(maxval=nbatches).start()
 
+        _n_batch_u = len(train_set_u[0]) / nbatches
+        _n_batch = len(train_set_l[0]) / nbatches
+
         for i in range(nbatches):
-            # unlabel
-            batch_set_u = get_batch_samples(train_set_u,
-                                            n_batch=self.n_batch_u)
-            # label
-            batch_set_l = get_batch_samples(train_set_l,
-                                            n_batch=self.n_batch)
+            if get_batch_samples:
+                # unlabel
+                batch_set_u = get_batch_samples(train_set_u,
+                                                n_batch=self.n_batch_u)
+                # label
+                batch_set_l = get_batch_samples(train_set_l,
+                                                n_batch=self.n_batch)
+            else:
+                # unlabel
+                start_u = i * _n_batch_u
+                end_u = start_u + _n_batch_u
+                batch_set_u = [_x[start_u:end_u] for _x in train_set_u]
+
+                # label
+                start = i * _n_batch
+                end = start + _n_batch
+                batch_set_l = [_x[start:end] for _x in train_set_l]
 
             _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
             lower_bound = self.lower_bound_train(*_x)
@@ -142,10 +156,18 @@ class SS_VAE(VAE):
         if verbose:
             pbar = ProgressBar(maxval=nbatches).start()
 
+        _n_batch = len(train_set_l[0]) / nbatches
+
         for i in range(nbatches):
-            # label
-            batch_set_l = get_batch_samples(train_set_l,
-                                            n_batch=self.n_batch)
+            if get_batch_samples:
+                # label
+                batch_set_l = get_batch_samples(train_set_l,
+                                                n_batch=self.n_batch)
+            else:
+                # label
+                start = i * _n_batch
+                end = start + _n_batch
+                batch_set_l = [_x[start:end] for _x in train_set_l]
 
             lower_bound = self.classifier_train(*batch_set_l)
             lower_bound_all.append(np.array(lower_bound))
