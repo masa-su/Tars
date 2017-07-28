@@ -49,8 +49,10 @@ class VAE(Model):
 
         # train
         self._set_train(l, k, annealing_beta)
+        print "finish to compile training functions"
         # test
         self._set_test(l, k)
+        print "finish to compile test functions"
 
     def _set_train(l, k, annealing_beta):
         # set inputs
