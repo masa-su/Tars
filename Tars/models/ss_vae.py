@@ -21,6 +21,7 @@ class SS_VAE(VAE):
                  seed=1234):
         self.f = f
         self.n_batch_u = n_batch_u
+        self.regularization_penalty = regularization_penalty
 
         super(SS_VAE,
               self).__init__(q, p, prior=prior,
@@ -32,43 +33,12 @@ class SS_VAE(VAE):
                              train_iw=True, test_iw=True,
                              iw_alpha=0, seed=seed)
 
-        self.regularization_penalty = regularization_penalty
 
+    def _set_train(self, l, k, *args):
         # inputs
         x_u = self.q.inputs[:-1]
         x_l = deepcopy(self.q.inputs[:-1])
         y = T.fmatrix("y")
-        l = T.iscalar("l")
-        k = T.iscalar("k")
-
-        # train
-        self._set_train(self.optimizer_params)
-
-        # test
-        inputs = x_u + x_l + [y, l, k]
-        lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True,
-                                                  tolist(y))
-
-        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
-
-        self.lower_bound_test = theano.function(inputs=inputs,
-                                                outputs=lower_bound,
-                                                on_unused_input='ignore')
-        # test (classification)
-        inputs = x_l + [y]
-        lower_bound_y, _, _ = self._discriminate(x_l, tolist(y), True)
-        self.classifier_test = theano.function(inputs=inputs,
-                                               outputs=T.mean(lower_bound_y),
-                                               on_unused_input='ignore')
-
-    def _set_train(self, optimizer_params):
-        # inputs
-        x_u = self.q.inputs[:-1]
-        x_l = deepcopy(self.q.inputs[:-1])
-        y = T.fmatrix("y")
-        l = T.iscalar("l")
-        k = T.iscalar("k")
 
         # training
         rate = T.fscalar("rate")
@@ -106,6 +76,30 @@ class SS_VAE(VAE):
                                                 outputs=T.mean(lower_bound_y),
                                                 updates=updates,
                                                 on_unused_input='ignore')
+
+    def _set_test(self, l, k):
+        # inputs
+        x_u = self.q.inputs[:-1]
+        x_l = deepcopy(self.q.inputs[:-1])
+        y = T.fmatrix("y")
+
+        # test
+        inputs = x_u + x_l + [y, l, k]
+        lower_bound_u, loss_u, _ = self._vr_bound(x_u, l, k, 0, True)
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, True,
+                                                  tolist(y))
+
+        lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l)]
+
+        self.lower_bound_test = theano.function(inputs=inputs,
+                                                outputs=lower_bound,
+                                                on_unused_input='ignore')
+        # test (classification)
+        inputs = x_l + [y]
+        lower_bound_y, _, _ = self._discriminate(x_l, tolist(y), True)
+        self.classifier_test = theano.function(inputs=inputs,
+                                               outputs=T.mean(lower_bound_y),
+                                               on_unused_input='ignore')
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
               nbatches=2000, get_batch_samples=None,

@@ -43,11 +43,18 @@ class VAE(Model):
         self.max_norm_constraint = max_norm_constraint
         self.iw_alpha = iw_alpha
 
-        # set inputs
-        x = self.q.inputs
         l = T.iscalar("l")
         k = T.iscalar("k")
         annealing_beta = T.fscalar("beta")
+
+        # train
+        self._set_train(l, k, annealing_beta)
+        # test
+        self._set_test(l, k)
+
+    def _set_train(l, k, annealing_beta):
+        # set inputs
+        x = self.q.inputs
 
         # training
         if self.train_iw:
@@ -66,6 +73,10 @@ class VAE(Model):
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
+
+    def _set_test(l, k):
+        # set inputs
+        x = self.q.inputs
 
         # test
         if self.test_iw:
