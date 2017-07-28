@@ -69,7 +69,7 @@ class SS_VAE(VAE):
         if self.regularization_penalty:
             loss += self.regularization_penalty
         updates = self._get_updates(loss, params, self.optimizer,
-                                    optimizer_params, self.clip_grad,
+                                    self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
         self.classifier_train = theano.function(inputs=inputs,
@@ -133,7 +133,6 @@ class SS_VAE(VAE):
 
             _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
             lower_bound = self.lower_bound_train(*_x)
-
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
