@@ -40,6 +40,7 @@ class SS_SDGM(SS_VAE):
         # training
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
+
         lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
         lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
                                                   tolist(y))
@@ -49,6 +50,7 @@ class SS_SDGM(SS_VAE):
                        T.mean(lower_bound_y)]
 
         loss = loss_u + loss_l + rate * loss_y
+
         if self.regularization_penalty:
             loss += self.regularization_penalty
         updates = self._get_updates(loss, params, self.optimizer,
@@ -137,8 +139,8 @@ class SS_SDGM(SS_VAE):
 
         # [[x],a] ~ q(a|x)
         a = self.q.sample_given_x(rep_x, deterministic=deterministic)
-        # z ~ q(z|a,x,y)
-        z = self.s_q.sample_given_x(a[-1:] + rep_x + rep_y,
+        # z ~ q(z|x,y,a)
+        z = self.s_q.sample_given_x(rep_x + rep_y + a[-1:],
                                     deterministic=deterministic)[-1:]
         # q_samples = [[x],a,z]
         q_samples = a + z
@@ -163,7 +165,7 @@ class SS_SDGM(SS_VAE):
 
         if supervised is False:
             params += self.f.get_params()
-
+       
         if self.prior_mode == "MultiPrior":
             params += self.prior.get_params()
 
@@ -203,7 +205,7 @@ class SS_SDGM(SS_VAE):
         # log q(z|x,y,a)
         # samples_y : [[x,y,a],z]
         samples_y = [samples[0] + y + tolist(samples[-2]), samples[-1]]
-        q_log_likelihood = self.q.log_likelihood_given_x(
+        q_log_likelihood += self.s_q.log_likelihood_given_x(
             samples_y, deterministic=deterministic)
 
         if supervised is False:
@@ -231,6 +233,7 @@ class SS_SDGM(SS_VAE):
             log_iw += self.prior.log_likelihood_given_x(prior_samples)
         else:
             log_iw += self.prior.log_likelihood(prior_samples)
+
         # log p(y)
 #        log_iw += 1. / np.float32(10)  # Categorical prior distribution
 
