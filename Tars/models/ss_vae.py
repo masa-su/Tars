@@ -342,7 +342,7 @@ class SS_VAE(VAE):
             log_iw += self.prior.log_likelihood_given_x(prior_samples)
         else:
             log_iw += self.prior.log_likelihood(prior_samples)
-        log_iw += 1. / np.float32(10)  # Categorical prior distribution
+#        log_iw += 1. / np.float32(10)  # Categorical prior distribution
 
         return log_iw
 
