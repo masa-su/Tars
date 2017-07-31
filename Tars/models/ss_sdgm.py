@@ -126,19 +126,21 @@ class SS_SDGM(SS_VAE):
             supervised = True
         rep_x = [T.extra_ops.repeat(_x, l * k, axis=0) for _x in x]
 
-        if supervised is False:
-            # a ~ q(a|x)
-            rep_a = self.q.sample_given_x(rep_x,
-                                          deterministic=deterministic)[-1:]
-            # y ~ q(y|x,a)
-            rep_y = self.f.sample_given_x(rep_x + rep_a,
-                                          deterministic=deterministic)[-1:]
-        else:
-            rep_y = [T.extra_ops.repeat(_y, l * k,
-                                        axis=0) for _y in y]
+        # ???
+        _ = self.q.sample_given_x(rep_x, deterministic=deterministic)
 
         # [[x],a] ~ q(a|x)
         a = self.q.sample_given_x(rep_x, deterministic=deterministic)
+
+        if supervised is False:
+            # y ~ q(y|x,a)
+            rep_y = self.f.sample_given_x(rep_x + a[-1:],
+                                          deterministic=deterministic)[-1:]
+        else:
+            # [[x],a] ~ q(a|x)
+            rep_y = [T.extra_ops.repeat(_y, l * k,
+                                        axis=0) for _y in y]
+
         # z ~ q(z|x,y,a)
         z = self.s_q.sample_given_x(rep_x + rep_y + a[-1:],
                                     deterministic=deterministic)[-1:]
@@ -209,12 +211,9 @@ class SS_SDGM(SS_VAE):
             samples_y, deterministic=deterministic)
 
         if supervised is False:
-            # a ~ q(a|x)
-            rep_a = self.q.sample_given_x(samples[0],
-                                          deterministic=deterministic)[-1:]
             # log q(y|x,a)
             # _samples : [[x,a],y]
-            _samples = [tolist(samples[0])+rep_a] + y
+            _samples = [tolist(samples[0]) + tolist(samples[-2])] + y
             q_log_likelihood += self.f.log_likelihood_given_x(
                 _samples, deterministic=deterministic)
 
