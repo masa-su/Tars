@@ -54,6 +54,13 @@ class VAE(Model):
         self._set_test(l, k)
         print "finish to compile test functions"
 
+    def update_params(self, optimizer_params):
+        l = T.iscalar("l")
+        k = T.iscalar("k")
+        annealing_beta = T.fscalar("beta")
+        self.optimizer_params = optimizer_params
+        self._set_train(l, k, annealing_beta)
+
     def _set_train(l, k, annealing_beta):
         # set inputs
         x = self.q.inputs
