@@ -270,8 +270,9 @@ class GaussianSample(DistributionSample):
     Gaussian distribution
     p(x) = \frac{1}{\sqrt{2*\pi*var}} * exp{-\frac{{x-mean}^2}{2*var}}
     """
-    def __init__(self, seed=1):
+    def __init__(self, seed=1, gcn=False):
         super(GaussianSample, self).__init__(seed=seed)
+        self.gcn = gcn
 
     def sample(self, mean, var):
         """
@@ -301,6 +302,12 @@ class GaussianSample(DistributionSample):
         return mean_sum_samples(loglike)
 
     def _gaussian_like(self, x, mean, var):
+        if self.gcn:
+            x_shape = range(x.ndim)
+            x_mean = T.mean(x, axis=x_shape[1:], keepdims=True)
+            x_std = T.std(x, axis=x_shape[1:], keepdims=True)
+            x = (x - x_mean)/x_std
+
         c = - 0.5 * math.log(2 * math.pi)
         _var = var + epsilon()  # avoid NaN
         return c - T.log(_var) / 2 - (x - mean)**2 / (2 * _var)
@@ -308,9 +315,10 @@ class GaussianSample(DistributionSample):
 
 class GaussianConstantVarSample(GaussianSample):
 
-    def __init__(self, constant_var=1, seed=1):
+    def __init__(self, constant_var=1, seed=1, gcn=False):
         self.constant_var = constant_var
-        super(GaussianConstantVarSample, self).__init__(seed=seed)
+        super(GaussianConstantVarSample, self).__init__(seed=seed,
+                                                        gcn=gcn)
 
     def sample(self, mean):
         return super(GaussianConstantVarSample,

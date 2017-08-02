@@ -248,16 +248,16 @@ class Categorical(Distribution):
 
 class Gaussian(DistributionDouble):
 
-    def __init__(self, mean_network, var_network, given, seed=1):
-        distribution = GaussianSample(seed=seed)
+    def __init__(self, mean_network, var_network, given, seed=1, gcn=False):
+        distribution = GaussianSample(seed=seed, gcn=gcn)
         super(Gaussian, self).__init__(
             distribution, mean_network, var_network, given, seed)
 
 
 class GaussianConstantVar(Distribution):
 
-    def __init__(self, mean_network, given, var=1, seed=1):
-        distribution = GaussianConstantVarSample(constant_var=var, seed=seed)
+    def __init__(self, mean_network, given, var=1, seed=1, gcn=False):
+        distribution = GaussianConstantVarSample(constant_var=var, seed=seed, gcn=gcn)
         super(GaussianConstantVar, self).__init__(distribution, mean_network, given, seed=seed)
 
 
