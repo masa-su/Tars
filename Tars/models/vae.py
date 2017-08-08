@@ -61,7 +61,7 @@ class VAE(Model):
         self.optimizer_params = optimizer_params
         self._set_train(l, k, annealing_beta)
 
-    def _set_train(l, k, annealing_beta):
+    def _set_train(self, l, k, annealing_beta):
         # set inputs
         x = self.q.inputs
 
@@ -83,7 +83,7 @@ class VAE(Model):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-    def _set_test(l, k):
+    def _set_test(self, l, k):
         # set inputs
         x = self.q.inputs
 
