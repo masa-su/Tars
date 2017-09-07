@@ -159,7 +159,8 @@ class JMVAE(VAE):
                                                                 deterministic=True)[-1]
                         
                         for j in index:
-                            _rep_x[j] = self.p[j].sample_given_x([samples])[-1]
+                            _rep_x[j] = self.p[j].sample_given_x([samples],
+                                                                 deterministic=True)[-1]
 
                 samples = self.q.sample_given_x(_rep_x, deterministic=True)
                 samples = self._select_input(samples, inputs=rep_x)
