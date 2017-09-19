@@ -46,7 +46,7 @@ class SS_HMVAE(SS_MVAE):
         lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l),
                        T.mean(lower_bound_y)]
 
-        loss = loss_u# + loss_l + rate * loss_y
+        loss = loss_u + loss_l + rate * loss_y
         updates = self._get_updates(loss, params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
