@@ -81,7 +81,7 @@ class AE(Model):
         return loss_all
 
     def _loss(self, x, deterministic=False):
-        z = self.q.sample_mean_given_x(x, deterministic=False)
+        z = self.q.sample_given_x(x, deterministic=False)
         inverse_z = self._inverse_samples(z)
         loss = -self.p.log_likelihood_given_x(inverse_z,
                                               deterministic=deterministic)
@@ -91,3 +91,31 @@ class AE(Model):
         params = q_params + p_params
 
         return loss, params
+
+    def _inverse_samples(self, samples, return_prior=False):
+        """
+        inputs : [[x,y],z1,z2,...zn]
+        outputs : p_samples, prior_samples
+           if mode is "Normal" : [[zn,y],zn-1,...x], zn
+           elif mode is "MultiPrior" : [z1, x], [[zn,y],zn-1,...z1]
+        """
+        inverse_samples = samples[::-1]
+        inverse_samples[0] = [inverse_samples[0]] + inverse_samples[-1][1:]
+        inverse_samples[-1] = inverse_samples[-1][0]
+
+        if self.prior_mode == "Normal":
+            p_samples = inverse_samples
+            prior_samples = samples[-1]
+
+        elif self.prior_mode == "MultiPrior":
+            p_samples = [tolist(inverse_samples[-2]), inverse_samples[-1]]
+            prior_samples = inverse_samples[:-1]
+
+        else:
+            raise Exception("You should set prior_mode to 'Normal' or"
+                            "'MultiPrior', got %s." % self.prior_mode)
+
+        if return_prior:
+            return p_samples, prior_samples
+        else:
+            return p_samples

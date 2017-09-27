@@ -13,9 +13,10 @@ class JMVAE(VAE):
 
     def __init__(self, q, p, prior=None,
                  n_batch=100, optimizer=lasagne.updates.adam,
-                 optimizer_params={},
+                 optimizer_params={}, annealing_beta=1,
                  clip_grad=None, max_norm_constraint=None,
                  train_iw=False, test_iw=True, seed=1234):
+        self.annealing_beta = annealing_beta
         super(JMVAE,
               self).__init__(q, p, prior=prior,
                              n_batch=n_batch,
@@ -26,12 +27,10 @@ class JMVAE(VAE):
                              train_iw=train_iw, test_iw=test_iw,
                              iw_alpha=0, seed=seed)
 
-    def _set_test(self, type_p="marginal", missing=False,
+    def _set_test(self, l, k, type_p="joint", missing=False,
                   index=[0], sampling_n=1, missing_resample=False):
         # set inputs
         x = self.q.inputs
-        l = T.iscalar("l")
-        k = T.iscalar("k")
 
         if type_p == "joint":
             if self.test_iw:
@@ -40,7 +39,7 @@ class JMVAE(VAE):
             else:
                 inputs = x + [l]
                 lower_bound, _, _ = self._elbo(x, l, 1, True)
-                lower_bound = T.sum(lower_bound, axis=1)
+                lower_bound = T.sum(lower_bound[:,1:], axis=1) # Need to fix later!
         else:
             inputs = x + [l, k]
             lower_bound = self._vr_bound_test(
@@ -54,7 +53,11 @@ class JMVAE(VAE):
              missing_resample=False, type_p="joint",
              missing=False, n_batch=None, verbose=True):
 
-        self._set_test(type_p, missing, index, sampling_n, missing_resample)
+        t_l = T.iscalar("l")
+        t_k = T.iscalar("k")
+        self._set_test(t_l, t_k, 
+                       type_p, missing, index, sampling_n, missing_resample)
+
         return super(JMVAE, self).test(test_set,
                                        l, k, n_batch, verbose)
 
@@ -77,7 +80,7 @@ class JMVAE(VAE):
 
         lower_bound = T.stack([-kl_divergence] + log_likelihood_all, axis=-1)
         loss = -T.mean(sum(log_likelihood_all) -
-                       annealing_beta * kl_divergence)
+                       self.annealing_beta * kl_divergence)
 
         q_params = self.q.get_params()
         params = q_params + p_params
