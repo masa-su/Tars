@@ -103,7 +103,7 @@ class SS_VAE(VAE):
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
               nbatches=2000, get_batch_samples=None,
-              discriminate_rate=1, verbose=False):
+              discriminate_rate=1, verbose=False, **kwargs):
         lower_bound_all = []
 
         if verbose:
@@ -142,7 +142,8 @@ class SS_VAE(VAE):
         return lower_bound_all
 
     def train_classifier(self, train_set_l, nbatches=2000,
-                         get_batch_samples=None, verbose=False):
+                         get_batch_samples=None, verbose=False,
+                         **kwargs):
 
         lower_bound_all = []
 
@@ -172,7 +173,7 @@ class SS_VAE(VAE):
         return lower_bound_all
 
     def test(self, test_set_u, test_set_l, l=1, k=1,
-             n_batch=None, verbose=True):
+             n_batch=None, verbose=True, **kwargs):
         if n_batch is None:
             n_batch = self.n_batch
 
@@ -206,7 +207,8 @@ class SS_VAE(VAE):
 
         return lower_bound_all
 
-    def test_classifier(self, test_set_l, n_batch=None, verbose=True):
+    def test_classifier(self, test_set_l, n_batch=None, verbose=True,
+                        **kwargs):
         if n_batch is None:
             n_batch = self.n_batch
 
@@ -255,7 +257,7 @@ class SS_VAE(VAE):
         if supervised is False:
             # y ~ q(y|x)
             rep_y = self.f.sample_given_x(rep_x,
-                                          deterministic=deterministic)[-1:]
+                                          deterministic=deterministic)[-1:]            
         else:
             rep_y = [T.extra_ops.repeat(_y, l * k,
                                         axis=0) for _y in y]

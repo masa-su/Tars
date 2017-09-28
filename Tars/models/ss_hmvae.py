@@ -35,10 +35,10 @@ class SS_HMVAE(SS_MVAE):
         x_l = deepcopy(self.q.inputs)
         y = T.fmatrix("y")
 
-        # training
+        # training---
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
-        lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
+        lower_bound_u, loss_u, [params, ss_params] = self._vr_bound(x_u, l, k, 0, False)
         lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
                                                   tolist(y))
         lower_bound_y, loss_y, _ = self._discriminate(x_l, tolist(y), False)
@@ -47,7 +47,7 @@ class SS_HMVAE(SS_MVAE):
                        T.mean(lower_bound_y)]
 
         loss = loss_u + loss_l + rate * loss_y
-        updates = self._get_updates(loss, params, self.optimizer,
+        updates = self._get_updates(loss, params+ss_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
@@ -56,10 +56,30 @@ class SS_HMVAE(SS_MVAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
+        # training (jmvae part)
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_jmvae_train = theano.function(inputs=inputs,
+                                                 outputs=lower_bound,
+                                                 updates=updates,
+                                                 on_unused_input='ignore')
+
+        # training (semi-supervised part)
+        updates = self._get_updates(loss, ss_params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_ss_train = theano.function(inputs=inputs,
+                                                 outputs=lower_bound,
+                                                 updates=updates,
+                                                 on_unused_input='ignore')
+
         # training (classification)
         inputs = x_l + [y]
-        lower_bound_y, loss, params = self._discriminate(x_l, tolist(y), False)
-        updates = self._get_updates(loss, params, self.optimizer,
+        lower_bound_y, loss, [params, ss_params] = self._discriminate(x_l, tolist(y), False)
+        updates = self._get_updates(loss, params+ss_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
@@ -67,6 +87,26 @@ class SS_HMVAE(SS_MVAE):
                                                 outputs=T.mean(lower_bound_y),
                                                 updates=updates,
                                                 on_unused_input='ignore')
+
+        # training (jmvae, classification)
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.classifier_jmvae_train = theano.function(inputs=inputs,
+                                                outputs=T.mean(lower_bound_y),
+                                                updates=updates,
+                                                on_unused_input='ignore')
+
+        # training (semi-supervised, classification)
+        updates = self._get_updates(loss, ss_params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.classifier_ss_train = theano.function(inputs=inputs,
+                                                   outputs=T.mean(lower_bound_y),
+                                                   updates=updates,
+                                                   on_unused_input='ignore')
 
     def _set_test(self, l, k):
         # inputs
@@ -103,9 +143,10 @@ class SS_HMVAE(SS_MVAE):
         log_likelihood = self.f.log_likelihood_given_x(
             _samples, deterministic=deterministic)
         loss = -T.mean(log_likelihood)
-        params = self.f.get_params() + self.q.get_params()
+        params = self.q.get_params()
+        ss_params = self.f.get_params()
 
-        return log_likelihood, loss, params
+        return log_likelihood, loss, [params, ss_params]
 
     def _vr_bound(self, x, l=1, k=1,
                   iw_alpha=0, deterministic=False, y=None):
@@ -152,17 +193,18 @@ class SS_HMVAE(SS_MVAE):
         for i, p in enumerate(self.p):
             p_params += p.get_params()
         q_params = self.q.get_params()
-        q_params += self.s_q.get_params()
+        ss_params = self.s_q.get_params()
         params = q_params + p_params
 
         if supervised is False:
-            params += self.f.get_params()
+            ss_params += self.f.get_params()
 
         if self.prior_mode == "MultiPrior":
-            params += self.prior.get_params()
+            ss_params += self.prior.get_params()
 
         params = sorted(set(params), key=params.index)
-        return log_likelihood, loss, params
+        ss_params = sorted(set(ss_params), key=ss_params.index)
+        return log_likelihood, loss, [params, ss_params]
 
     def _log_importance_weight(self, samples, y, supervised=True,
                                deterministic=True):
@@ -208,6 +250,10 @@ class SS_HMVAE(SS_MVAE):
         # log p(x0,...,xn|a,y)
         # p_samples : [[a,y],x0]
         _p_samples = tolist(samples[-2]) + y
+        
+        # p_samples : [[a],x0]        
+        #_p_samples = tolist(samples[-2])
+
         p_log_likelihood_all = []
         for i, p in enumerate(self.p):
             p_samples = [_p_samples, samples[0][i]]

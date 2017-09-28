@@ -94,7 +94,8 @@ class VAE(Model):
         else:
             inputs = x + [l]
             lower_bound, _, _ = self._elbo(x, l, 1, True)
-            lower_bound = T.sum(lower_bound, axis=1)
+#            lower_bound = T.sum(lower_bound, axis=1)
+            lower_bound = lower_bound[:,1] # fix later!
 
         self.lower_bound_test = theano.function(inputs=inputs,
                                                 outputs=lower_bound,
