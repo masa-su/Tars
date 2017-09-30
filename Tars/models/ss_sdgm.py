@@ -1,6 +1,6 @@
 from copy import copy, deepcopy
 
-xoimport theano
+import theano
 import theano.tensor as T
 import lasagne
 import numpy as np
