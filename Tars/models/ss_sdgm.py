@@ -1,6 +1,6 @@
 from copy import copy, deepcopy
 
-import theano
+xoimport theano
 import theano.tensor as T
 import lasagne
 import numpy as np
@@ -16,6 +16,7 @@ class SS_SDGM(SS_VAE):
                  n_batch=100, n_batch_u=100,
                  optimizer=lasagne.updates.adam,
                  optimizer_params={},
+                 sum_classes=False,
                  clip_grad=None, max_norm_constraint=None,
                  regularization_penalty=None,
                  seed=1234):
@@ -26,6 +27,7 @@ class SS_SDGM(SS_VAE):
                              n_batch=n_batch,
                              optimizer=optimizer,
                              optimizer_params=optimizer_params,
+                             sum_classes=sum_classes,
                              clip_grad=clip_grad,
                              max_norm_constraint=max_norm_constraint,
                              regularization_penalty=regularization_penalty,
