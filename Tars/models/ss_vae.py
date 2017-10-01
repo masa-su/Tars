@@ -12,16 +12,19 @@ from . import VAE
 
 class SS_VAE(VAE):
 
-    def __init__(self, q, p, f, prior=None,
+    def __init__(self, q, p, f, prior=None, c=None,
                  n_batch=100, n_batch_u=100,
                  optimizer=lasagne.updates.adam,
                  optimizer_params={},
+                 sum_classes=False,
                  clip_grad=None, max_norm_constraint=None,
                  regularization_penalty=None,
                  seed=1234):
         self.f = f
+        self.c = c
         self.n_batch_u = n_batch_u
         self.regularization_penalty = regularization_penalty
+        self.sum_classes=sum_classes
 
         super(SS_VAE,
               self).__init__(q, p, prior=prior,
@@ -44,7 +47,7 @@ class SS_VAE(VAE):
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
         lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False, # TODO:l=k=1
                                                   tolist(y))
         lower_bound_y, loss_y, _ = self._discriminate(x_l, tolist(y), False)
 
@@ -62,6 +65,25 @@ class SS_VAE(VAE):
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
+
+        # training (without lowerbound_u)
+        lower_bound_l, loss_l, params = self._vr_bound(x_l, l, k, 0, False, # TODO:l=k=1
+                                                       tolist(y))
+        lower_bound_y, loss_y, y_params = self._discriminate(x_l, tolist(y), False)
+        params += y_params
+        params = sorted(set(params), key=params.index)
+
+        loss = loss_l + rate * loss_y
+        if self.regularization_penalty:
+            loss += self.regularization_penalty
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_train_w_u = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
 
         # training (classification)
         inputs = x_l + [y]
@@ -103,7 +125,8 @@ class SS_VAE(VAE):
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
               nbatches=2000, get_batch_samples=None,
-              discriminate_rate=1, verbose=False, **kwargs):
+              discriminate_rate=1, train_w_u=False,
+              verbose=False, **kwargs):
         lower_bound_all = []
 
         if verbose:
@@ -130,9 +153,12 @@ class SS_VAE(VAE):
                 start = i * _n_batch
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
-
+                
             _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
-            lower_bound = self.lower_bound_train(*_x)
+            if train_w_u:
+                lower_bound = self.lower_bound_train_w_u(*_x)
+            else:
+                lower_bound = self.lower_bound_train(*_x)
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -257,7 +283,16 @@ class SS_VAE(VAE):
         if supervised is False:
             # y ~ q(y|x)
             rep_y = self.f.sample_given_x(rep_x,
-                                          deterministic=deterministic)[-1:]            
+                                          deterministic=deterministic)[-1:]
+            if self.sum_classes is True:
+                y_dim = rep_y[0].shape[1]
+                len_x = rep_x[0].shape[0]
+                
+                rep_x = [T.extra_ops.repeat(_x, y_dim, axis=0) for _x in rep_x]
+
+                # suppose len(rep_y)==1
+                _y = T.tile(T.eye(y_dim), len_x).T
+                rep_y = [_y]
         else:
             rep_y = [T.extra_ops.repeat(_y, l * k,
                                         axis=0) for _y in y]
@@ -272,6 +307,13 @@ class SS_VAE(VAE):
         log_iw = self._log_importance_weight(q_samples, rep_y,
                                              supervised=supervised,
                                              deterministic=deterministic)
+
+        if (self.sum_classes is True) and (supervised is False):
+            logp_y_x = self.c.log_likelihood_given_x([rep_x]+rep_y,
+                                                     deterministic=deterministic)
+            log_iw = log_iw * T.exp(logp_y_x)
+            log_iw_matrix = log_iw.reshape((x[0].shape[0] * l * k, y_dim))
+            log_iw = T.sum(log_iw_matrix, axis=1)
 
         log_iw_matrix = log_iw.reshape((x[0].shape[0] * l, k))
         log_likelihood = log_mean_exp(
@@ -329,8 +371,12 @@ class SS_VAE(VAE):
             # log q(y|x)
             # _samples : [[x],y]
             _samples = [tolist(samples[0])] + y
-            q_log_likelihood += self.f.log_likelihood_given_x(
-                _samples, deterministic=deterministic)
+            if self.sum_classes is True:
+                q_log_likelihood += self.c.log_likelihood_given_x(
+                    _samples, deterministic=deterministic)
+            else:
+                q_log_likelihood += self.f.log_likelihood_given_x(
+                    _samples, deterministic=deterministic)
 
         # log p(x|z,y)
         # samples : [[z,y],x]
