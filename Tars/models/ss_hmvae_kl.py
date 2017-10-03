@@ -42,7 +42,7 @@ class SS_HMVAE_KL(SS_HMVAE):
         # training
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
-        lower_bound_u, loss_u, [params, ss_params] =\
+        lower_bound_u, loss_u, [params, f_params] =\
             self._vr_bound(x_u, l, k, 0, False)
         lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
                                                   tolist(y))
@@ -50,10 +50,10 @@ class SS_HMVAE_KL(SS_HMVAE):
 
         loss_kl_l, kl_params = self._kl_term(x_l, False)
         loss_kl_u, _ = self._kl_term(x_u, False)
-        all_params = params + ss_params + kl_params
+        all_params = params + f_params + kl_params
 
         # whether delete conflicted params
-        params = sorted(set(params), key=params.index)
+        all_params = sorted(set(all_params), key=all_params.index)
 
         lower_bound = [T.mean(lower_bound_u), T.mean(lower_bound_l),
                        T.mean(lower_bound_y)]
@@ -68,27 +68,48 @@ class SS_HMVAE_KL(SS_HMVAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-        # training (jmvae part)
-        updates = self._get_updates(loss, params+kl_params, self.optimizer,
+        # training (lowerbound l)
+        inputs = x_l + [y, l, k, rate]
+        loss = loss_l + rate * loss_y + self.gamma * loss_kl_l
+        updates = self._get_updates(loss, all_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
-        self.lower_bound_jmvae_train = theano.function(inputs=inputs,
-                                                 outputs=lower_bound,
-                                                 updates=updates,
-                                                 on_unused_input='ignore')
+        lower_bound = [T.mean(lower_bound_l), T.mean(lower_bound_l),
+                       T.mean(lower_bound_y)]
+
+        self.lower_bound_train_L_l = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
+
+        """
+        # training (jmvae part)
+        loss = loss_u + loss_l + rate * loss_y# + self.gamma * (loss_kl_u + loss_kl_l)
+#        loss = loss_u + loss_l + self.gamma * (loss_kl_u + loss_kl_l)
+        updates = self._get_updates(loss, params+f_params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_train_w_f = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
 
 
         # training (semi-supervised part)
-        updates = self._get_updates(loss, ss_params, self.optimizer,
+        loss = rate * (loss_kl_u + loss_kl_l)
+#        loss = rate * loss_y
+        updates = self._get_updates(loss, kl_params,
+                                    self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
-        self.lower_bound_ss_train = theano.function(inputs=inputs,
-                                                 outputs=lower_bound,
-                                                 updates=updates,
-                                                 on_unused_input='ignore')
-
+        self.lower_bound_train_o_f = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
+        
         # training (classification)
         inputs = x_l + [y]
         lower_bound_y, loss, [params, ss_params] =\
@@ -109,7 +130,7 @@ class SS_HMVAE_KL(SS_HMVAE):
                                                 outputs=T.mean(lower_bound_y),
                                                 updates=updates,
                                                 on_unused_input='ignore')
-
+        """
     def _kl_term(self, x, deterministic=False):
         kl_all = []
         pseudo_q_params = []

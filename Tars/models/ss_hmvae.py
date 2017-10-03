@@ -41,8 +41,8 @@ class SS_HMVAE(SS_MVAE):
         # training---
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
-        lower_bound_u, loss_u, [params, ss_params] = self._vr_bound(x_u, l, k, 0, False)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, 1, 1, 0, False, # TODO:l=k=1
+        lower_bound_u, loss_u, [params, f_params] = self._vr_bound(x_u, l, k, 0, False)
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False, # TODO:l=k=1
                                                   tolist(y))
         lower_bound_y, loss_y, _ = self._discriminate(x_l, tolist(y), False)
 
@@ -50,7 +50,7 @@ class SS_HMVAE(SS_MVAE):
                        T.mean(lower_bound_y)]
 
         loss = loss_u + loss_l + rate * loss_y
-        updates = self._get_updates(loss, params+ss_params, self.optimizer,
+        updates = self._get_updates(loss, params+f_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
@@ -59,25 +59,44 @@ class SS_HMVAE(SS_MVAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-        # training (jmvae part)
-        updates = self._get_updates(loss, params, self.optimizer,
+        # training (lowerbound l)
+        inputs = x_l + [y, l, k, rate]
+        loss = loss_l + rate * loss_y
+        updates = self._get_updates(loss, params+f_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
-        self.lower_bound_jmvae_train = theano.function(inputs=inputs,
-                                                 outputs=lower_bound,
-                                                 updates=updates,
-                                                 on_unused_input='ignore')
+        lower_bound = [T.mean(lower_bound_l), T.mean(lower_bound_l),
+                       T.mean(lower_bound_y)]
 
-        # training (semi-supervised part)
-        updates = self._get_updates(loss, ss_params, self.optimizer,
+        self.lower_bound_train_L_l = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
+
+
+        """
+        # training (without loss_y)
+        loss = loss_u + loss_l
+        updates = self._get_updates(loss, params+f_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
-        self.lower_bound_ss_train = theano.function(inputs=inputs,
-                                                 outputs=lower_bound,
-                                                 updates=updates,
-                                                 on_unused_input='ignore')
+        self.lower_bound_train_w_f = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
+
+        # training (only loss_y)
+        loss = rate * loss_y
+        updates = self._get_updates(loss, f_params+self.q.get_params(), self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_train_o_f = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
 
         # training (classification)
         inputs = x_l + [y]
@@ -90,6 +109,8 @@ class SS_HMVAE(SS_MVAE):
                                                 outputs=T.mean(lower_bound_y),
                                                 updates=updates,
                                                 on_unused_input='ignore')
+
+
 
         # training (jmvae, classification)
         updates = self._get_updates(loss, params, self.optimizer,
@@ -110,7 +131,7 @@ class SS_HMVAE(SS_MVAE):
                                                    outputs=T.mean(lower_bound_y),
                                                    updates=updates,
                                                    on_unused_input='ignore')
-
+        """
     def _set_test(self, l, k):
         # inputs
         x_u = self.q.inputs
@@ -137,38 +158,45 @@ class SS_HMVAE(SS_MVAE):
                                                on_unused_input='ignore')
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
-              nbatches=2000, get_batch_samples=None, train_ss=True,
+              nbatches=2000, get_batch_samples=None,
               discriminate_rate=1, verbose=False, **kwargs):
         lower_bound_all = []
         if verbose:
             pbar = ProgressBar(maxval=nbatches).start()
 
-        _n_batch_u = len(train_set_u[0]) / nbatches
+        if len(train_set_u)!=0:
+            _n_batch_u = len(train_set_u[0]) / nbatches
         _n_batch = len(train_set_l[0]) / nbatches
 
         for i in range(nbatches):
             if get_batch_samples:
-                # unlabel
-                batch_set_u = get_batch_samples(train_set_u,
-                                                n_batch=self.n_batch_u)
+                if len(train_set_u)!=0:
+                    # unlabel
+                    batch_set_u = get_batch_samples(train_set_u,
+                                                    n_batch=self.n_batch_u)
                 # label
                 batch_set_l = get_batch_samples(train_set_l,
                                                 n_batch=self.n_batch)
             else:
-                # unlabel
-                start_u = i * _n_batch_u
-                end_u = start_u + _n_batch_u
-                batch_set_u = [_x[start_u:end_u] for _x in train_set_u]
+                if len(train_set_u)!=0:
+                    # unlabel
+                    start_u = i * _n_batch_u
+                    end_u = start_u + _n_batch_u
+                    batch_set_u = [_x[start_u:end_u] for _x in train_set_u]
 
                 # label
                 start = i * _n_batch
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
                 
-            _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
-            if train_ss:
-                lower_bound = self.lower_bound_ss_train(*_x)
-            lower_bound = self.lower_bound_jmvae_train(*_x)
+            if len(train_set_u)!=0:
+                _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
+                lower_bound = self.lower_bound_train(*_x)
+
+            else:
+                _x = batch_set_l + [l, k, discriminate_rate]
+                lower_bound = self.lower_bound_train_L_l(*_x)
+
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -199,7 +227,8 @@ class SS_HMVAE(SS_MVAE):
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
 
-            lower_bound = self.classifier_train(*batch_set_l)
+            lower_bound = self.lower_bound_train_L_l(*batch_set_l)
+#            lower_bound = self.classifier_train(*batch_set_l)
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -268,18 +297,17 @@ class SS_HMVAE(SS_MVAE):
         for i, p in enumerate(self.p):
             p_params += p.get_params()
         q_params = self.q.get_params()
-        ss_params = self.s_q.get_params()
-        params = q_params + p_params
+        params = q_params + p_params + self.s_q.get_params()
 
+        f_params = None
         if supervised is False:
-            ss_params += self.f.get_params()
+            f_params = self.f.get_params()
 
         if self.prior_mode == "MultiPrior":
-            ss_params += self.prior.get_params()
+            params += self.prior.get_params()
 
         params = sorted(set(params), key=params.index)
-        ss_params = sorted(set(ss_params), key=ss_params.index)
-        return log_likelihood, loss, [params, ss_params]
+        return log_likelihood, loss, [params, f_params]
 
     def _log_importance_weight(self, samples, y, supervised=True,
                                deterministic=True):
