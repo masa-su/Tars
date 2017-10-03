@@ -97,7 +97,7 @@ class SS_HMVAE(SS_MVAE):
                                                      outputs=lower_bound,
                                                      updates=updates,
                                                      on_unused_input='ignore')
-
+        """
         # training (classification)
         inputs = x_l + [y]
         lower_bound_y, loss, [params, ss_params] = self._discriminate(x_l, tolist(y), False)
@@ -111,7 +111,7 @@ class SS_HMVAE(SS_MVAE):
                                                 on_unused_input='ignore')
 
 
-
+        """
         # training (jmvae, classification)
         updates = self._get_updates(loss, params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
@@ -227,8 +227,7 @@ class SS_HMVAE(SS_MVAE):
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
 
-            lower_bound = self.lower_bound_train_L_l(*batch_set_l)
-#            lower_bound = self.classifier_train(*batch_set_l)
+            lower_bound = self.classifier_train(*batch_set_l)
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
