@@ -58,7 +58,7 @@ class SS_HMVAE(SS_MVAE):
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
-
+        """
         # training (lowerbound l)
         inputs = x_l + [y, l, k, rate]
         loss = loss_l + rate * loss_y
@@ -73,7 +73,6 @@ class SS_HMVAE(SS_MVAE):
                                                      outputs=lower_bound,
                                                      updates=updates,
                                                      on_unused_input='ignore')
-
 
         """
         # training (without loss_y)
@@ -90,6 +89,7 @@ class SS_HMVAE(SS_MVAE):
         # training (only loss_y)
         loss = rate * loss_y
         updates = self._get_updates(loss, f_params+self.q.get_params(), self.optimizer,
+#        updates = self._get_updates(loss, f_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
@@ -97,7 +97,7 @@ class SS_HMVAE(SS_MVAE):
                                                      outputs=lower_bound,
                                                      updates=updates,
                                                      on_unused_input='ignore')
-        """
+
         # training (classification)
         inputs = x_l + [y]
         lower_bound_y, loss, [params, ss_params] = self._discriminate(x_l, tolist(y), False)
@@ -158,7 +158,7 @@ class SS_HMVAE(SS_MVAE):
                                                on_unused_input='ignore')
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
-              nbatches=2000, get_batch_samples=None,
+              nbatches=2000, get_batch_samples=None, classifier=True,
               discriminate_rate=1, verbose=False, **kwargs):
         lower_bound_all = []
         if verbose:
@@ -191,8 +191,12 @@ class SS_HMVAE(SS_MVAE):
                 
             if len(train_set_u)!=0:
                 _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
-                lower_bound = self.lower_bound_train(*_x)
 
+                lower_bound = self.lower_bound_train(*_x)
+#                lower_bound = self.lower_bound_train_w_f(*_x)
+#                if classifier:
+#                    lower_bound = self.lower_bound_train_o_f(*_x)
+                
             else:
                 _x = batch_set_l + [l, k, discriminate_rate]
                 lower_bound = self.lower_bound_train_L_l(*_x)

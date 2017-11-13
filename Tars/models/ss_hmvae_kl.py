@@ -67,7 +67,7 @@ class SS_HMVAE_KL(SS_HMVAE):
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
-
+        """
         # training (lowerbound l)
         inputs = x_l + [y, l, k, rate]
         loss = loss_l + rate * loss_y + self.gamma * loss_kl_l
@@ -83,7 +83,7 @@ class SS_HMVAE_KL(SS_HMVAE):
                                                      updates=updates,
                                                      on_unused_input='ignore')
 
-        """
+
         # training (jmvae part)
         loss = loss_u + loss_l + rate * loss_y# + self.gamma * (loss_kl_u + loss_kl_l)
 #        loss = loss_u + loss_l + self.gamma * (loss_kl_u + loss_kl_l)
@@ -109,18 +109,18 @@ class SS_HMVAE_KL(SS_HMVAE):
                                                      outputs=lower_bound,
                                                      updates=updates,
                                                      on_unused_input='ignore')
-        
+        """
         # training (classification)
         inputs = x_l + [y]
         lower_bound_y, loss, [params, ss_params] =\
             self._discriminate(x_l, tolist(y), False)
         loss_kl_l, kl_params = self._kl_term(x_l, False)
         
-        loss = self.gamma * loss_kl_l + loss
-        params = params + kl_params
+        loss =  loss + self.gamma * loss_kl_l
+#        params = params + kl_params
 
         # whether delete conflicted params
-        params = sorted(set(params), key=params.index)
+#        params = sorted(set(params), key=params.index)
 
         updates = self._get_updates(loss, params+ss_params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
@@ -130,7 +130,20 @@ class SS_HMVAE_KL(SS_HMVAE):
                                                 outputs=T.mean(lower_bound_y),
                                                 updates=updates,
                                                 on_unused_input='ignore')
-        """
+
+        # training (classification, KL)
+        loss = self.gamma * loss_kl_l
+
+        updates = self._get_updates(loss, kl_params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.classifier_train_kl = theano.function(inputs=inputs,
+                                                   outputs=T.mean(lower_bound_y),
+                                                   updates=updates,
+                                                   on_unused_input='ignore')
+
+
     def _kl_term(self, x, deterministic=False):
         kl_all = []
         pseudo_q_params = []
@@ -140,60 +153,19 @@ class SS_HMVAE_KL(SS_HMVAE):
             else:
                 q = self.q
             kl_all.append(analytical_kl(q, _pseudo_q, given=[x, [x[i]]],
-                                        deterministic=deterministic).mean())
-#                                        deterministic=deterministic))
+#                                        deterministic=deterministic).mean())
+                                        deterministic=deterministic))
             pseudo_q_params += _pseudo_q.get_params()
 
-#        loss = T.mean(kl_all)
-        loss = sum(kl_all)
+        loss = T.mean(kl_all)
+#        loss = sum(kl_all)
         params = pseudo_q_params
 
         return loss, params
-    """
-    def train(self, train_set_u, train_set_l, l=1, k=1,
-              nbatches=2000, get_batch_samples=None, gamma=1,
-              discriminate_rate=1, verbose=False, **kwargs):
-        lower_bound_all = []
 
-        if verbose:
-            pbar = ProgressBar(maxval=nbatches).start()
-
-        _n_batch_u = len(train_set_u[0]) / nbatches
-        _n_batch = len(train_set_l[0]) / nbatches
-
-        for i in range(nbatches):
-            if get_batch_samples:
-                # unlabel
-                batch_set_u = get_batch_samples(train_set_u,
-                                                n_batch=self.n_batch_u)
-                # label
-                batch_set_l = get_batch_samples(train_set_l,
-                                                n_batch=self.n_batch)
-            else:
-                # unlabel
-                start_u = i * _n_batch_u
-                end_u = start_u + _n_batch_u
-                batch_set_u = [_x[start_u:end_u] for _x in train_set_u]
-
-                # label
-                start = i * _n_batch
-                end = start + _n_batch
-                batch_set_l = [_x[start:end] for _x in train_set_l]
-                
-            _x = batch_set_u + batch_set_l + [l, k, discriminate_rate, gamma]
-            lower_bound = self.lower_bound_ss_train(*_x)
-            lower_bound = self.lower_bound_jmvae_train(*_x)
-            lower_bound_all.append(np.array(lower_bound))
-
-            if verbose:
-                pbar.update(i)
-
-        lower_bound_all = np.mean(lower_bound_all, axis=0)
-        return lower_bound_all
 
     def train_classifier(self, train_set_l, nbatches=2000,
                          get_batch_samples=None, verbose=False,
-                         gamma=1,
                          **kwargs):
 
         lower_bound_all = []
@@ -213,8 +185,9 @@ class SS_HMVAE_KL(SS_HMVAE):
                 start = i * _n_batch
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
-            batch_set_l = batch_set_l + [gamma]
+
             lower_bound = self.classifier_train(*batch_set_l)
+            lower_bound = self.classifier_train_kl(*batch_set_l)
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:
@@ -222,4 +195,3 @@ class SS_HMVAE_KL(SS_HMVAE):
 
         lower_bound_all = np.mean(lower_bound_all, axis=0)
         return lower_bound_all
-    """

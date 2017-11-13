@@ -47,7 +47,7 @@ class SS_VAE(VAE):
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
         lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
-        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False, # TODO:l=k=1
+        lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
                                                   tolist(y))
         lower_bound_y, loss_y, _ = self._discriminate(x_l, tolist(y), False)
 
@@ -66,24 +66,56 @@ class SS_VAE(VAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-        # training (without lowerbound_u)
-        lower_bound_l, loss_l, params = self._vr_bound(x_l, l, k, 0, False, # TODO:l=k=1
-                                                       tolist(y))
-        lower_bound_y, loss_y, y_params = self._discriminate(x_l, tolist(y), False)
-        params += y_params
-        params = sorted(set(params), key=params.index)
+        """
+        # training (f params)
+        params = self.f.get_params()
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
 
-        loss = loss_l + rate * loss_y
+        self.lower_bound_train_f = theano.function(inputs=inputs,
+                                                   outputs=lower_bound,
+                                                   updates=updates,
+                                                   on_unused_input='ignore')
+
+        # training (without f params)
+        _, _, params = self._vr_bound(x_l, l, k, 0, False,
+                                      tolist(y))
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_train_w_f = theano.function(inputs=inputs,
+                                                     outputs=lower_bound,
+                                                     updates=updates,
+                                                     on_unused_input='ignore')
+        """
+        # training (non classifier)
+        loss = loss_u + loss_l
         if self.regularization_penalty:
             loss += self.regularization_penalty
         updates = self._get_updates(loss, params, self.optimizer,
                                     self.optimizer_params, self.clip_grad,
                                     self.max_norm_constraint)
 
-        self.lower_bound_train_w_u = theano.function(inputs=inputs,
-                                                     outputs=lower_bound,
-                                                     updates=updates,
-                                                     on_unused_input='ignore')
+        self.lower_bound_non_classifier = theano.function(inputs=inputs,
+                                                          outputs=lower_bound,
+                                                          updates=updates,
+                                                          on_unused_input='ignore')
+
+        # training (lower bound classification)
+        _, loss, params = self._discriminate(x_l, tolist(y), False)
+        loss = rate * loss
+        if self.regularization_penalty:
+            loss += self.regularization_penalty
+        updates = self._get_updates(loss, params, self.optimizer,
+                                    self.optimizer_params, self.clip_grad,
+                                    self.max_norm_constraint)
+
+        self.lower_bound_classifier = theano.function(inputs=inputs,
+                                                      outputs=lower_bound,
+                                                      updates=updates,
+                                                      on_unused_input='ignore')
 
         # training (classification)
         inputs = x_l + [y]
@@ -125,7 +157,7 @@ class SS_VAE(VAE):
 
     def train(self, train_set_u, train_set_l, l=1, k=1,
               nbatches=2000, get_batch_samples=None,
-              discriminate_rate=1, train_w_u=False,
+              discriminate_rate=1, non_classifier=False,
               verbose=False, **kwargs):
         lower_bound_all = []
 
@@ -153,12 +185,17 @@ class SS_VAE(VAE):
                 start = i * _n_batch
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
-                
+            """
             _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
-            if train_w_u:
-                lower_bound = self.lower_bound_train_w_u(*_x)
+            lower_bound = self.lower_bound_train_f(*_x)
+            lower_bound = self.lower_bound_train_w_f(*_x)
+            """
+            _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
+            if non_classifier:
+                lower_bound = self.lower_bound_non_classifier(*_x)
             else:
                 lower_bound = self.lower_bound_train(*_x)
+
             lower_bound_all.append(np.array(lower_bound))
 
             if verbose:

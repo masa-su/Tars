@@ -11,17 +11,19 @@ class SS_MVAE(SS_VAE):
                  n_batch=100, n_batch_u=100,
                  optimizer=lasagne.updates.adam,
                  optimizer_params={},
+                 sum_classes=False,
                  clip_grad=None, max_norm_constraint=None,
                  regularization_penalty=None,
                  seed=1234):
 
         super(SS_MVAE,
-              self).__init__(q, p, f, prior,
-                             n_batch, n_batch_u,
-                             optimizer, optimizer_params,
-                             clip_grad, max_norm_constraint,
-                             regularization_penalty,
-                             seed)
+              self).__init__(q, p, f, prior=prior,
+                             n_batch=n_batch, n_batch_u=n_batch_u,
+                             optimizer=optimizer, optimizer_params=optimizer_params,
+                             sum_classes=sum_classes,
+                             clip_grad=clip_grad, max_norm_constraint=max_norm_constraint,
+                             regularization_penalty=regularization_penalty,
+                             seed=seed)
 
     def _vr_bound(self, x, l=1, k=1,
                   iw_alpha=0, deterministic=False, y=None):
