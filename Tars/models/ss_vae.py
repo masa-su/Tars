@@ -301,7 +301,7 @@ class SS_VAE(VAE):
         _samples = [x] + y
         log_likelihood = self.f.log_likelihood_given_x(
             _samples, deterministic=deterministic)
-        loss = -T.mean(log_likelihood)
+        loss = -T.sum(log_likelihood) # mean or sum
         params = self.f.get_params()
 
         return log_likelihood, loss, params
@@ -358,7 +358,7 @@ class SS_VAE(VAE):
 
         log_likelihood = log_likelihood.reshape((x[0].shape[0], l))
         log_likelihood = T.mean(log_likelihood, axis=1)
-        loss = -T.mean(log_likelihood)
+        loss = -T.sum(log_likelihood) # mean or sum
 
         p_params = []
         p_params = self.p.get_params()
