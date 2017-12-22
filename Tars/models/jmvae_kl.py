@@ -30,7 +30,7 @@ class JMVAE_KL(JMVAE):
     def _elbo(self, x, l, annealing_beta, deterministic=False):
         lower_bound, loss, params = \
             super(JMVAE_KL, self)._elbo(x, l, annealing_beta,
-                                        deterministic=False)
+                                        deterministic=deterministic)
 
         # ---penalty
         kl_all = []
@@ -41,7 +41,7 @@ class JMVAE_KL(JMVAE):
             else:
                 q = self.q
             kl_all.append(analytical_kl(q, _pseudo_q, given=[x, [x[i]]],
-                                        deterministic=False))
+                                        deterministic=deterministic))
             pseudo_q_params += _pseudo_q.get_params()
 
         kl_all = T.stack(kl_all, axis=-1)

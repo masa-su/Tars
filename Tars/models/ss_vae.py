@@ -66,30 +66,7 @@ class SS_VAE(VAE):
                                                  updates=updates,
                                                  on_unused_input='ignore')
 
-        """
-        # training (f params)
-        params = self.f.get_params()
-        updates = self._get_updates(loss, params, self.optimizer,
-                                    self.optimizer_params, self.clip_grad,
-                                    self.max_norm_constraint)
 
-        self.lower_bound_train_f = theano.function(inputs=inputs,
-                                                   outputs=lower_bound,
-                                                   updates=updates,
-                                                   on_unused_input='ignore')
-
-        # training (without f params)
-        _, _, params = self._vr_bound(x_l, l, k, 0, False,
-                                      tolist(y))
-        updates = self._get_updates(loss, params, self.optimizer,
-                                    self.optimizer_params, self.clip_grad,
-                                    self.max_norm_constraint)
-
-        self.lower_bound_train_w_f = theano.function(inputs=inputs,
-                                                     outputs=lower_bound,
-                                                     updates=updates,
-                                                     on_unused_input='ignore')
-        """
         # training (non classifier)
         loss = loss_u + loss_l
         if self.regularization_penalty:
@@ -185,11 +162,7 @@ class SS_VAE(VAE):
                 start = i * _n_batch
                 end = start + _n_batch
                 batch_set_l = [_x[start:end] for _x in train_set_l]
-            """
-            _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
-            lower_bound = self.lower_bound_train_f(*_x)
-            lower_bound = self.lower_bound_train_w_f(*_x)
-            """
+
             _x = batch_set_u + batch_set_l + [l, k, discriminate_rate]
             if non_classifier:
                 lower_bound = self.lower_bound_non_classifier(*_x)
