@@ -21,7 +21,10 @@ class SS_VAE(VAE):
                  regularization_penalty=None,
                  seed=1234):
         self.f = f
-        self.c = c
+        if c:
+            self.c = c
+        else:
+            self.c = f
         self.n_batch_u = n_batch_u
         self.regularization_penalty = regularization_penalty
         self.sum_classes=sum_classes
@@ -46,6 +49,7 @@ class SS_VAE(VAE):
         # training
         rate = T.fscalar("rate")
         inputs = x_u + x_l + [y, l, k, rate]
+
         lower_bound_u, loss_u, params = self._vr_bound(x_u, l, k, 0, False)
         lower_bound_l, loss_l, _ = self._vr_bound(x_l, l, k, 0, False,
                                                   tolist(y))
@@ -65,7 +69,7 @@ class SS_VAE(VAE):
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
-
+        """
 
         # training (non classifier)
         loss = loss_u + loss_l
@@ -93,7 +97,7 @@ class SS_VAE(VAE):
                                                       outputs=lower_bound,
                                                       updates=updates,
                                                       on_unused_input='ignore')
-
+        """
         # training (classification)
         inputs = x_l + [y]
         lower_bound_y, loss, params = self._discriminate(x_l, tolist(y), False)
@@ -137,7 +141,6 @@ class SS_VAE(VAE):
               discriminate_rate=1, non_classifier=False,
               verbose=False, **kwargs):
         lower_bound_all = []
-
         if verbose:
             pbar = ProgressBar(maxval=nbatches).start()
 
@@ -275,7 +278,8 @@ class SS_VAE(VAE):
         log_likelihood = self.f.log_likelihood_given_x(
             _samples, deterministic=deterministic)
         loss = -T.sum(log_likelihood) # mean or sum
-        params = self.f.get_params()
+        params = self.f.get_params()#[-4:]
+#        print params
 
         return log_likelihood, loss, params
 

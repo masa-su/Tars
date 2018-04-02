@@ -58,7 +58,7 @@ class SS_HMVAE(SS_MVAE):
                                                  outputs=lower_bound,
                                                  updates=updates,
                                                  on_unused_input='ignore')
-        """
+
         # training (lowerbound l)
         inputs = x_l + [y, l, k, rate]
         loss = loss_l + rate * loss_y
@@ -97,7 +97,7 @@ class SS_HMVAE(SS_MVAE):
                                                      outputs=lower_bound,
                                                      updates=updates,
                                                      on_unused_input='ignore')
-
+        """
         # training (classification)
         inputs = x_l + [y]
         lower_bound_y, loss, [params, ss_params] = self._discriminate(x_l, tolist(y), False)
