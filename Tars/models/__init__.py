@@ -1,4 +1,5 @@
 from .ae import AE
+from .ml import ML
 
 from .vae import VAE
 from .gan import GAN
@@ -10,6 +11,7 @@ from .cmma import CMMA
 from .cvae import CVAE
 
 __all__ = [
+    'ML',
     'AE',
     'VAE',
     'GAN',
