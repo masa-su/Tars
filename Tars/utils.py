@@ -25,15 +25,15 @@ def load_weights(network, name):
 
 
 def log_sum_exp(x, axis=0, keepdims=False):
-    x_max = T.max(x, axis=axis, keepdims=keepdims)
-    _x_max = T.max(x, axis=axis)
-    return T.log(T.sum(T.exp(x - x_max), axis=axis)) + _x_max
+    x_max = T.max(x, axis=axis, keepdims=True)
+    _x_max = T.max(x, axis=axis, keepdims=keepdims)
+    return T.log(T.sum(T.exp(x - x_max), axis=axis, keepdims=keepdims)) + _x_max
 
 
 def log_mean_exp(x, axis=0, keepdims=False):
-    x_max = T.max(x, axis=axis, keepdims=keepdims)
-    _x_max = T.max(x, axis=axis)
-    return T.log(T.mean(T.exp(x - x_max), axis=axis)) + _x_max
+    x_max = T.max(x, axis=axis, keepdims=True)
+    _x_max = T.max(x, axis=axis, keepdims=keepdims)
+    return T.log(T.mean(T.exp(x - x_max), axis=axis, keepdims=keepdims)) + _x_max
 
 
 def tolist(x):
