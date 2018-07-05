@@ -4,6 +4,8 @@
 [![Python Version](https://img.shields.io/badge/python-2.7-blue.svg)](https://github.com/masa-su/Tars)
 [![Documentation Status](https://readthedocs.org/projects/tars-generative-models/badge/?version=latest)](http://tars-generative-models.readthedocs.io/en/latest/?badge=latest)
 
+[New] We are developing a **PyTorch version of Tars** made with more sophisticated API. It will be released soon. 
+
 Tars is a deep generative models library. It has the following features:
 * Various distributions
   * Gaussian, Bernoulli, Laplace, Gamma, Beta, Dirichlet, Bernoulli, Categorical, and so on.
